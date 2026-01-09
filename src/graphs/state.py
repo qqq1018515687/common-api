@@ -86,3 +86,13 @@ class FormatResponseInput(BaseModel):
 class FormatResponseOutput(BaseModel):
     """统一返回节点的输出"""
     response_data: dict = Field(..., description="统一响应数据：{code, msg, data}")
+
+
+class RouterOutput(BaseModel):
+    """路由节点的输出"""
+    call_type: str = Field(..., description="调用类型")
+
+
+class RouterInput(BaseModel):
+    """路由节点的输入"""
+    call_type: str = Field(..., description="调用类型")

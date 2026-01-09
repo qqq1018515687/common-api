@@ -6,14 +6,27 @@ from graphs.state import (
     UploadInput, UploadOutput,
     SaveInput, SaveOutput,
     HistoryInput, HistoryOutput,
-    FormatResponseInput, FormatResponseOutput
+    FormatResponseInput, FormatResponseOutput,
+    GlobalState,
+    RouterInput,
+    RouterOutput
 )
 import os
 import requests
 from urllib.parse import urlparse
 import io
+import base64
+import re
 
 from storage.database.db import get_session
+
+
+def router_node(state: RouterInput, config: RunnableConfig, runtime: Runtime[Context]) -> RouterOutput:
+    """
+    title: 路由节点
+    desc: 用于条件分支的虚拟节点，传递 call_type
+    """
+    return RouterOutput(call_type=state.call_type)
 from storage.database.user_manager import UserManager, UserCreate, UserLogin
 from storage.database.history_manager import HistoryManager, HistoryCreate
 from storage.s3.s3_storage import S3SyncStorage
@@ -73,7 +86,7 @@ def register_login_node(state: RegisterLoginInput, config: RunnableConfig, runti
 def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Context]) -> UploadOutput:
     """
     title: 文件上传
-    desc: 将上传的文件存入对象存储，并生成 24 小时公开 URL 返回
+    desc: 将上传的文件存入对象存储，并生成 24 小时公开 URL 返回。支持远程 URL、本地路径和 Base64 格式
     integrations: 对象存储
     """
     ctx = runtime.context
@@ -85,10 +98,46 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
         # 从 URL 读取文件内容
         file_url = state.file.url
 
-        # 判断是本地路径还是远程 URL
+        # 判断数据类型
         if file_url.startswith(("http://", "https://")):
             # 远程 URL：使用 upload_from_url
             file_key = storage.upload_from_url(url=file_url)
+
+        elif file_url.startswith("data:image") or (file_url.startswith("data:application") and ";base64," in file_url):
+            # Base64 格式（Data URL 格式）
+            # 解析 Data URL 格式：data:image/png;base64,xxx
+            match = re.match(r"data:([^;]+);base64,(.+)", file_url)
+            if not match:
+                return UploadOutput(result={"success": False, "message": "无效的 Base64 格式"})
+
+            mime_type = match.group(1)  # 例如：image/png
+            base64_data = match.group(2)
+
+            # 解码 Base64
+            try:
+                file_content = base64.b64decode(base64_data)
+            except Exception as e:
+                return UploadOutput(result={"success": False, "message": f"Base64 解码失败: {str(e)}"})
+
+            # 根据类型确定文件名
+            if "png" in mime_type:
+                filename = "image.png"
+            elif "jpeg" in mime_type or "jpg" in mime_type:
+                filename = "image.jpg"
+            elif "gif" in mime_type:
+                filename = "image.gif"
+            elif "webp" in mime_type:
+                filename = "image.webp"
+            else:
+                filename = f"file.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
+
+            # 上传到对象存储
+            file_key = storage.upload_file(
+                file_content=file_content,
+                file_name=filename,
+                content_type=mime_type
+            )
+
         else:
             # 本地路径：读取文件内容后上传
             # 如果包含 file:// 前缀，去掉它
@@ -192,7 +241,7 @@ def history_node(state: HistoryInput, config: RunnableConfig, runtime: Runtime[C
                     "task_params": h.task_params,
                     "iso_timestamp": h.iso_timestamp,
                     "meta_data": h.meta_data,
-                    "created_at": h.created_at.isoformat() if h.created_at else None
+                    "created_at": h.created_at.isoformat() if h.created_at is not None else None
                 })
 
             return HistoryOutput(result={

@@ -7,18 +7,21 @@ from graphs.state import (
     UploadInput,
     SaveInput,
     HistoryInput,
-    FormatResponseInput
+    FormatResponseInput,
+    RouterInput,
+    RouterOutput
 )
 from graphs.node import (
     register_login_node,
     upload_node,
     save_node,
     history_node,
-    format_response_node
+    format_response_node,
+    router_node
 )
 
 
-def route_by_call_type(state: GlobalState) -> str:
+def route_by_call_type(state: RouterOutput) -> str:
     """
     title: 根据调用类型路由
     desc: 根据 call_type 参数将请求路由到不同的处理节点
@@ -46,16 +49,14 @@ builder.add_node("upload", upload_node)
 builder.add_node("save", save_node)
 builder.add_node("history", history_node)
 builder.add_node("format_response", format_response_node)
+builder.add_node("call_type_router", router_node)
 
 # 设置入口点
-builder.set_entry_point("router")
-
-# 添加路由节点（虚拟节点，用于条件分支）
-builder.add_node("router", lambda state: state)
+builder.set_entry_point("call_type_router")
 
 # 添加条件分支
 builder.add_conditional_edges(
-    source="router",
+    source="call_type_router",
     path=route_by_call_type,
     path_map={
         "注册/登录": "register_login",
