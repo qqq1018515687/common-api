@@ -45,10 +45,10 @@ from storage.s3.s3_storage import S3SyncStorage
 # 初始化对象存储客户端
 storage = S3SyncStorage(
     endpoint_url=os.getenv("COZE_BUCKET_ENDPOINT_URL"),
-    access_key="",
-    secret_key="",
+    access_key=os.getenv("COZE_ACCESS_KEY", ""),
+    secret_key=os.getenv("COZE_SECRET_KEY", ""),
     bucket_name=os.getenv("COZE_BUCKET_NAME"),
-    region="cn-beijing",
+    region=os.getenv("COZE_BUCKET_REGION", "cn-beijing"),
 )
 
 
@@ -274,23 +274,36 @@ def format_response_node(state: FormatResponseInput, config: RunnableConfig, run
     """
     ctx = runtime.context
 
-    result = state.result
+    try:
+        result = state.result if state.result is not None else {}
 
-    # 处理工具节点的字符串结果
-    if isinstance(result, str):
-        return FormatResponseOutput(response_data={"code": 0, "msg": "操作成功", "data": {"result": result}})
+        # 处理空结果或 None
+        if not isinstance(result, (dict, str)):
+            return FormatResponseOutput(response_data={"code": -1, "msg": "无效的结果格式", "data": None})
 
-    # 处理其他节点的 dict 结果
-    if result.get("success"):
-        code = 0
-        msg = result.get("message", "操作成功")
-        data = {k: v for k, v in result.items() if k not in ["success", "message"]}
-    else:
-        code = -1
-        msg = result.get("message", "操作失败")
-        data = None
+        # 处理工具节点的字符串结果
+        if isinstance(result, str):
+            return FormatResponseOutput(response_data={"code": 0, "msg": "操作成功", "data": {"result": result}})
 
-    return FormatResponseOutput(response_data={"code": code, "msg": msg, "data": data})
+        # 处理空字典
+        if not result:
+            return FormatResponseOutput(response_data={"code": -1, "msg": "无结果返回", "data": None})
+
+        # 处理其他节点的 dict 结果
+        if result.get("success"):
+            code = 0
+            msg = result.get("message", "操作成功")
+            data = {k: v for k, v in result.items() if k not in ["success", "message"]}
+        else:
+            code = -1
+            msg = result.get("message", "操作失败")
+            data = None
+
+        return FormatResponseOutput(response_data={"code": code, "msg": msg, "data": data})
+
+    except Exception as e:
+        # 异常情况下返回友好的错误信息
+        return FormatResponseOutput(response_data={"code": -1, "msg": f"结果格式化失败: {str(e)}", "data": None})
 
 
 # ============ 工具节点 ============
