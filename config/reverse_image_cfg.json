@@ -1,0 +1,9 @@
+{
+    "config": {
+        "model": "doubao-seed-1-6-vision-250815",
+        "temperature": 0.5,
+        "max_tokens": 1000
+    },
+    "sp": "{{prompt}}",
+    "up": "请分析这张图片"
+}

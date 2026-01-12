@@ -1,6 +1,10 @@
 from langchain_core.runnables import RunnableConfig
 from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from coze_coding_dev_sdk import LLMClient
+from jinja2 import Template
+import json
 from graphs.state import (
     RegisterLoginInput, RegisterLoginOutput,
     UploadInput, UploadOutput,
@@ -9,7 +13,13 @@ from graphs.state import (
     FormatResponseInput, FormatResponseOutput,
     GlobalState,
     RouterInput,
-    RouterOutput
+    RouterOutput,
+    ToolRouteInput,
+    ToolRouteOutput,
+    ReverseImageInput,
+    ReverseImageOutput,
+    TranslateDoubaoInput,
+    TranslateDoubaoOutput
 )
 import os
 import requests
@@ -266,7 +276,11 @@ def format_response_node(state: FormatResponseInput, config: RunnableConfig, run
 
     result = state.result
 
-    # 根据结果生成统一响应
+    # 处理工具节点的字符串结果
+    if isinstance(result, str):
+        return FormatResponseOutput(response_data={"code": 0, "msg": "操作成功", "data": {"result": result}})
+
+    # 处理其他节点的 dict 结果
     if result.get("success"):
         code = 0
         msg = result.get("message", "操作成功")
@@ -277,3 +291,119 @@ def format_response_node(state: FormatResponseInput, config: RunnableConfig, run
         data = None
 
     return FormatResponseOutput(response_data={"code": code, "msg": msg, "data": data})
+
+
+# ============ 工具节点 ============
+
+def tool_route_node(state: ToolRouteInput, config: RunnableConfig, runtime: Runtime[Context]) -> ToolRouteOutput:
+    """
+    title: 工具路由
+    desc: 根据 tool_type 将请求路由到不同的工具节点
+    """
+    ctx = runtime.context
+    return ToolRouteOutput(tool_type=state.tool_type)
+
+
+def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime: Runtime[Context]) -> ReverseImageOutput:
+    """
+    title: 反推图像
+    desc: 使用视觉模型分析图像，根据用户指令反推图像内容
+    integrations: 大语言模型
+    """
+    ctx = runtime.context
+
+    if not state.file:
+        return ReverseImageOutput(result={"success": False, "message": "未提供图像文件"})
+
+    try:
+        # 读取配置文件
+        cfg_file = os.path.join(os.getenv("COZE_WORKSPACE_PATH"), config['metadata']['llm_cfg'])
+        with open(cfg_file, 'r') as fd:
+            _cfg = json.load(fd)
+
+        llm_config = _cfg.get("config", {})
+        sp = _cfg.get("sp", "")
+        up = _cfg.get("up", "")
+
+        # 使用 jinja2 模板渲染提示词
+        sp_tpl = Template(sp)
+        system_prompt_content = sp_tpl.render({"prompt": state.prompt})
+
+        up_tpl = Template(up)
+        user_prompt_content = up_tpl.render()
+
+        # 初始化 LLM 客户端
+        client = LLMClient(ctx=ctx)
+
+        # 构造多模态消息
+        messages = [
+            SystemMessage(content=system_prompt_content),
+            HumanMessage(content=[
+                {
+                    "type": "text",
+                    "text": user_prompt_content
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {"url": state.file.url}
+                }
+            ])
+        ]
+
+        # 调用模型
+        response = client.invoke(
+            messages=messages,
+            model=llm_config.get("model"),
+            temperature=llm_config.get("temperature", 0.7),
+            max_tokens=llm_config.get("max_tokens", 1000)
+        )
+
+        return ReverseImageOutput(result={"success": True, "message": "反推成功", "result": response.content})
+
+    except Exception as e:
+        return ReverseImageOutput(result={"success": False, "message": f"反推失败: {str(e)}"})
+
+
+def translate_doubao_node(state: TranslateDoubaoInput, config: RunnableConfig, runtime: Runtime[Context]) -> TranslateDoubaoOutput:
+    """
+    title: 翻译（推荐版）
+    desc: 使用豆包平衡模型进行中英互译
+    integrations: 大语言模型
+    """
+    ctx = runtime.context
+
+    try:
+        # 读取配置文件
+        cfg_file = os.path.join(os.getenv("COZE_WORKSPACE_PATH"), config['metadata']['llm_cfg'])
+        with open(cfg_file, 'r') as fd:
+            _cfg = json.load(fd)
+
+        llm_config = _cfg.get("config", {})
+        sp = _cfg.get("sp", "")
+        up = _cfg.get("up", "")
+
+        # 使用 jinja2 模板渲染提示词
+        up_tpl = Template(up)
+        user_prompt_content = up_tpl.render({"text": state.prompt})
+
+        # 初始化 LLM 客户端
+        client = LLMClient(ctx=ctx)
+
+        # 构造消息
+        messages = [
+            SystemMessage(content=sp),
+            HumanMessage(content=user_prompt_content)
+        ]
+
+        # 调用模型
+        response = client.invoke(
+            messages=messages,
+            model=llm_config.get("model"),
+            temperature=llm_config.get("temperature", 0.3),
+            max_tokens=llm_config.get("max_tokens", 2000)
+        )
+
+        return TranslateDoubaoOutput(result={"success": True, "message": "翻译成功", "result": response.content})
+
+    except Exception as e:
+        return TranslateDoubaoOutput(result={"success": False, "message": f"翻译失败: {str(e)}"})

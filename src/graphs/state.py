@@ -5,23 +5,27 @@ from utils.file.file import File
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：register/login/upload/save/history")
+    call_type: str = Field(..., description="调用类型：register/login/upload/save/history/tool")
     username: Optional[str] = Field(default=None, description="用户名（注册/登录使用）")
     password: Optional[str] = Field(default=None, description="密码（注册/登录使用）")
-    file: Optional[File] = Field(default=None, description="上传的文件（upload 使用）")
+    file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
     user_id: Optional[int] = Field(default=None, description="用户 ID（save/history 使用）")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
+    tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash")
+    prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
     response_data: Optional[dict] = Field(default=None, description="统一响应数据")
 
 
 class GraphInput(BaseModel):
     """工作流的输入"""
-    call_type: str = Field(..., description="调用类型：register/login/upload/save/history")
+    call_type: str = Field(..., description="调用类型：register/login/upload/save/history/tool")
     username: Optional[str] = Field(default=None, description="用户名（注册/登录使用）")
     password: Optional[str] = Field(default=None, description="密码（注册/登录使用）")
-    file: Optional[File] = Field(default=None, description="上传的文件（upload 使用）")
+    file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
     user_id: Optional[int] = Field(default=None, description="用户 ID（save/history 使用）")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
+    tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash")
+    prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
 
 
 class GraphOutput(BaseModel):
@@ -96,3 +100,40 @@ class RouterOutput(BaseModel):
 class RouterInput(BaseModel):
     """路由节点的输入"""
     call_type: str = Field(..., description="调用类型")
+
+
+# 工具路由节点
+class ToolRouteInput(BaseModel):
+    """工具路由节点的输入"""
+    tool_type: str = Field(..., description="工具类型：reverse_image/translate_doubao/translate_flash")
+
+
+class ToolRouteOutput(BaseModel):
+    """工具路由节点的输出"""
+    tool_type: str = Field(..., description="工具类型")
+
+
+# 反推图像节点
+class ReverseImageInput(BaseModel):
+    """反推图像节点的输入"""
+    file: Optional[File] = Field(default=None, description="图像文件")
+    prompt: str = Field(..., description="反推指令")
+
+
+class ReverseImageOutput(BaseModel):
+    """反推图像节点的输出"""
+    result: dict = Field(default={}, description="反推结果")
+
+
+# 翻译节点（推荐版）
+class TranslateDoubaoInput(BaseModel):
+    """翻译节点（推荐版）的输入"""
+    prompt: str = Field(..., description="待翻译文本")
+
+
+class TranslateDoubaoOutput(BaseModel):
+    """翻译节点（推荐版）的输出"""
+    result: dict = Field(default={}, description="翻译结果")
+
+
+

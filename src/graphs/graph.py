@@ -9,7 +9,9 @@ from graphs.state import (
     HistoryInput,
     FormatResponseInput,
     RouterInput,
-    RouterOutput
+    RouterOutput,
+    ToolRouteInput,
+    ToolRouteOutput
 )
 from graphs.node import (
     register_login_node,
@@ -17,7 +19,10 @@ from graphs.node import (
     save_node,
     history_node,
     format_response_node,
-    router_node
+    router_node,
+    tool_route_node,
+    reverse_image_node,
+    translate_doubao_node
 )
 
 
@@ -36,8 +41,25 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "保存历史"
     elif call_type == "history":
         return "历史查询"
+    elif call_type == "tool":
+        return "工具中心"
     else:
-        return "未知类型"
+        return "注册/登录"
+
+
+def route_by_tool_type(state: ToolRouteOutput) -> str:
+    """
+    title: 根据工具类型路由
+    desc: 根据 tool_type 参数将请求路由到具体的工具节点
+    """
+    tool_type = state.tool_type
+
+    if tool_type == "reverse_image":
+        return "反推图像"
+    elif tool_type == "translate_doubao":
+        return "翻译推荐"
+    else:
+        return "反推图像"
 
 
 # 创建状态图，指定图的入参和出参
@@ -50,11 +72,14 @@ builder.add_node("save", save_node)
 builder.add_node("history", history_node)
 builder.add_node("format_response", format_response_node)
 builder.add_node("call_type_router", router_node)
+builder.add_node("tool_route", tool_route_node)
+builder.add_node("reverse_image", reverse_image_node, metadata={"type": "agent", "llm_cfg": "config/reverse_image_cfg.json"})
+builder.add_node("translate_doubao", translate_doubao_node, metadata={"type": "agent", "llm_cfg": "config/translate_doubao_cfg.json"})
 
 # 设置入口点
 builder.set_entry_point("call_type_router")
 
-# 添加条件分支
+# 添加一级条件分支（根据 call_type）
 builder.add_conditional_edges(
     source="call_type_router",
     path=route_by_call_type,
@@ -63,7 +88,17 @@ builder.add_conditional_edges(
         "文件上传": "upload",
         "保存历史": "save",
         "历史查询": "history",
-        "未知类型": "format_response"
+        "工具中心": "tool_route"
+    }
+)
+
+# 添加二级条件分支（根据 tool_type）
+builder.add_conditional_edges(
+    source="tool_route",
+    path=route_by_tool_type,
+    path_map={
+        "反推图像": "reverse_image",
+        "翻译推荐": "translate_doubao"
     }
 )
 
@@ -72,6 +107,8 @@ builder.add_edge("register_login", "format_response")
 builder.add_edge("upload", "format_response")
 builder.add_edge("save", "format_response")
 builder.add_edge("history", "format_response")
+builder.add_edge("reverse_image", "format_response")
+builder.add_edge("translate_doubao", "format_response")
 
 # 统一返回节点到结束
 builder.add_edge("format_response", END)
