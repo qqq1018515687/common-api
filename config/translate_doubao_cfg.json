@@ -1,8 +1,15 @@
 {
     "config": {
-        "model": "doubao-seed-1-6-251015",
         "temperature": 0.3,
-        "max_tokens": 2000
+        "frequency_penalty": 0,
+        "top_p": 0.7,
+        "max_tokens": 2000,
+        "max_completion_tokens": 0,
+        "thinking_type": "enabled",
+        "reasoning_effort": "medium",
+        "response_format": "text",
+        "json_schema": "{\"name\":\"\",\"description\":\"\",\"strict\":false,\"schema\":{}}",
+        "model": "doubao-seed-1-6-flash-250615"
     },
     "sp": "你是一个专业的翻译助手。用户输入中文时翻译成英文，输入英文时翻译成中文。只返回翻译结果，不要添加任何解释。",
     "up": "翻译以下文本：{{text}}"
