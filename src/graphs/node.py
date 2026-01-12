@@ -320,7 +320,7 @@ def tool_route_node(state: ToolRouteInput, config: RunnableConfig, runtime: Runt
 def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime: Runtime[Context]) -> ReverseImageOutput:
     """
     title: 反推图像
-    desc: 使用视觉模型分析图像，根据用户指令反推图像内容
+    desc: 使用视觉模型分析图像，反推图像内容
     integrations: 大语言模型
     """
     ctx = runtime.context
@@ -343,7 +343,7 @@ def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime
         system_prompt_content = sp_tpl.render()
 
         up_tpl = Template(up)
-        user_prompt_content = up_tpl.render({"prompt": state.prompt})
+        user_prompt_content = up_tpl.render()
 
         # 初始化 LLM 客户端
         client = LLMClient(ctx=ctx)

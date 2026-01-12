@@ -117,7 +117,6 @@ class ToolRouteOutput(BaseModel):
 class ReverseImageInput(BaseModel):
     """反推图像节点的输入"""
     file: Optional[File] = Field(default=None, description="图像文件")
-    prompt: str = Field(..., description="反推指令")
 
 
 class ReverseImageOutput(BaseModel):
