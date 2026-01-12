@@ -320,8 +320,8 @@ def tool_route_node(state: ToolRouteInput, config: RunnableConfig, runtime: Runt
 def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime: Runtime[Context]) -> ReverseImageOutput:
     """
     title: 反推图像
-    desc: 使用视觉模型分析图像，反推图像内容。自动转存临时 URL 到对象存储
-    integrations: 大语言模型, 对象存储
+    desc: 使用视觉模型分析图像，反推图像内容
+    integrations: 大语言模型
     """
     ctx = runtime.context
 
@@ -329,16 +329,6 @@ def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime
         return ReverseImageOutput(result={"success": False, "message": "未提供图像文件"})
 
     try:
-        # 处理临时签名的 URL，转存到对象存储
-        image_url = state.file.url
-        
-        # 检查是否是临时签名 URL（包含 X-Tos-Signature 参数）
-        if "X-Tos-Signature" in image_url or "X-Amz-Signature" in image_url:
-            # 转存到对象存储
-            file_key = storage.upload_from_url(url=image_url)
-            # 生成 1 小时公开 URL
-            image_url = storage.generate_presigned_url(key=file_key, expire_time=3600)
-
         # 读取配置文件
         cfg_file = os.path.join(os.getenv("COZE_WORKSPACE_PATH"), config['metadata']['llm_cfg'])
         with open(cfg_file, 'r') as fd:
@@ -368,7 +358,7 @@ def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime
                 },
                 {
                     "type": "image_url",
-                    "image_url": {"url": image_url}
+                    "image_url": {"url": state.file.url}
                 }
             ])
         ]
