@@ -340,10 +340,10 @@ def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime
 
         # 使用 jinja2 模板渲染提示词
         sp_tpl = Template(sp)
-        system_prompt_content = sp_tpl.render({"prompt": state.prompt})
+        system_prompt_content = sp_tpl.render()
 
         up_tpl = Template(up)
-        user_prompt_content = up_tpl.render()
+        user_prompt_content = up_tpl.render({"prompt": state.prompt})
 
         # 初始化 LLM 客户端
         client = LLMClient(ctx=ctx)

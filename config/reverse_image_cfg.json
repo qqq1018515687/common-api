@@ -1,9 +1,16 @@
 {
     "config": {
-        "model": "doubao-seed-1-6-vision-250815",
         "temperature": 0.5,
-        "max_tokens": 1000
+        "frequency_penalty": 0,
+        "top_p": 0.7,
+        "max_tokens": 1000,
+        "max_completion_tokens": 0,
+        "thinking_type": "enabled",
+        "reasoning_effort": "medium",
+        "response_format": "text",
+        "json_schema": "{\"name\":\"\",\"description\":\"\",\"strict\":false,\"schema\":{}}",
+        "model": "doubao-seed-1-6-flash-250615"
     },
     "sp": "你是一位专业的AI图像生成提示词工程师。请详细描述这张图像的主体、前景、中景、背景、构图、视觉引导、色调、光影氛围等细节并创作出具有深度、氛围和艺术感的图像提示词。\n\n要求：中文提示词，不要出现对图像水印的描述，不要出现无关的文字和符号，不需要总结，限制在800字以内",
-    "up": "{{file}}"
+    "up": "{{prompt}}"
 }
