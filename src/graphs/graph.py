@@ -98,7 +98,8 @@ builder.add_conditional_edges(
     path=route_by_tool_type,
     path_map={
         "反推图像": "reverse_image",
-        "翻译推荐": "translate_doubao"
+        "翻译推荐": "translate_doubao",
+        "default": "reverse_image"
     }
 )
 

@@ -81,3 +81,8 @@ INFO:     127.0.0.1:35746 - "POST /run HTTP/1.1" 200 OK
 {"message": "Workflow completed - success (ID: 3b782b63-7db5-4f71-8503-ae9203c2a083)", "timestamp": "2026-01-12 15:28:03", "level": "INFO", "logger": "utils.log.node_log", "log_id": "", "run_id": "3b782b63-7db5-4f71-8503-ae9203c2a083", "space_id": "7511918104080089097", "project_id": "7592865054266245158", "method": "run", "x_tt_env": "", "lineno": 78, "funcName": "write_log", "taskName": null}
 {"message": "HTTP Request: POST https://api.coze.cn/v1/loop/traces/ingest \"HTTP/1.1 200 OK\"", "timestamp": "2026-01-12 15:28:03", "level": "INFO", "logger": "httpx", "log_id": "", "run_id": "3b782b63-7db5-4f71-8503-ae9203c2a083", "space_id": "7511918104080089097", "project_id": "7592865054266245158", "method": "run", "x_tt_env": "", "lineno": 1025, "funcName": "_send_single_request", "taskName": "Task-62"}
 INFO:     127.0.0.1:35742 - "POST /run HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1299]
+INFO:     Stopping reloader process [1291]
