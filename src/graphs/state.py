@@ -115,25 +115,25 @@ class ToolRouteOutput(BaseModel):
     tool_type: str = Field(..., description="工具类型")
 
 
-# 反推图像节点
+# 提示词生成节点
 class ReverseImageInput(BaseModel):
-    """反推图像节点的输入"""
+    """提示词生成节点的输入"""
     file: Optional[File] = Field(default=None, description="图像文件")
 
 
 class ReverseImageOutput(BaseModel):
-    """反推图像节点的输出"""
-    result: dict = Field(default={}, description="反推结果")
+    """提示词生成节点的输出"""
+    result: dict = Field(default={}, description="提示词生成结果")
 
 
-# 翻译节点（推荐版）
+# 翻译节点
 class TranslateDoubaoInput(BaseModel):
-    """翻译节点（推荐版）的输入"""
+    """翻译节点的输入"""
     prompt: str = Field(..., description="待翻译文本")
 
 
 class TranslateDoubaoOutput(BaseModel):
-    """翻译节点（推荐版）的输出"""
+    """翻译节点的输出"""
     result: dict = Field(default={}, description="翻译结果")
 
 

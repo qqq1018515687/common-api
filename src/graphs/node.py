@@ -321,8 +321,8 @@ def tool_route_node(state: ToolRouteInput, config: RunnableConfig, runtime: Runt
 
 def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime: Runtime[Context]) -> ReverseImageOutput:
     """
-    title: 反推图像
-    desc: 使用视觉模型分析图像，反推图像内容
+    title: 提示词生成
+    desc: 使用视觉模型分析图像，生成提示词
     integrations: 大语言模型
     """
     ctx = runtime.context
@@ -373,15 +373,15 @@ def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime
             max_tokens=llm_config.get("max_tokens", 1000)
         )
 
-        return ReverseImageOutput(result={"success": True, "message": "反推成功", "result": response.content})
+        return ReverseImageOutput(result={"success": True, "message": "提示词生成成功", "result": response.content})
 
     except Exception as e:
-        return ReverseImageOutput(result={"success": False, "message": f"反推失败: {str(e)}"})
+        return ReverseImageOutput(result={"success": False, "message": f"提示词生成失败: {str(e)}"})
 
 
 def translate_doubao_node(state: TranslateDoubaoInput, config: RunnableConfig, runtime: Runtime[Context]) -> TranslateDoubaoOutput:
     """
-    title: 翻译（推荐版）
+    title: 翻译
     desc: 使用豆包平衡模型进行中英互译
     integrations: 大语言模型
     """
