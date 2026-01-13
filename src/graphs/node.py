@@ -19,7 +19,9 @@ from graphs.state import (
     ReverseImageInput,
     ReverseImageOutput,
     TranslateDoubaoInput,
-    TranslateDoubaoOutput
+    TranslateDoubaoOutput,
+    PromptEnhanceInput,
+    PromptEnhanceOutput
 )
 import os
 import requests
@@ -420,3 +422,66 @@ def translate_doubao_node(state: TranslateDoubaoInput, config: RunnableConfig, r
 
     except Exception as e:
         return TranslateDoubaoOutput(result={"success": False, "message": f"翻译失败: {str(e)}"})
+
+
+def prompt_enhance_node(state: PromptEnhanceInput, config: RunnableConfig, runtime: Runtime[Context]) -> PromptEnhanceOutput:
+    """
+    title: 提示词增强
+    desc: 使用视觉模型理解图片，根据用户的提示词生成增强后的内容
+    integrations: 大语言模型
+    """
+    ctx = runtime.context
+
+    # 验证文件数量
+    if not state.file_list or len(state.file_list) < 1:
+        return PromptEnhanceOutput(result={"success": False, "message": "至少需要提供 1 个图片文件"})
+    if len(state.file_list) > 4:
+        return PromptEnhanceOutput(result={"success": False, "message": "最多支持 4 个图片文件"})
+
+    try:
+        # 读取配置文件
+        cfg_file = os.path.join(os.getenv("COZE_WORKSPACE_PATH"), config['metadata']['llm_cfg'])
+        with open(cfg_file, 'r') as fd:
+            _cfg = json.load(fd)
+
+        llm_config = _cfg.get("config", {})
+        sp = _cfg.get("sp", "")
+        up = _cfg.get("up", "")
+
+        # 使用 jinja2 模板渲染提示词
+        sp_tpl = Template(sp)
+        system_prompt_content = sp_tpl.render({"prompt": state.prompt})
+
+        up_tpl = Template(up)
+        user_prompt_content = up_tpl.render()
+
+        # 初始化 LLM 客户端
+        client = LLMClient(ctx=ctx)
+
+        # 构造多模态消息（支持多图片）
+        content = [{"type": "text", "text": user_prompt_content}]
+        for file in state.file_list:
+            content.append({
+                "type": "image_url",
+                "image_url": {"url": file.url}
+            })
+
+        messages = [
+            SystemMessage(content=system_prompt_content),
+            HumanMessage(content=content)
+        ]
+
+        # 调用模型
+        response = client.invoke(
+            messages=messages,
+            model=llm_config.get("model"),
+            temperature=llm_config.get("temperature", 0.7),
+            max_tokens=llm_config.get("max_tokens", 2000)
+        )
+
+        return PromptEnhanceOutput(result={"success": True, "message": "增强成功", "result": response.content})
+
+    except Exception as e:
+        return PromptEnhanceOutput(result={"success": False, "message": f"增强失败: {str(e)}"})
+
+

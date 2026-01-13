@@ -9,9 +9,10 @@ class GlobalState(BaseModel):
     username: Optional[str] = Field(default=None, description="用户名（注册/登录使用）")
     password: Optional[str] = Field(default=None, description="密码（注册/登录使用）")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
+    file_list: Optional[List[File]] = Field(default=None, description="文件列表（提示词增强使用）")
     user_id: Optional[int] = Field(default=None, description="用户 ID（save/history 使用）")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
-    tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash")
+    tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
     response_data: Optional[dict] = Field(default=None, description="统一响应数据")
 
@@ -22,9 +23,10 @@ class GraphInput(BaseModel):
     username: Optional[str] = Field(default=None, description="用户名（注册/登录使用）")
     password: Optional[str] = Field(default=None, description="密码（注册/登录使用）")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
+    file_list: Optional[List[File]] = Field(default=None, description="文件列表（提示词增强使用）")
     user_id: Optional[int] = Field(default=None, description="用户 ID（save/history 使用）")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
-    tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash")
+    tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
 
 
@@ -133,6 +135,18 @@ class TranslateDoubaoInput(BaseModel):
 class TranslateDoubaoOutput(BaseModel):
     """翻译节点（推荐版）的输出"""
     result: dict = Field(default={}, description="翻译结果")
+
+
+# 提示词增强节点
+class PromptEnhanceInput(BaseModel):
+    """提示词增强节点的输入"""
+    prompt: str = Field(..., description="用户提示词")
+    file_list: List[File] = Field(..., description="图片文件列表，1-4个")
+
+
+class PromptEnhanceOutput(BaseModel):
+    """提示词增强节点的输出"""
+    result: dict = Field(default={}, description="增强结果")
 
 
 

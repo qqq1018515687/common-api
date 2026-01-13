@@ -22,7 +22,8 @@ from graphs.node import (
     router_node,
     tool_route_node,
     reverse_image_node,
-    translate_doubao_node
+    translate_doubao_node,
+    prompt_enhance_node
 )
 
 
@@ -58,6 +59,8 @@ def route_by_tool_type(state: ToolRouteOutput) -> str:
         return "反推图像"
     elif tool_type == "translate_doubao":
         return "翻译推荐"
+    elif tool_type == "prompt_enhance":
+        return "提示词增强"
     else:
         return "反推图像"
 
@@ -75,6 +78,7 @@ builder.add_node("call_type_router", router_node)
 builder.add_node("tool_route", tool_route_node)
 builder.add_node("reverse_image", reverse_image_node, metadata={"type": "agent", "llm_cfg": "config/reverse_image_cfg.json"})
 builder.add_node("translate_doubao", translate_doubao_node, metadata={"type": "agent", "llm_cfg": "config/translate_doubao_cfg.json"})
+builder.add_node("prompt_enhance", prompt_enhance_node, metadata={"type": "agent", "llm_cfg": "config/prompt_enhance_cfg.json"})
 
 # 设置入口点
 builder.set_entry_point("call_type_router")
@@ -98,7 +102,8 @@ builder.add_conditional_edges(
     path=route_by_tool_type,
     path_map={
         "反推图像": "reverse_image",
-        "翻译推荐": "translate_doubao"
+        "翻译推荐": "translate_doubao",
+        "提示词增强": "prompt_enhance"
     }
 )
 
@@ -109,6 +114,7 @@ builder.add_edge("save", "format_response")
 builder.add_edge("history", "format_response")
 builder.add_edge("reverse_image", "format_response")
 builder.add_edge("translate_doubao", "format_response")
+builder.add_edge("prompt_enhance", "format_response")
 
 # 统一返回节点到结束
 builder.add_edge("format_response", END)
