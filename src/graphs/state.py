@@ -5,7 +5,7 @@ from utils.file.file import File
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：register/login/upload/save/history/tool")
+    call_type: str = Field(..., description="调用类型：register/login/upload/save/history/tool/cancel_task")
     username: Optional[str] = Field(default=None, description="用户名（注册/登录使用）")
     password: Optional[str] = Field(default=None, description="密码（注册/登录使用）")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
@@ -14,12 +14,13 @@ class GlobalState(BaseModel):
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
+    task_id: Optional[str] = Field(default=None, description="任务 ID（停止任务使用）")
     response_data: Optional[dict] = Field(default=None, description="统一响应数据")
 
 
 class GraphInput(BaseModel):
     """工作流的输入"""
-    call_type: str = Field(..., description="调用类型：register/login/upload/save/history/tool")
+    call_type: str = Field(..., description="调用类型：register/login/upload/save/history/tool/cancel_task")
     username: Optional[str] = Field(default=None, description="用户名（注册/登录使用）")
     password: Optional[str] = Field(default=None, description="密码（注册/登录使用）")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
@@ -28,6 +29,7 @@ class GraphInput(BaseModel):
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
+    task_id: Optional[str] = Field(default=None, description="任务 ID（停止任务使用）")
 
 
 class GraphOutput(BaseModel):
@@ -147,6 +149,17 @@ class PromptEnhanceInput(BaseModel):
 class PromptEnhanceOutput(BaseModel):
     """提示词增强节点的输出"""
     result: dict = Field(default={}, description="增强结果")
+
+
+# 停止任务节点
+class CancelTaskInput(BaseModel):
+    """停止任务节点的输入"""
+    task_id: str = Field(..., description="任务 ID")
+
+
+class CancelTaskOutput(BaseModel):
+    """停止任务节点的输出"""
+    result: dict = Field(default={}, description="取消结果")
 
 
 

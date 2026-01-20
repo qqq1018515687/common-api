@@ -21,7 +21,9 @@ from graphs.state import (
     TranslateDoubaoInput,
     TranslateDoubaoOutput,
     PromptEnhanceInput,
-    PromptEnhanceOutput
+    PromptEnhanceOutput,
+    CancelTaskInput,
+    CancelTaskOutput
 )
 import os
 import requests
