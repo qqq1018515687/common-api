@@ -15,9 +15,9 @@ class File(BaseModel):
     通用文件对象，支持自动类型推断和路径管理
     """
     url: str = Field(..., description="文件URL(http/https)或本地路径")
-    file_type: Literal['image', 'video', 'audio', 'document', 'default'] = Field(
+    file_type: str = Field(
         default="default",
-        description="文件类型"
+        description="文件类型（支持枚举值或MIME类型，如：'image' 或 'image/jpeg'）"
     )
     _local_path: Optional[str] = PrivateAttr(default=None)
 

@@ -5,6 +5,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from coze_coding_dev_sdk import LLMClient
 from jinja2 import Template
 import json
+from typing import Optional
 from graphs.state import (
     RegisterLoginInput, RegisterLoginOutput,
     UploadInput, UploadOutput,
@@ -43,23 +44,76 @@ def router_node(state: RouterInput, config: RunnableConfig, runtime: Runtime[Con
     return RouterOutput(call_type=state.call_type)
 
 
+def parse_file_type(file_type: Optional[str]) -> str:
+    """
+    解析 file_type，支持枚举值和 MIME 类型
+
+    Args:
+        file_type: 文件类型，可以是枚举值或 MIME 类型
+
+    Returns:
+        解析后的文件类型枚举值
+
+    Raises:
+        ValueError: 如果 file_type 格式无效或不支持
+    """
+    if not file_type:
+        return "default"
+
+    # 支持的枚举值
+    enum_types = ['image', 'video', 'audio', 'document', 'default']
+
+    # 如果是枚举值，直接返回
+    if file_type in enum_types:
+        return file_type
+
+    # 如果是 MIME 类型，解析前缀
+    if '/' in file_type:
+        mime_prefix = file_type.split('/')[0].lower()
+        if mime_prefix in enum_types or mime_prefix in ['application', 'text']:
+            # application/* 和 text/* 归类为 document
+            if mime_prefix in ['application', 'text']:
+                return 'document'
+            return mime_prefix
+        else:
+            raise ValueError(f"不支持的文件类型前缀: {mime_prefix}（完整类型: {file_type}）")
+    else:
+        raise ValueError(f"无效的文件类型格式: {file_type}")
+
+
 def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, runtime: Runtime[Context]) -> UnpackInputDataOutput:
     """
     title: 数据解包
-    desc: 将 input 对象中的业务字段解包到全局状态中
+    desc: 将 input 对象中的业务字段解包到全局状态中，支持 MIME 类型的 file_type
     """
     ctx = runtime.context
 
     # 从 input 对象中解包数据
     input_data = state.input if state.input else None
 
+    # 处理 file_type 解析
+    processed_file = None
+    if input_data and input_data.file:
+        # 解析 file_type
+        parsed_type = parse_file_type(input_data.file.file_type)
+        processed_file = input_data.file.model_copy(update={"file_type": parsed_type})
+
+    # 处理 file_list 中的 file_type
+    processed_file_list = None
+    if input_data and input_data.file_list:
+        processed_file_list = []
+        for file_item in input_data.file_list:
+            parsed_type = parse_file_type(file_item.file_type)
+            processed_file = file_item.model_copy(update={"file_type": parsed_type})
+            processed_file_list.append(processed_file)
+
     return UnpackInputDataOutput(
         call_type=state.call_type,
         tool_type=state.tool_type,
         username=input_data.username if input_data else None,
         password=input_data.password if input_data else None,
-        file=input_data.file if input_data else None,
-        file_list=input_data.file_list if input_data else None,
+        file=processed_file,
+        file_list=processed_file_list,
         user_id=input_data.user_id if input_data else None,
         runninghub_link=input_data.runninghub_link if input_data else None,
         prompt=input_data.prompt if input_data else None
