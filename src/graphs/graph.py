@@ -11,7 +11,9 @@ from graphs.state import (
     RouterInput,
     RouterOutput,
     ToolRouteInput,
-    ToolRouteOutput
+    ToolRouteOutput,
+    UnpackInputDataInput,
+    UnpackInputDataOutput
 )
 from graphs.node import (
     register_login_node,
@@ -23,7 +25,8 @@ from graphs.node import (
     tool_route_node,
     reverse_image_node,
     translate_doubao_node,
-    prompt_enhance_node
+    prompt_enhance_node,
+    unpack_input_data_node
 )
 
 
@@ -69,19 +72,23 @@ def route_by_tool_type(state: ToolRouteOutput) -> str:
 builder = StateGraph(GlobalState, input_schema=GraphInput, output_schema=GraphOutput)
 
 # 添加节点
+builder.add_node("unpack_input_data", unpack_input_data_node)
+builder.add_node("call_type_router", router_node)
 builder.add_node("register_login", register_login_node)
 builder.add_node("upload", upload_node)
 builder.add_node("save", save_node)
 builder.add_node("history", history_node)
 builder.add_node("format_response", format_response_node)
-builder.add_node("call_type_router", router_node)
 builder.add_node("tool_route", tool_route_node)
 builder.add_node("reverse_image", reverse_image_node, metadata={"type": "agent", "llm_cfg": "config/reverse_image_cfg.json"})
 builder.add_node("translate_doubao", translate_doubao_node, metadata={"type": "agent", "llm_cfg": "config/translate_doubao_cfg.json"})
 builder.add_node("prompt_enhance", prompt_enhance_node, metadata={"type": "agent", "llm_cfg": "config/prompt_enhance_cfg.json"})
 
-# 设置入口点
-builder.set_entry_point("call_type_router")
+# 设置入口点（先解包数据）
+builder.set_entry_point("unpack_input_data")
+
+# 解包后进入路由节点
+builder.add_edge("unpack_input_data", "call_type_router")
 
 # 添加一级条件分支（根据 call_type）
 builder.add_conditional_edges(

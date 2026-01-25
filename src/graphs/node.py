@@ -21,7 +21,9 @@ from graphs.state import (
     TranslateDoubaoInput,
     TranslateDoubaoOutput,
     PromptEnhanceInput,
-    PromptEnhanceOutput
+    PromptEnhanceOutput,
+    UnpackInputDataInput,
+    UnpackInputDataOutput
 )
 import os
 import requests
@@ -39,6 +41,29 @@ def router_node(state: RouterInput, config: RunnableConfig, runtime: Runtime[Con
     desc: 用于条件分支的虚拟节点，传递 call_type
     """
     return RouterOutput(call_type=state.call_type)
+
+
+def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, runtime: Runtime[Context]) -> UnpackInputDataOutput:
+    """
+    title: 数据解包
+    desc: 将 input 对象中的业务字段解包到全局状态中
+    """
+    ctx = runtime.context
+
+    # 从 input 对象中解包数据
+    input_data = state.input if state.input else None
+
+    return UnpackInputDataOutput(
+        call_type=state.call_type,
+        tool_type=state.tool_type,
+        username=input_data.username if input_data else None,
+        password=input_data.password if input_data else None,
+        file=input_data.file if input_data else None,
+        file_list=input_data.file_list if input_data else None,
+        user_id=input_data.user_id if input_data else None,
+        runninghub_link=input_data.runninghub_link if input_data else None,
+        prompt=input_data.prompt if input_data else None
+    )
 from storage.database.user_manager import UserManager, UserCreate, UserLogin
 from storage.database.history_manager import HistoryManager, HistoryCreate
 from storage.s3.s3_storage import S3SyncStorage
