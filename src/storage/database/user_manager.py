@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 import hashlib
 import uuid
 import bcrypt
+import random
 from datetime import datetime, timedelta
 
 from storage.database.shared.model import Users, RateLimits
@@ -66,8 +67,13 @@ class UserManager:
 
     @staticmethod
     def _generate_user_id() -> str:
-        """生成用户 ID"""
-        return f"user_{uuid.uuid4()}"
+        """
+        生成用户 ID（10位随机数字）
+        
+        Returns:
+            10位随机数字字符串
+        """
+        return str(random.randint(1000000000, 9999999999))
 
     def create_user(self, db: Session, user_in: UserCreate) -> Optional[Users]:
         """创建用户"""

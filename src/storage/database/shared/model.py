@@ -11,9 +11,7 @@ class Users(Base):
     __table_args__ = (
         PrimaryKeyConstraint('id', name='users_pkey'),
         UniqueConstraint('user_id', name='users_user_id_key'),
-        UniqueConstraint('username', name='users_username_key'),
         UniqueConstraint('phone', name='users_phone_key'),
-        Index('ix_users_username', 'username'),
         Index('ix_users_phone', 'phone'),
         Index('ix_users_team_id', 'team_id'),
         Index('ix_users_role', 'role'),
@@ -22,8 +20,8 @@ class Users(Base):
         Index('ix_users_created_at', 'created_at')
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, comment='用户 ID')
-    user_id: Mapped[Optional[str]] = mapped_column(String(64), unique=True, nullable=True, comment='用户唯一标识 (格式: user_xxx)')
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, comment='自增主键')
+    user_id: Mapped[Optional[str]] = mapped_column(String(10), unique=True, nullable=True, comment='用户唯一标识 (10位随机数字)')
     phone: Mapped[Optional[str]] = mapped_column(String(11), unique=True, nullable=True, comment='手机号')
     username: Mapped[str] = mapped_column(String(255), nullable=False, comment='用户名')
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False, comment='密码哈希')
