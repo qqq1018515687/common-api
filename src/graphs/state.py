@@ -9,10 +9,11 @@ class InputData(BaseModel):
     password: Optional[str] = Field(default=None, description="密码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表（提示词增强使用）")
-    user_id: Optional[int] = Field(default=None, description="用户 ID（save/history 使用）")
+    user_id: Optional[str] = Field(default=None, description="用户 ID（save/history/update_user/delete_user 使用）")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
+    operation_type: Optional[str] = Field(default=None, description="操作类型：check_rate_limit/register/login/update_user/delete_user/list_users")
 
     # 用户管理相关字段
     phone: Optional[str] = Field(default=None, description="手机号")
@@ -34,14 +35,15 @@ class InputData(BaseModel):
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：check_rate_limit/register/login/update_user/delete_user/list_users/upload/save/history/tool")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表（提示词增强使用）")
-    user_id: Optional[int] = Field(default=None, description="用户 ID（save/history 使用）")
+    user_id: Optional[str] = Field(default=None, description="用户 ID（save/history/update_user/delete_user 使用）")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
+    operation_type: Optional[str] = Field(default=None, description="操作类型：check_rate_limit/register/login/update_user/delete_user/list_users")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
     result: dict = Field(default={}, description="各节点的结果")
     response_data: Optional[dict] = Field(default=None, description="统一响应数据")
@@ -66,7 +68,7 @@ class GlobalState(BaseModel):
 
 class GraphInput(BaseModel):
     """工作流的输入"""
-    call_type: str = Field(..., description="调用类型：register/login/upload/save/history/tool")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
 
@@ -165,8 +167,17 @@ class GetUserOutput(BaseModel):
 class UpdateUserInput(BaseModel):
     """更新用户节点的输入"""
     user_id: str = Field(..., description="用户ID")
-    updates: dict = Field(..., description="更新字段")
-    operator_role: str = Field(..., description="操作者角色")
+    phone: Optional[str] = Field(default=None, description="手机号")
+    username: Optional[str] = Field(default=None, description="用户名")
+    avatar: Optional[str] = Field(default=None, description="头像URL")
+    team_id: Optional[str] = Field(default=None, description="团队ID")
+    gold_credits: Optional[int] = Field(default=None, description="金豆余额")
+    silver_credits: Optional[int] = Field(default=None, description="银豆余额")
+    role: Optional[str] = Field(default=None, description="用户角色")
+    tier: Optional[str] = Field(default=None, description="用户等级")
+    account_status: Optional[str] = Field(default=None, description="账号状态")
+    updates: Optional[dict] = Field(default=None, description="更新字段（已废弃，使用上面的具体字段）")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色")
 
 
 class UpdateUserOutput(BaseModel):
@@ -225,7 +236,7 @@ class UploadOutput(BaseModel):
 # 保存历史节点
 class SaveInput(BaseModel):
     """保存历史节点的输入"""
-    user_id: Optional[int] = Field(default=None, description="用户 ID")
+    user_id: Optional[str] = Field(default=None, description="用户 ID")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接")
 
 
@@ -237,7 +248,7 @@ class SaveOutput(BaseModel):
 # 历史查询节点
 class HistoryInput(BaseModel):
     """历史查询节点的输入"""
-    user_id: Optional[int] = Field(default=None, description="用户 ID")
+    user_id: Optional[str] = Field(default=None, description="用户 ID")
 
 
 class HistoryOutput(BaseModel):
@@ -267,6 +278,16 @@ class RouterInput(BaseModel):
     call_type: str = Field(..., description="调用类型")
 
 
+class OperationRouteInput(BaseModel):
+    """操作路由节点的输入"""
+    operation_type: str = Field(..., description="操作类型：check_rate_limit/register/login/update_user/delete_user/list_users")
+
+
+class OperationRouteOutput(BaseModel):
+    """操作路由节点的输出"""
+    operation_type: str = Field(..., description="操作类型")
+
+
 # 数据解包节点
 class UnpackInputDataInput(BaseModel):
     """数据解包节点的输入"""
@@ -282,9 +303,10 @@ class UnpackInputDataOutput(BaseModel):
     password: Optional[str] = Field(default=None, description="密码")
     file: Optional[File] = Field(default=None, description="上传的文件")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表")
-    user_id: Optional[int] = Field(default=None, description="用户ID")
+    user_id: Optional[str] = Field(default=None, description="用户ID")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub链接")
     tool_type: Optional[str] = Field(default=None, description="工具类型")
+    operation_type: Optional[str] = Field(default=None, description="操作类型")
     prompt: Optional[str] = Field(default=None, description="提示词")
     # 用户管理相关字段
     phone: Optional[str] = Field(default=None, description="手机号")

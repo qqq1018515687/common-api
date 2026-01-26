@@ -7,7 +7,7 @@ from storage.database.shared.model import History
 
 
 class HistoryCreate(BaseModel):
-    user_id: int = Field(..., description="用户 ID")
+    user_id: str = Field(..., description="用户 ID")
     permanent_link: str = Field(..., description="永久链接")
     task_params: Optional[Dict[str, Any]] = Field(default=None, description="任务参数")
 

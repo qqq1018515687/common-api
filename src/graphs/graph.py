@@ -9,6 +9,8 @@ from graphs.state import (
     FormatResponseInput,
     RouterInput,
     RouterOutput,
+    OperationRouteInput,
+    OperationRouteOutput,
     ToolRouteInput,
     ToolRouteOutput,
     UnpackInputDataInput,
@@ -20,6 +22,8 @@ from graphs.node import (
     history_node,
     format_response_node,
     router_node,
+    operation_route_node,
+    route_by_operation_type,
     tool_route_node,
     reverse_image_node,
     translate_doubao_node,
@@ -43,18 +47,8 @@ def route_by_call_type(state: RouterOutput) -> str:
     """
     call_type = state.call_type
 
-    if call_type == "check_rate_limit":
-        return "限流检查"
-    elif call_type == "register":
-        return "用户注册"
-    elif call_type == "login":
-        return "用户登录"
-    elif call_type == "update_user":
-        return "更新用户"
-    elif call_type == "delete_user":
-        return "删除用户"
-    elif call_type == "list_users":
-        return "用户列表"
+    if call_type == "account_management":
+        return "账号管理"
     elif call_type == "upload":
         return "文件上传"
     elif call_type == "save":
@@ -64,7 +58,7 @@ def route_by_call_type(state: RouterOutput) -> str:
     elif call_type == "tool":
         return "工具中心"
     else:
-        return "用户注册"  # 默认
+        return "账号管理"  # 默认
 
 
 def route_by_tool_type(state: ToolRouteOutput) -> str:
@@ -78,6 +72,8 @@ def route_by_tool_type(state: ToolRouteOutput) -> str:
         return "反推图像"
     elif tool_type == "translate_doubao":
         return "翻译推荐"
+    elif tool_type == "translate_flash":
+        return "翻译推荐"
     elif tool_type == "prompt_enhance":
         return "提示词增强"
     else:
@@ -90,6 +86,7 @@ builder = StateGraph(GlobalState, input_schema=GraphInput, output_schema=GraphOu
 # 添加节点
 builder.add_node("unpack_input_data", unpack_input_data_node)
 builder.add_node("call_type_router", router_node)
+builder.add_node("operation_route", operation_route_node)
 builder.add_node("check_rate_limit", check_rate_limit_node)
 builder.add_node("register_with_limit", register_with_limit_node)
 builder.add_node("get_user", get_user_node)
@@ -116,12 +113,7 @@ builder.add_conditional_edges(
     source="call_type_router",
     path=route_by_call_type,
     path_map={
-        "限流检查": "check_rate_limit",
-        "用户注册": "register_with_limit",
-        "用户登录": "get_user",
-        "更新用户": "update_user",
-        "删除用户": "delete_user",
-        "用户列表": "list_users",
+        "账号管理": "operation_route",
         "文件上传": "upload",
         "保存历史": "save",
         "历史查询": "history",
@@ -137,6 +129,20 @@ builder.add_conditional_edges(
         "反推图像": "reverse_image",
         "翻译推荐": "translate_doubao",
         "提示词增强": "prompt_enhance"
+    }
+)
+
+# 添加二级条件分支（根据 operation_type）
+builder.add_conditional_edges(
+    source="operation_route",
+    path=route_by_operation_type,
+    path_map={
+        "限流检查": "check_rate_limit",
+        "用户注册": "register_with_limit",
+        "用户登录": "get_user",
+        "更新用户": "update_user",
+        "删除用户": "delete_user",
+        "用户列表": "list_users"
     }
 )
 

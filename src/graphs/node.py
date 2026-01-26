@@ -16,6 +16,8 @@ from graphs.state import (
     GlobalState,
     RouterInput,
     RouterOutput,
+    OperationRouteInput,
+    OperationRouteOutput,
     ToolRouteInput,
     ToolRouteOutput,
     ReverseImageInput,
@@ -57,6 +59,37 @@ def router_node(state: RouterInput, config: RunnableConfig, runtime: Runtime[Con
     desc: 用于条件分支的虚拟节点，传递 call_type
     """
     return RouterOutput(call_type=state.call_type)
+
+
+def operation_route_node(state: OperationRouteInput, config: RunnableConfig, runtime: Runtime[Context]) -> OperationRouteOutput:
+    """
+    title: 操作路由节点
+    desc: 用于账号管理的二级路由，传递 operation_type
+    """
+    return OperationRouteOutput(operation_type=state.operation_type)
+
+
+def route_by_operation_type(state: OperationRouteInput) -> str:
+    """
+    title: 账号管理二级路由
+    desc: 根据操作类型分发到不同的节点
+    """
+    operation_type = state.operation_type
+
+    if operation_type == "check_rate_limit":
+        return "限流检查"
+    elif operation_type == "register":
+        return "用户注册"
+    elif operation_type == "login":
+        return "用户登录"
+    elif operation_type == "update_user":
+        return "更新用户"
+    elif operation_type == "delete_user":
+        return "删除用户"
+    elif operation_type == "list_users":
+        return "用户列表"
+    else:
+        return "未知操作"
 
 
 def parse_file_type(file_type: Optional[str]) -> str:
@@ -125,6 +158,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
     return UnpackInputDataOutput(
         call_type=state.call_type,
         tool_type=state.tool_type,
+        operation_type=input_data.operation_type if input_data else None,
         username=input_data.username if input_data else None,
         password=input_data.password if input_data else None,
         file=processed_file,
@@ -448,7 +482,32 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
     try:
         user_mgr = UserManager()
 
-        user_in = UserUpdate(**state.updates)
+        # 构造更新字典
+        updates = {}
+        if state.phone is not None:
+            updates['phone'] = state.phone
+        if state.username is not None:
+            updates['username'] = state.username
+        if state.avatar is not None:
+            updates['avatar'] = state.avatar
+        if state.team_id is not None:
+            updates['team_id'] = state.team_id
+        if state.gold_credits is not None:
+            updates['gold_credits'] = state.gold_credits
+        if state.silver_credits is not None:
+            updates['silver_credits'] = state.silver_credits
+        if state.role is not None:
+            updates['role'] = state.role
+        if state.tier is not None:
+            updates['tier'] = state.tier
+        if state.account_status is not None:
+            updates['account_status'] = state.account_status
+
+        # 如果没有提供任何更新字段，返回错误
+        if not updates:
+            return UpdateUserOutput(success=False, error="未提供任何更新字段")
+
+        user_in = UserUpdate(**updates)
         db_user = user_mgr.update_user(db, state.user_id, user_in)
 
         if not db_user:

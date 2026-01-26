@@ -63,13 +63,13 @@ class RateLimits(Base):
 class History(Base):
     __tablename__ = 'history'
     __table_args__ = (
-        ForeignKeyConstraint(['user_id'], ['users.id'], name='history_user_id_fkey'),
+        ForeignKeyConstraint(['user_id'], ['users.user_id'], name='history_user_id_fkey'),
         PrimaryKeyConstraint('id', name='history_pkey'),
         Index('ix_history_user_id', 'user_id')
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, comment='记录 ID')
-    user_id: Mapped[int] = mapped_column(Integer, nullable=False, comment='用户 ID')
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='用户 ID')
     permanent_link: Mapped[str] = mapped_column(Text, nullable=False, comment='永久链接')
     iso_timestamp: Mapped[str] = mapped_column(String(255), nullable=False, comment='ISO 时间戳')
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
