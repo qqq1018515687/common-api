@@ -43,6 +43,7 @@ class GlobalState(BaseModel):
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
+    result: dict = Field(default={}, description="各节点的结果")
     response_data: Optional[dict] = Field(default=None, description="统一响应数据")
 
     # 用户管理相关字段
@@ -86,7 +87,8 @@ class CheckRateLimitInput(BaseModel):
 
 class CheckRateLimitOutput(BaseModel):
     """限流检查节点的输出"""
-    allowed: bool = Field(..., description="是否允许")
+    result: dict = Field(default={}, description="检查结果")
+    allowed: bool = Field(default=False, description="是否允许")
     reason: Optional[str] = Field(default=None, description="拒绝原因")
     user_exists: bool = Field(default=False, description="用户是否已存在")
 
@@ -108,7 +110,8 @@ class CreateUserInput(BaseModel):
 
 class CreateUserOutput(BaseModel):
     """创建用户节点的输出"""
-    success: bool = Field(..., description="是否成功")
+    result: dict = Field(default={}, description="创建结果")
+    success: bool = Field(default=True, description="是否成功")
     user: Optional[dict] = Field(default=None, description="用户数据")
     error: Optional[str] = Field(default=None, description="错误信息")
 
@@ -138,7 +141,8 @@ class RegisterWithLimitInput(BaseModel):
 
 class RegisterWithLimitOutput(BaseModel):
     """注册组合节点的输出"""
-    success: bool = Field(..., description="是否成功")
+    result: dict = Field(default={}, description="注册结果")
+    success: bool = Field(default=True, description="是否成功")
     user: Optional[dict] = Field(default=None, description="用户数据")
     error: Optional[str] = Field(default=None, description="错误信息")
 
@@ -151,7 +155,8 @@ class GetUserInput(BaseModel):
 
 class GetUserOutput(BaseModel):
     """查询用户节点的输出"""
-    success: bool = Field(..., description="是否成功")
+    result: dict = Field(default={}, description="查询结果")
+    success: bool = Field(default=True, description="是否成功")
     user: Optional[dict] = Field(default=None, description="用户数据")
     error: Optional[str] = Field(default=None, description="错误信息")
 
@@ -166,7 +171,8 @@ class UpdateUserInput(BaseModel):
 
 class UpdateUserOutput(BaseModel):
     """更新用户节点的输出"""
-    success: bool = Field(..., description="是否成功")
+    result: dict = Field(default={}, description="更新结果")
+    success: bool = Field(default=True, description="是否成功")
     user: Optional[dict] = Field(default=None, description="用户数据")
     error: Optional[str] = Field(default=None, description="错误信息")
 
@@ -180,22 +186,24 @@ class DeleteUserInput(BaseModel):
 
 class DeleteUserOutput(BaseModel):
     """删除用户节点的输出"""
-    success: bool = Field(..., description="是否成功")
+    result: dict = Field(default={}, description="删除结果")
+    success: bool = Field(default=True, description="是否成功")
     error: Optional[str] = Field(default=None, description="错误信息")
 
 
 # 用户列表节点
 class ListUsersInput(BaseModel):
     """用户列表节点的输入"""
-    page: int = Field(default=1, description="页码")
-    limit: int = Field(default=20, description="每页数量")
+    page: Optional[int] = Field(default=1, description="页码")
+    limit: Optional[int] = Field(default=20, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
     operator_role: str = Field(..., description="操作者角色")
 
 
 class ListUsersOutput(BaseModel):
     """用户列表节点的输出"""
-    success: bool = Field(..., description="是否成功")
+    result: dict = Field(default={}, description="列表结果")
+    success: bool = Field(default=True, description="是否成功")
     users: Optional[List[dict]] = Field(default=None, description="用户列表")
     total: Optional[int] = Field(default=None, description="总数")
     page: Optional[int] = Field(default=None, description="当前页")
@@ -278,6 +286,22 @@ class UnpackInputDataOutput(BaseModel):
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub链接")
     tool_type: Optional[str] = Field(default=None, description="工具类型")
     prompt: Optional[str] = Field(default=None, description="提示词")
+    # 用户管理相关字段
+    phone: Optional[str] = Field(default=None, description="手机号")
+    ip: Optional[str] = Field(default=None, description="IP地址")
+    password_hash: Optional[str] = Field(default=None, description="密码哈希")
+    avatar: Optional[str] = Field(default=None, description="头像URL")
+    team_id: Optional[str] = Field(default=None, description="团队ID")
+    gold_credits: Optional[int] = Field(default=None, description="金豆余额")
+    silver_credits: Optional[int] = Field(default=None, description="银豆余额")
+    role: Optional[str] = Field(default=None, description="用户角色")
+    tier: Optional[str] = Field(default=None, description="用户等级")
+    account_status: Optional[str] = Field(default=None, description="账号状态")
+    updates: Optional[dict] = Field(default=None, description="更新字段")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色")
+    page: Optional[int] = Field(default=None, description="页码")
+    limit: Optional[int] = Field(default=None, description="每页数量")
+    filter: Optional[dict] = Field(default=None, description="筛选条件")
 
 
 # 工具路由节点

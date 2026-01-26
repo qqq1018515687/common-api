@@ -44,7 +44,11 @@ import re
 import uuid
 
 from storage.database.db import get_session
-from storage.database.user_manager import UserManager, UserCreate, UserUpdate, RateLimitManager
+
+# 延迟导入以避免潜在的模块加载问题
+def _get_user_manager():
+    from storage.database.user_manager import UserManager, UserCreate, UserUpdate, RateLimitManager
+    return UserManager, UserCreate, UserUpdate, RateLimitManager
 
 
 def router_node(state: RouterInput, config: RunnableConfig, runtime: Runtime[Context]) -> RouterOutput:
@@ -127,9 +131,24 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         file_list=processed_file_list,
         user_id=input_data.user_id if input_data else None,
         runninghub_link=input_data.runninghub_link if input_data else None,
-        prompt=input_data.prompt if input_data else None
+        prompt=input_data.prompt if input_data else None,
+        # 用户管理相关字段
+        phone=input_data.phone if input_data else None,
+        ip=input_data.ip if input_data else None,
+        password_hash=input_data.password_hash if input_data else None,
+        avatar=input_data.avatar if input_data else None,
+        team_id=input_data.team_id if input_data else None,
+        gold_credits=input_data.gold_credits if input_data else None,
+        silver_credits=input_data.silver_credits if input_data else None,
+        role=input_data.role if input_data else None,
+        tier=input_data.tier if input_data else None,
+        account_status=input_data.account_status if input_data else None,
+        updates=input_data.updates if input_data else None,
+        operator_role=input_data.operator_role if input_data else None,
+        page=input_data.page if input_data else None,
+        limit=input_data.limit if input_data else None,
+        filter=input_data.filter if input_data else None
     )
-from storage.database.user_manager import UserManager, UserCreate, UserUpdate, RateLimitManager
 from storage.database.history_manager import HistoryManager, HistoryCreate
 from storage.s3.s3_storage import S3SyncStorage
 
@@ -152,6 +171,7 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
     desc: 检查手机号和IP地址的请求频率限制
     integrations: 数据库
     """
+    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
     ctx = runtime.context
 
     db = get_session()
@@ -163,6 +183,7 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
         blocked_info = rate_mgr.check_blocked_status(db, state.phone, state.ip)
         if blocked_info:
             return CheckRateLimitOutput(
+                result={"allowed": False, "reason": "账号已被封禁，请稍后再试"},
                 allowed=False,
                 reason="账号已被封禁，请稍后再试",
                 user_exists=False
@@ -172,6 +193,7 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
         existing_user = user_mgr.get_user_by_phone(db, state.phone)
         if existing_user:
             return CheckRateLimitOutput(
+                result={"allowed": False, "reason": "该手机号已注册，请直接登录"},
                 allowed=False,
                 reason="该手机号已注册，请直接登录",
                 user_exists=True
@@ -183,6 +205,7 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
         # 4. 判断是否超过限制
         if limits["blocked_phone_10min"]:
             return CheckRateLimitOutput(
+                result={"allowed": False, "reason": "该手机号发送验证码过于频繁，请10分钟后再试"},
                 allowed=False,
                 reason="该手机号发送验证码过于频繁，请10分钟后再试",
                 user_exists=False
@@ -190,6 +213,7 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
 
         if limits["blocked_phone_1hour"]:
             return CheckRateLimitOutput(
+                result={"allowed": False, "reason": "该手机号今日发送次数已达上限，请1小时后再试"},
                 allowed=False,
                 reason="该手机号今日发送次数已达上限，请1小时后再试",
                 user_exists=False
@@ -197,6 +221,7 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
 
         if limits["blocked_ip_10min"]:
             return CheckRateLimitOutput(
+                result={"allowed": False, "reason": "当前网络请求过于频繁，请稍后再试"},
                 allowed=False,
                 reason="当前网络请求过于频繁，请稍后再试",
                 user_exists=False
@@ -204,13 +229,18 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
 
         if limits["blocked_ip_1hour"]:
             return CheckRateLimitOutput(
+                result={"allowed": False, "reason": "当前网络请求已达上限，请1小时后再试"},
                 allowed=False,
                 reason="当前网络请求已达上限，请1小时后再试",
                 user_exists=False
             )
 
         # 5. 所有检查通过
-        return CheckRateLimitOutput(allowed=True, user_exists=False)
+        return CheckRateLimitOutput(
+            result={"allowed": True},
+            allowed=True,
+            user_exists=False
+        )
 
     finally:
         db.close()
@@ -222,6 +252,7 @@ def create_user_node(state: CreateUserInput, config: RunnableConfig, runtime: Ru
     desc: 创建新用户记录
     integrations: 数据库
     """
+    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
     ctx = runtime.context
 
     db = get_session()
@@ -264,7 +295,11 @@ def create_user_node(state: CreateUserInput, config: RunnableConfig, runtime: Ru
             "updated_at": int(db_user.updated_at.timestamp() * 1000) if db_user.updated_at else None
         }
 
-        return CreateUserOutput(success=True, user=user_data)
+        return CreateUserOutput(
+            result={"success": True, "user": user_data},
+            success=True,
+            user=user_data
+        )
 
     finally:
         db.close()
@@ -276,6 +311,7 @@ def update_rate_limit_node(state: UpdateRateLimitInput, config: RunnableConfig, 
     desc: 更新或创建限流记录，并检查是否需要封禁
     integrations: 数据库
     """
+    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
     ctx = runtime.context
 
     db = get_session()
@@ -345,7 +381,11 @@ def register_with_limit_node(state: RegisterWithLimitInput, config: RunnableConf
         runtime
     )
 
-    return RegisterWithLimitOutput(success=True, user=create_result.user)
+    return RegisterWithLimitOutput(
+        result={"success": True, "user": create_result.user},
+        success=True,
+        user=create_result.user
+    )
 
 
 def get_user_node(state: GetUserInput, config: RunnableConfig, runtime: Runtime[Context]) -> GetUserOutput:
@@ -354,6 +394,7 @@ def get_user_node(state: GetUserInput, config: RunnableConfig, runtime: Runtime[
     desc: 根据手机号查询用户信息（用于登录）
     integrations: 数据库
     """
+    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
     ctx = runtime.context
 
     db = get_session()
@@ -380,7 +421,11 @@ def get_user_node(state: GetUserInput, config: RunnableConfig, runtime: Runtime[
             "updated_at": int(db_user.updated_at.timestamp() * 1000) if db_user.updated_at else None
         }
 
-        return GetUserOutput(success=True, user=user_data)
+        return GetUserOutput(
+            result={"success": True, "user": user_data},
+            success=True,
+            user=user_data
+        )
 
     finally:
         db.close()
@@ -392,6 +437,7 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
     desc: 更新用户信息（管理员功能）
     integrations: 数据库
     """
+    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
     ctx = runtime.context
 
     # 验证管理员权限
@@ -423,7 +469,11 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
             "updated_at": int(db_user.updated_at.timestamp() * 1000) if db_user.updated_at else None
         }
 
-        return UpdateUserOutput(success=True, user=user_data)
+        return UpdateUserOutput(
+            result={"success": True, "user": user_data},
+            success=True,
+            user=user_data
+        )
 
     finally:
         db.close()
@@ -435,6 +485,7 @@ def delete_user_node(state: DeleteUserInput, config: RunnableConfig, runtime: Ru
     desc: 软删除用户（管理员功能）
     integrations: 数据库
     """
+    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
     ctx = runtime.context
 
     # 验证管理员权限
@@ -450,7 +501,10 @@ def delete_user_node(state: DeleteUserInput, config: RunnableConfig, runtime: Ru
         if not success:
             return DeleteUserOutput(success=False, error="用户不存在")
 
-        return DeleteUserOutput(success=True)
+        return DeleteUserOutput(
+            result={"success": True, "deleted": True},
+            success=True
+        )
 
     finally:
         db.close()
@@ -462,6 +516,7 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
     desc: 查询用户列表（管理员功能）
     integrations: 数据库
     """
+    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
     ctx = runtime.context
 
     # 验证管理员权限
@@ -505,6 +560,7 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
             })
 
         return ListUsersOutput(
+            result={"success": True, "users": users_data, "total": total, "page": state.page, "limit": state.limit},
             success=True,
             users=users_data,
             total=total,
@@ -712,15 +768,32 @@ def format_response_node(state: FormatResponseInput, config: RunnableConfig, run
         if not result:
             return FormatResponseOutput(response_data={"code": -1, "msg": "无结果返回", "data": None})
 
-        # 处理其他节点的 dict 结果
-        if result.get("success"):
-            code = 0
-            msg = result.get("message", "操作成功")
-            data = {k: v for k, v in result.items() if k not in ["success", "message"]}
+        # 处理不同类型的 dict 结果
+        # 情况1: result 中有 success 字段（通用格式）
+        if "success" in result:
+            if result.get("success"):
+                code = 0
+                msg = result.get("message", "操作成功")
+                data = {k: v for k, v in result.items() if k not in ["success", "message"]}
+            else:
+                code = -1
+                msg = result.get("error", result.get("message", "操作失败"))
+                data = None
+        # 情况2: result 中有 allowed 字段（限流检查格式）
+        elif "allowed" in result:
+            if result.get("allowed"):
+                code = 0
+                msg = result.get("message", "检查通过")
+                data = {k: v for k, v in result.items() if k not in ["allowed", "message"]}
+            else:
+                code = -1
+                msg = result.get("reason", result.get("message", "检查未通过"))
+                data = None
+        # 情况3: 其他格式，假设成功
         else:
-            code = -1
-            msg = result.get("message", "操作失败")
-            data = None
+            code = 0
+            msg = "操作成功"
+            data = result
 
         return FormatResponseOutput(response_data={"code": code, "msg": msg, "data": data})
 

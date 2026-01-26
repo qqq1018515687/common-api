@@ -55,7 +55,7 @@ class RateLimits(Base):
     request_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default='1', comment='请求次数')
     first_request_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='首次请求时间')
     last_request_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='最后请求时间')
-    is_blocked: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=False, comment='是否封禁')
+    is_blocked: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default='false', comment='是否封禁')
     blocked_until: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), nullable=True, comment='封禁到期时间')
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
 
