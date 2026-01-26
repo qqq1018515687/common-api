@@ -88,6 +88,7 @@ builder.add_node("unpack_input_data", unpack_input_data_node)
 builder.add_node("call_type_router", router_node)
 builder.add_node("operation_route", operation_route_node)
 builder.add_node("check_rate_limit", check_rate_limit_node)
+builder.add_node("update_rate_limit", update_rate_limit_node)
 builder.add_node("register_with_limit", register_with_limit_node)
 builder.add_node("get_user", get_user_node)
 builder.add_node("update_user", update_user_node)
@@ -138,6 +139,7 @@ builder.add_conditional_edges(
     path=route_by_operation_type,
     path_map={
         "限流检查": "check_rate_limit",
+        "更新限流": "update_rate_limit",
         "用户注册": "register_with_limit",
         "用户登录": "get_user",
         "更新用户": "update_user",
@@ -148,6 +150,7 @@ builder.add_conditional_edges(
 
 # 各业务分支汇聚到统一返回节点
 builder.add_edge("check_rate_limit", "format_response")
+builder.add_edge("update_rate_limit", "format_response")
 builder.add_edge("register_with_limit", "format_response")
 builder.add_edge("get_user", "format_response")
 builder.add_edge("update_user", "format_response")

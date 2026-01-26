@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 import hashlib
 import uuid
+import bcrypt
 from datetime import datetime, timedelta
 
 from storage.database.shared.model import Users, RateLimits
@@ -30,6 +31,34 @@ class UserUpdate(BaseModel):
     role: Optional[str] = Field(default=None, description="用户角色")
     tier: Optional[str] = Field(default=None, description="用户等级")
     account_status: Optional[str] = Field(default=None, description="账号状态")
+
+
+def hash_password(password: str) -> str:
+    """
+    生成密码哈希
+    
+    Args:
+        password: 明文密码
+        
+    Returns:
+        密码哈希字符串
+    """
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    """
+    验证密码
+    
+    Args:
+        password: 明文密码
+        password_hash: 密码哈希
+        
+    Returns:
+        密码是否匹配
+    """
+    return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
 
 
 class UserManager:

@@ -127,6 +127,7 @@ class UpdateRateLimitInput(BaseModel):
 
 class UpdateRateLimitOutput(BaseModel):
     """更新限流记录节点的输出"""
+    result: dict = Field(default={}, description="更新结果")
     success: bool = Field(..., description="是否成功")
     blocked: bool = Field(default=False, description="是否被封禁")
 
@@ -153,6 +154,7 @@ class RegisterWithLimitOutput(BaseModel):
 class GetUserInput(BaseModel):
     """查询用户节点的输入"""
     phone: str = Field(..., description="手机号")
+    password: str = Field(..., description="密码")
 
 
 class GetUserOutput(BaseModel):

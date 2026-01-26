@@ -78,6 +78,8 @@ def route_by_operation_type(state: OperationRouteInput) -> str:
 
     if operation_type == "check_rate_limit":
         return "限流检查"
+    elif operation_type == "update_rate_limit":
+        return "更新限流"
     elif operation_type == "register":
         return "用户注册"
     elif operation_type == "login":
@@ -363,13 +365,25 @@ def update_rate_limit_node(state: UpdateRateLimitInput, config: RunnableConfig, 
 
         if limits["blocked_phone_10min"] or limits["blocked_phone_1hour"]:
             rate_mgr.block(db, record, block_duration_hours=1)
-            return UpdateRateLimitOutput(success=True, blocked=True)
+            return UpdateRateLimitOutput(
+                result={"success": True, "blocked": True, "message": "触发限流封禁"},
+                success=True,
+                blocked=True
+            )
 
         if limits["blocked_ip_10min"] or limits["blocked_ip_1hour"]:
             rate_mgr.block(db, record, block_duration_hours=2)
-            return UpdateRateLimitOutput(success=True, blocked=True)
+            return UpdateRateLimitOutput(
+                result={"success": True, "blocked": True, "message": "触发限流封禁"},
+                success=True,
+                blocked=True
+            )
 
-        return UpdateRateLimitOutput(success=True, blocked=False)
+        return UpdateRateLimitOutput(
+            result={"success": True, "blocked": False, "message": "更新成功"},
+            success=True,
+            blocked=False
+        )
 
     finally:
         db.close()
@@ -425,21 +439,36 @@ def register_with_limit_node(state: RegisterWithLimitInput, config: RunnableConf
 def get_user_node(state: GetUserInput, config: RunnableConfig, runtime: Runtime[Context]) -> GetUserOutput:
     """
     title: 查询用户
-    desc: 根据手机号查询用户信息（用于登录）
+    desc: 根据手机号和密码查询用户信息（用于登录）
     integrations: 数据库
     """
     UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
+    from storage.database.user_manager import verify_password
     ctx = runtime.context
 
     db = get_session()
     try:
         user_mgr = UserManager()
 
+        # 1. 查询用户
         db_user = user_mgr.get_user_by_phone(db, state.phone)
 
         if not db_user:
-            return GetUserOutput(success=False, error="用户不存在")
+            return GetUserOutput(
+                result={"success": False, "error": "用户不存在"},
+                success=False,
+                error="用户不存在"
+            )
 
+        # 2. 验证密码
+        if not verify_password(state.password, db_user.password_hash):
+            return GetUserOutput(
+                result={"success": False, "error": "密码错误"},
+                success=False,
+                error="密码错误"
+            )
+
+        # 3. 返回用户信息
         user_data = {
             "user_id": db_user.user_id,
             "phone": db_user.phone,
