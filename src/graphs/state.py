@@ -5,8 +5,8 @@ from utils.file.file import File
 
 class InputData(BaseModel):
     """输入数据对象，包含所有业务字段"""
-    username: Optional[str] = Field(default=None, description="用户名（注册/登录使用）")
-    password: Optional[str] = Field(default=None, description="密码（注册/登录使用）")
+    username: Optional[str] = Field(default=None, description="用户名")
+    password: Optional[str] = Field(default=None, description="密码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表（提示词增强使用）")
     user_id: Optional[int] = Field(default=None, description="用户 ID（save/history 使用）")
@@ -14,12 +14,29 @@ class InputData(BaseModel):
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
 
+    # 用户管理相关字段
+    phone: Optional[str] = Field(default=None, description="手机号")
+    ip: Optional[str] = Field(default=None, description="IP地址")
+    password_hash: Optional[str] = Field(default=None, description="密码哈希")
+    avatar: Optional[str] = Field(default=None, description="头像URL")
+    team_id: Optional[str] = Field(default=None, description="团队ID")
+    gold_credits: Optional[int] = Field(default=None, description="金豆余额")
+    silver_credits: Optional[int] = Field(default=None, description="银豆余额")
+    role: Optional[str] = Field(default=None, description="用户角色")
+    tier: Optional[str] = Field(default=None, description="用户等级")
+    account_status: Optional[str] = Field(default=None, description="账号状态")
+    updates: Optional[dict] = Field(default=None, description="更新字段")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色")
+    page: Optional[int] = Field(default=None, description="页码")
+    limit: Optional[int] = Field(default=None, description="每页数量")
+    filter: Optional[dict] = Field(default=None, description="筛选条件")
+
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：register/login/upload/save/history/tool")
-    username: Optional[str] = Field(default=None, description="用户名（注册/登录使用）")
-    password: Optional[str] = Field(default=None, description="密码（注册/登录使用）")
+    call_type: str = Field(..., description="调用类型：check_rate_limit/register/login/update_user/delete_user/list_users/upload/save/history/tool")
+    username: Optional[str] = Field(default=None, description="用户名")
+    password: Optional[str] = Field(default=None, description="密码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表（提示词增强使用）")
     user_id: Optional[int] = Field(default=None, description="用户 ID（save/history 使用）")
@@ -27,6 +44,23 @@ class GlobalState(BaseModel):
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
     response_data: Optional[dict] = Field(default=None, description="统一响应数据")
+
+    # 用户管理相关字段
+    phone: Optional[str] = Field(default=None, description="手机号")
+    ip: Optional[str] = Field(default=None, description="IP地址")
+    password_hash: Optional[str] = Field(default=None, description="密码哈希")
+    avatar: Optional[str] = Field(default=None, description="头像URL")
+    team_id: Optional[str] = Field(default=None, description="团队ID")
+    gold_credits: Optional[int] = Field(default=None, description="金豆余额")
+    silver_credits: Optional[int] = Field(default=None, description="银豆余额")
+    role: Optional[str] = Field(default=None, description="用户角色")
+    tier: Optional[str] = Field(default=None, description="用户等级")
+    account_status: Optional[str] = Field(default=None, description="账号状态")
+    updates: Optional[dict] = Field(default=None, description="更新字段")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色")
+    page: Optional[int] = Field(default=None, description="页码")
+    limit: Optional[int] = Field(default=None, description="每页数量")
+    filter: Optional[dict] = Field(default=None, description="筛选条件")
 
 
 class GraphInput(BaseModel):
@@ -41,17 +75,132 @@ class GraphOutput(BaseModel):
     response_data: dict = Field(..., description="统一响应数据：{code, msg, data}")
 
 
-# 注册/登录节点
-class RegisterLoginInput(BaseModel):
-    """注册/登录节点的输入"""
-    call_type: str = Field(..., description="调用类型：register 或 login")
-    username: Optional[str] = Field(default=None, description="用户名")
-    password: Optional[str] = Field(default=None, description="密码")
+# ============ 用户管理节点 ============
+
+# 限流检查节点
+class CheckRateLimitInput(BaseModel):
+    """限流检查节点的输入"""
+    phone: str = Field(..., description="手机号")
+    ip: str = Field(..., description="IP地址")
 
 
-class RegisterLoginOutput(BaseModel):
-    """注册/登录节点的输出"""
-    result: dict = Field(default={}, description="操作结果")
+class CheckRateLimitOutput(BaseModel):
+    """限流检查节点的输出"""
+    allowed: bool = Field(..., description="是否允许")
+    reason: Optional[str] = Field(default=None, description="拒绝原因")
+    user_exists: bool = Field(default=False, description="用户是否已存在")
+
+
+# 创建用户节点
+class CreateUserInput(BaseModel):
+    """创建用户节点的输入"""
+    phone: str = Field(..., description="手机号")
+    password_hash: str = Field(..., description="密码哈希")
+    username: str = Field(..., description="用户名")
+    avatar: str = Field(..., description="头像URL")
+    team_id: Optional[str] = Field(default=None, description="团队ID")
+    gold_credits: int = Field(default=0, description="金豆余额")
+    silver_credits: int = Field(default=999999999, description="银豆余额")
+    role: str = Field(default="user", description="用户角色")
+    tier: str = Field(default="standard", description="用户等级")
+    account_status: str = Field(default="active", description="账号状态")
+
+
+class CreateUserOutput(BaseModel):
+    """创建用户节点的输出"""
+    success: bool = Field(..., description="是否成功")
+    user: Optional[dict] = Field(default=None, description="用户数据")
+    error: Optional[str] = Field(default=None, description="错误信息")
+
+
+# 更新限流记录节点
+class UpdateRateLimitInput(BaseModel):
+    """更新限流记录节点的输入"""
+    phone: str = Field(..., description="手机号")
+    ip: str = Field(..., description="IP地址")
+
+
+class UpdateRateLimitOutput(BaseModel):
+    """更新限流记录节点的输出"""
+    success: bool = Field(..., description="是否成功")
+    blocked: bool = Field(default=False, description="是否被封禁")
+
+
+# 注册组合节点
+class RegisterWithLimitInput(BaseModel):
+    """注册组合节点的输入"""
+    phone: str = Field(..., description="手机号")
+    ip: str = Field(..., description="IP地址")
+    password_hash: str = Field(..., description="密码哈希")
+    username: str = Field(..., description="用户名")
+    avatar: str = Field(..., description="头像URL")
+
+
+class RegisterWithLimitOutput(BaseModel):
+    """注册组合节点的输出"""
+    success: bool = Field(..., description="是否成功")
+    user: Optional[dict] = Field(default=None, description="用户数据")
+    error: Optional[str] = Field(default=None, description="错误信息")
+
+
+# 查询用户节点（登录）
+class GetUserInput(BaseModel):
+    """查询用户节点的输入"""
+    phone: str = Field(..., description="手机号")
+
+
+class GetUserOutput(BaseModel):
+    """查询用户节点的输出"""
+    success: bool = Field(..., description="是否成功")
+    user: Optional[dict] = Field(default=None, description="用户数据")
+    error: Optional[str] = Field(default=None, description="错误信息")
+
+
+# 更新用户节点
+class UpdateUserInput(BaseModel):
+    """更新用户节点的输入"""
+    user_id: str = Field(..., description="用户ID")
+    updates: dict = Field(..., description="更新字段")
+    operator_role: str = Field(..., description="操作者角色")
+
+
+class UpdateUserOutput(BaseModel):
+    """更新用户节点的输出"""
+    success: bool = Field(..., description="是否成功")
+    user: Optional[dict] = Field(default=None, description="用户数据")
+    error: Optional[str] = Field(default=None, description="错误信息")
+
+
+# 删除用户节点
+class DeleteUserInput(BaseModel):
+    """删除用户节点的输入"""
+    user_id: str = Field(..., description="用户ID")
+    operator_role: str = Field(..., description="操作者角色")
+
+
+class DeleteUserOutput(BaseModel):
+    """删除用户节点的输出"""
+    success: bool = Field(..., description="是否成功")
+    error: Optional[str] = Field(default=None, description="错误信息")
+
+
+# 用户列表节点
+class ListUsersInput(BaseModel):
+    """用户列表节点的输入"""
+    page: int = Field(default=1, description="页码")
+    limit: int = Field(default=20, description="每页数量")
+    filter: Optional[dict] = Field(default=None, description="筛选条件")
+    operator_role: str = Field(..., description="操作者角色")
+
+
+class ListUsersOutput(BaseModel):
+    """用户列表节点的输出"""
+    success: bool = Field(..., description="是否成功")
+    users: Optional[List[dict]] = Field(default=None, description="用户列表")
+    total: Optional[int] = Field(default=None, description="总数")
+    page: Optional[int] = Field(default=None, description="当前页")
+    limit: Optional[int] = Field(default=None, description="每页数量")
+    error: Optional[str] = Field(default=None, description="错误信息")
 
 
 # 文件上传节点

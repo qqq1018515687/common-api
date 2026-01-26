@@ -5,9 +5,10 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from coze_coding_dev_sdk import LLMClient
 from jinja2 import Template
 import json
-from typing import Optional
+from typing import Optional, List
+from datetime import datetime
+
 from graphs.state import (
-    RegisterLoginInput, RegisterLoginOutput,
     UploadInput, UploadOutput,
     SaveInput, SaveOutput,
     HistoryInput, HistoryOutput,
@@ -24,7 +25,15 @@ from graphs.state import (
     PromptEnhanceInput,
     PromptEnhanceOutput,
     UnpackInputDataInput,
-    UnpackInputDataOutput
+    UnpackInputDataOutput,
+    CheckRateLimitInput, CheckRateLimitOutput,
+    CreateUserInput, CreateUserOutput,
+    UpdateRateLimitInput, UpdateRateLimitOutput,
+    RegisterWithLimitInput, RegisterWithLimitOutput,
+    GetUserInput, GetUserOutput,
+    UpdateUserInput, UpdateUserOutput,
+    DeleteUserInput, DeleteUserOutput,
+    ListUsersInput, ListUsersOutput
 )
 import os
 import requests
@@ -32,8 +41,10 @@ from urllib.parse import urlparse
 import io
 import base64
 import re
+import uuid
 
 from storage.database.db import get_session
+from storage.database.user_manager import UserManager, UserCreate, UserUpdate, RateLimitManager
 
 
 def router_node(state: RouterInput, config: RunnableConfig, runtime: Runtime[Context]) -> RouterOutput:
@@ -118,7 +129,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         runninghub_link=input_data.runninghub_link if input_data else None,
         prompt=input_data.prompt if input_data else None
     )
-from storage.database.user_manager import UserManager, UserCreate, UserLogin
+from storage.database.user_manager import UserManager, UserCreate, UserUpdate, RateLimitManager
 from storage.database.history_manager import HistoryManager, HistoryCreate
 from storage.s3.s3_storage import S3SyncStorage
 
@@ -133,42 +144,373 @@ storage = S3SyncStorage(
 )
 
 
-def register_login_node(state: RegisterLoginInput, config: RunnableConfig, runtime: Runtime[Context]) -> RegisterLoginOutput:
+# ============ 用户管理节点 ============
+
+def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, runtime: Runtime[Context]) -> CheckRateLimitOutput:
     """
-    title: 注册/登录
-    desc: 处理用户注册和登录操作，包括注册新用户和密码比对认证
+    title: 限流检查
+    desc: 检查手机号和IP地址的请求频率限制
     integrations: 数据库
     """
     ctx = runtime.context
 
     db = get_session()
     try:
-        mgr = UserManager()
+        rate_mgr = RateLimitManager()
+        user_mgr = UserManager()
 
-        if state.call_type == "register":
-            # 注册逻辑
-            user_in = UserCreate(username=state.username, password=state.password)
-            db_user = mgr.create_user(db, user_in)
+        # 1. 检查封禁状态
+        blocked_info = rate_mgr.check_blocked_status(db, state.phone, state.ip)
+        if blocked_info:
+            return CheckRateLimitOutput(
+                allowed=False,
+                reason="账号已被封禁，请稍后再试",
+                user_exists=False
+            )
 
-            if db_user is None:
-                # 用户名已存在
-                return RegisterLoginOutput(result={"success": False, "message": "用户名已存在"})
+        # 2. 检查手机号是否已注册
+        existing_user = user_mgr.get_user_by_phone(db, state.phone)
+        if existing_user:
+            return CheckRateLimitOutput(
+                allowed=False,
+                reason="该手机号已注册，请直接登录",
+                user_exists=True
+            )
 
-            return RegisterLoginOutput(result={"success": True, "message": "注册成功", "user_id": db_user.id})
+        # 3. 计算时间窗口内的请求次数
+        limits = rate_mgr.check_limits(db, state.phone, state.ip)
 
-        elif state.call_type == "login":
-            # 登录逻辑
-            login_in = UserLogin(username=state.username, password=state.password)
-            db_user = mgr.authenticate_user(db, login_in)
+        # 4. 判断是否超过限制
+        if limits["blocked_phone_10min"]:
+            return CheckRateLimitOutput(
+                allowed=False,
+                reason="该手机号发送验证码过于频繁，请10分钟后再试",
+                user_exists=False
+            )
 
-            if db_user is None:
-                # 认证失败
-                return RegisterLoginOutput(result={"success": False, "message": "用户名或密码错误"})
+        if limits["blocked_phone_1hour"]:
+            return CheckRateLimitOutput(
+                allowed=False,
+                reason="该手机号今日发送次数已达上限，请1小时后再试",
+                user_exists=False
+            )
 
-            return RegisterLoginOutput(result={"success": True, "message": "登录成功", "user_id": db_user.id})
+        if limits["blocked_ip_10min"]:
+            return CheckRateLimitOutput(
+                allowed=False,
+                reason="当前网络请求过于频繁，请稍后再试",
+                user_exists=False
+            )
 
-        else:
-            return RegisterLoginOutput(result={"success": False, "message": "无效的调用类型"})
+        if limits["blocked_ip_1hour"]:
+            return CheckRateLimitOutput(
+                allowed=False,
+                reason="当前网络请求已达上限，请1小时后再试",
+                user_exists=False
+            )
+
+        # 5. 所有检查通过
+        return CheckRateLimitOutput(allowed=True, user_exists=False)
+
+    finally:
+        db.close()
+
+
+def create_user_node(state: CreateUserInput, config: RunnableConfig, runtime: Runtime[Context]) -> CreateUserOutput:
+    """
+    title: 创建用户
+    desc: 创建新用户记录
+    integrations: 数据库
+    """
+    ctx = runtime.context
+
+    db = get_session()
+    try:
+        user_mgr = UserManager()
+
+        user_in = UserCreate(
+            phone=state.phone,
+            password_hash=state.password_hash,
+            username=state.username,
+            avatar=state.avatar,
+            team_id=state.team_id,
+            gold_credits=state.gold_credits,
+            silver_credits=state.silver_credits,
+            role=state.role,
+            tier=state.tier,
+            account_status=state.account_status
+        )
+
+        db_user = user_mgr.create_user(db, user_in)
+
+        if db_user is None:
+            return CreateUserOutput(
+                success=False,
+                error="该手机号已被注册"
+            )
+
+        user_data = {
+            "user_id": db_user.user_id,
+            "phone": db_user.phone,
+            "username": db_user.username,
+            "avatar": db_user.avatar,
+            "team_id": db_user.team_id,
+            "gold_credits": db_user.gold_credits,
+            "silver_credits": db_user.silver_credits,
+            "role": db_user.role,
+            "tier": db_user.tier,
+            "account_status": db_user.account_status,
+            "created_at": int(db_user.created_at.timestamp() * 1000),
+            "updated_at": int(db_user.updated_at.timestamp() * 1000) if db_user.updated_at else None
+        }
+
+        return CreateUserOutput(success=True, user=user_data)
+
+    finally:
+        db.close()
+
+
+def update_rate_limit_node(state: UpdateRateLimitInput, config: RunnableConfig, runtime: Runtime[Context]) -> UpdateRateLimitOutput:
+    """
+    title: 更新限流记录
+    desc: 更新或创建限流记录，并检查是否需要封禁
+    integrations: 数据库
+    """
+    ctx = runtime.context
+
+    db = get_session()
+    try:
+        rate_mgr = RateLimitManager()
+
+        # 1. 获取或创建记录
+        record = rate_mgr.get_or_create(db, state.phone, state.ip)
+
+        # 2. 更新请求次数
+        record = rate_mgr.update_count(db, record)
+
+        # 3. 检查是否需要封禁
+        limits = rate_mgr.check_limits(db, state.phone, state.ip)
+
+        if limits["blocked_phone_10min"] or limits["blocked_phone_1hour"]:
+            rate_mgr.block(db, record, block_duration_hours=1)
+            return UpdateRateLimitOutput(success=True, blocked=True)
+
+        if limits["blocked_ip_10min"] or limits["blocked_ip_1hour"]:
+            rate_mgr.block(db, record, block_duration_hours=2)
+            return UpdateRateLimitOutput(success=True, blocked=True)
+
+        return UpdateRateLimitOutput(success=True, blocked=False)
+
+    finally:
+        db.close()
+
+
+def register_with_limit_node(state: RegisterWithLimitInput, config: RunnableConfig, runtime: Runtime[Context]) -> RegisterWithLimitOutput:
+    """
+    title: 用户注册
+    desc: 完整的注册流程：检查限流 -> 创建用户 -> 更新限流记录
+    integrations: 数据库
+    """
+    ctx = runtime.context
+
+    # 1. 检查限流
+    check_result = check_rate_limit_node(
+        CheckRateLimitInput(phone=state.phone, ip=state.ip),
+        config,
+        runtime
+    )
+
+    if not check_result.allowed:
+        return RegisterWithLimitOutput(success=False, error=check_result.reason)
+
+    # 2. 创建用户
+    create_result = create_user_node(
+        CreateUserInput(
+            phone=state.phone,
+            password_hash=state.password_hash,
+            username=state.username,
+            avatar=state.avatar
+        ),
+        config,
+        runtime
+    )
+
+    if not create_result.success:
+        return RegisterWithLimitOutput(success=False, error=create_result.error)
+
+    # 3. 更新限流记录
+    update_result = update_rate_limit_node(
+        UpdateRateLimitInput(phone=state.phone, ip=state.ip),
+        config,
+        runtime
+    )
+
+    return RegisterWithLimitOutput(success=True, user=create_result.user)
+
+
+def get_user_node(state: GetUserInput, config: RunnableConfig, runtime: Runtime[Context]) -> GetUserOutput:
+    """
+    title: 查询用户
+    desc: 根据手机号查询用户信息（用于登录）
+    integrations: 数据库
+    """
+    ctx = runtime.context
+
+    db = get_session()
+    try:
+        user_mgr = UserManager()
+
+        db_user = user_mgr.get_user_by_phone(db, state.phone)
+
+        if not db_user:
+            return GetUserOutput(success=False, error="用户不存在")
+
+        user_data = {
+            "user_id": db_user.user_id,
+            "phone": db_user.phone,
+            "username": db_user.username,
+            "avatar": db_user.avatar,
+            "team_id": db_user.team_id,
+            "gold_credits": db_user.gold_credits,
+            "silver_credits": db_user.silver_credits,
+            "role": db_user.role,
+            "tier": db_user.tier,
+            "account_status": db_user.account_status,
+            "created_at": int(db_user.created_at.timestamp() * 1000),
+            "updated_at": int(db_user.updated_at.timestamp() * 1000) if db_user.updated_at else None
+        }
+
+        return GetUserOutput(success=True, user=user_data)
+
+    finally:
+        db.close()
+
+
+def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Runtime[Context]) -> UpdateUserOutput:
+    """
+    title: 更新用户
+    desc: 更新用户信息（管理员功能）
+    integrations: 数据库
+    """
+    ctx = runtime.context
+
+    # 验证管理员权限
+    if state.operator_role != 'admin':
+        return UpdateUserOutput(success=False, error="权限不足，仅管理员可操作")
+
+    db = get_session()
+    try:
+        user_mgr = UserManager()
+
+        user_in = UserUpdate(**state.updates)
+        db_user = user_mgr.update_user(db, state.user_id, user_in)
+
+        if not db_user:
+            return UpdateUserOutput(success=False, error="用户不存在")
+
+        user_data = {
+            "user_id": db_user.user_id,
+            "phone": db_user.phone,
+            "username": db_user.username,
+            "avatar": db_user.avatar,
+            "team_id": db_user.team_id,
+            "gold_credits": db_user.gold_credits,
+            "silver_credits": db_user.silver_credits,
+            "role": db_user.role,
+            "tier": db_user.tier,
+            "account_status": db_user.account_status,
+            "created_at": int(db_user.created_at.timestamp() * 1000),
+            "updated_at": int(db_user.updated_at.timestamp() * 1000) if db_user.updated_at else None
+        }
+
+        return UpdateUserOutput(success=True, user=user_data)
+
+    finally:
+        db.close()
+
+
+def delete_user_node(state: DeleteUserInput, config: RunnableConfig, runtime: Runtime[Context]) -> DeleteUserOutput:
+    """
+    title: 删除用户
+    desc: 软删除用户（管理员功能）
+    integrations: 数据库
+    """
+    ctx = runtime.context
+
+    # 验证管理员权限
+    if state.operator_role != 'admin':
+        return DeleteUserOutput(success=False, error="权限不足，仅管理员可操作")
+
+    db = get_session()
+    try:
+        user_mgr = UserManager()
+
+        success = user_mgr.delete_user(db, state.user_id)
+
+        if not success:
+            return DeleteUserOutput(success=False, error="用户不存在")
+
+        return DeleteUserOutput(success=True)
+
+    finally:
+        db.close()
+
+
+def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runtime[Context]) -> ListUsersOutput:
+    """
+    title: 用户列表
+    desc: 查询用户列表（管理员功能）
+    integrations: 数据库
+    """
+    ctx = runtime.context
+
+    # 验证管理员权限
+    if state.operator_role != 'admin':
+        return ListUsersOutput(success=False, error="权限不足，仅管理员可操作")
+
+    db = get_session()
+    try:
+        user_mgr = UserManager()
+
+        filter_dict = {}
+        if state.filter:
+            filter_dict = {
+                "role": state.filter.get("role"),
+                "tier": state.filter.get("tier"),
+                "account_status": state.filter.get("account_status")
+            }
+
+        users, total = user_mgr.list_users(
+            db,
+            page=state.page,
+            limit=state.limit,
+            **filter_dict
+        )
+
+        users_data = []
+        for user in users:
+            users_data.append({
+                "user_id": user.user_id,
+                "phone": user.phone,
+                "username": user.username,
+                "avatar": user.avatar,
+                "team_id": user.team_id,
+                "gold_credits": user.gold_credits,
+                "silver_credits": user.silver_credits,
+                "role": user.role,
+                "tier": user.tier,
+                "account_status": user.account_status,
+                "created_at": int(user.created_at.timestamp() * 1000),
+                "updated_at": int(user.updated_at.timestamp() * 1000) if user.updated_at else None
+            })
+
+        return ListUsersOutput(
+            success=True,
+            users=users_data,
+            total=total,
+            page=state.page,
+            limit=state.limit
+        )
 
     finally:
         db.close()

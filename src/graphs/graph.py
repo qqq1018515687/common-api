@@ -3,7 +3,6 @@ from graphs.state import (
     GlobalState,
     GraphInput,
     GraphOutput,
-    RegisterLoginInput,
     UploadInput,
     SaveInput,
     HistoryInput,
@@ -16,7 +15,6 @@ from graphs.state import (
     UnpackInputDataOutput
 )
 from graphs.node import (
-    register_login_node,
     upload_node,
     save_node,
     history_node,
@@ -26,7 +24,15 @@ from graphs.node import (
     reverse_image_node,
     translate_doubao_node,
     prompt_enhance_node,
-    unpack_input_data_node
+    unpack_input_data_node,
+    check_rate_limit_node,
+    create_user_node,
+    update_rate_limit_node,
+    register_with_limit_node,
+    get_user_node,
+    update_user_node,
+    delete_user_node,
+    list_users_node
 )
 
 
@@ -37,8 +43,18 @@ def route_by_call_type(state: RouterOutput) -> str:
     """
     call_type = state.call_type
 
-    if call_type in ["register", "login"]:
-        return "注册/登录"
+    if call_type == "check_rate_limit":
+        return "限流检查"
+    elif call_type == "register":
+        return "用户注册"
+    elif call_type == "login":
+        return "用户登录"
+    elif call_type == "update_user":
+        return "更新用户"
+    elif call_type == "delete_user":
+        return "删除用户"
+    elif call_type == "list_users":
+        return "用户列表"
     elif call_type == "upload":
         return "文件上传"
     elif call_type == "save":
@@ -48,7 +64,7 @@ def route_by_call_type(state: RouterOutput) -> str:
     elif call_type == "tool":
         return "工具中心"
     else:
-        return "注册/登录"
+        return "用户注册"  # 默认
 
 
 def route_by_tool_type(state: ToolRouteOutput) -> str:
@@ -74,7 +90,12 @@ builder = StateGraph(GlobalState, input_schema=GraphInput, output_schema=GraphOu
 # 添加节点
 builder.add_node("unpack_input_data", unpack_input_data_node)
 builder.add_node("call_type_router", router_node)
-builder.add_node("register_login", register_login_node)
+builder.add_node("check_rate_limit", check_rate_limit_node)
+builder.add_node("register_with_limit", register_with_limit_node)
+builder.add_node("get_user", get_user_node)
+builder.add_node("update_user", update_user_node)
+builder.add_node("delete_user", delete_user_node)
+builder.add_node("list_users", list_users_node)
 builder.add_node("upload", upload_node)
 builder.add_node("save", save_node)
 builder.add_node("history", history_node)
@@ -95,7 +116,12 @@ builder.add_conditional_edges(
     source="call_type_router",
     path=route_by_call_type,
     path_map={
-        "注册/登录": "register_login",
+        "限流检查": "check_rate_limit",
+        "用户注册": "register_with_limit",
+        "用户登录": "get_user",
+        "更新用户": "update_user",
+        "删除用户": "delete_user",
+        "用户列表": "list_users",
         "文件上传": "upload",
         "保存历史": "save",
         "历史查询": "history",
@@ -115,7 +141,12 @@ builder.add_conditional_edges(
 )
 
 # 各业务分支汇聚到统一返回节点
-builder.add_edge("register_login", "format_response")
+builder.add_edge("check_rate_limit", "format_response")
+builder.add_edge("register_with_limit", "format_response")
+builder.add_edge("get_user", "format_response")
+builder.add_edge("update_user", "format_response")
+builder.add_edge("delete_user", "format_response")
+builder.add_edge("list_users", "format_response")
 builder.add_edge("upload", "format_response")
 builder.add_edge("save", "format_response")
 builder.add_edge("history", "format_response")
