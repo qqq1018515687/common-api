@@ -405,7 +405,11 @@ def register_with_limit_node(state: RegisterWithLimitInput, config: RunnableConf
     )
 
     if not check_result.allowed:
-        return RegisterWithLimitOutput(success=False, error=check_result.reason)
+        return RegisterWithLimitOutput(
+            result={"success": False, "error": check_result.reason},
+            success=False,
+            error=check_result.reason
+        )
 
     # 2. 创建用户
     create_result = create_user_node(
@@ -420,7 +424,11 @@ def register_with_limit_node(state: RegisterWithLimitInput, config: RunnableConf
     )
 
     if not create_result.success:
-        return RegisterWithLimitOutput(success=False, error=create_result.error)
+        return RegisterWithLimitOutput(
+            result={"success": False, "error": create_result.error},
+            success=False,
+            error=create_result.error
+        )
 
     # 3. 更新限流记录
     update_result = update_rate_limit_node(
