@@ -21,8 +21,8 @@ class Users(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, comment='自增主键')
-    user_id: Mapped[Optional[str]] = mapped_column(String(36), unique=True, nullable=True, comment='用户唯一标识 (10位随机数字或UUID)')
-    phone: Mapped[Optional[str]] = mapped_column(String(11), unique=True, nullable=True, comment='手机号')
+    user_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, comment='用户唯一标识 (10位随机数字或UUID)')
+    phone: Mapped[Optional[str]] = mapped_column(String(11), nullable=True, comment='手机号')
     username: Mapped[str] = mapped_column(String(255), nullable=False, comment='用户名')
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False, comment='密码哈希')
     avatar: Mapped[Optional[str]] = mapped_column(String(256), nullable=True, comment='头像 URL')
