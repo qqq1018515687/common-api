@@ -5,7 +5,7 @@ import hashlib
 import uuid
 import bcrypt
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from storage.database.shared.model import Users, RateLimits
 
@@ -188,8 +188,8 @@ class RateLimitManager:
                 phone=phone,
                 ip_address=ip_address,
                 request_count=1,
-                first_request_at=datetime.utcnow(),
-                last_request_at=datetime.utcnow()
+                first_request_at=datetime.now(timezone.utc),
+                last_request_at=datetime.now(timezone.utc)
             )
             db.add(record)
             try:
@@ -204,7 +204,7 @@ class RateLimitManager:
     def update_count(self, db: Session, record: RateLimits) -> RateLimits:
         """更新请求次数"""
         record.request_count += 1
-        record.last_request_at = datetime.utcnow()
+        record.last_request_at = datetime.now(timezone.utc)
         db.add(record)
         try:
             db.commit()
@@ -218,7 +218,7 @@ class RateLimitManager:
     def block(self, db: Session, record: RateLimits, block_duration_hours: int = 1):
         """封禁"""
         record.is_blocked = True
-        record.blocked_until = datetime.utcnow() + timedelta(hours=block_duration_hours)
+        record.blocked_until = datetime.now(timezone.utc) + timedelta(hours=block_duration_hours)
         db.add(record)
         try:
             db.commit()
@@ -228,7 +228,7 @@ class RateLimitManager:
 
     def check_limits(self, db: Session, phone: str, ip_address: str) -> dict:
         """检查限流"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         ten_minutes_ago = now - timedelta(minutes=10)
         one_hour_ago = now - timedelta(hours=1)
 
@@ -290,7 +290,7 @@ class RateLimitManager:
         if not record or not record.is_blocked:
             return None
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if record.blocked_until and record.blocked_until > now:
             return {"blocked": True, "blocked_until": record.blocked_until.timestamp()}
         else:
