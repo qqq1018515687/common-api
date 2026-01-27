@@ -67,7 +67,7 @@ class History(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, comment='记录 ID')
-    user_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='用户 ID')
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='用户 ID')
     permanent_link: Mapped[str] = mapped_column(Text, nullable=False, comment='永久链接')
     iso_timestamp: Mapped[str] = mapped_column(String(255), nullable=False, comment='ISO 时间戳')
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
