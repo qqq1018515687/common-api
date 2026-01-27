@@ -97,17 +97,7 @@ class UserManager:
 
     def get_user_by_phone(self, db: Session, phone: str) -> Optional[Users]:
         """根据手机号获取用户"""
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"[DEBUG] 查询手机号: {phone}")
-        
-        user = db.query(Users).filter(Users.phone == phone).first()
-        
-        logger.info(f"[DEBUG] 查询结果: {'找到用户' if user else '未找到'}")
-        if user:
-            logger.info(f"[DEBUG] 用户信息: id={user.id}, phone={user.phone}, username={user.username}")
-        
-        return user
+        return db.query(Users).filter(Users.phone == phone).first()
 
     def get_user_by_id(self, db: Session, user_id: str) -> Optional[Users]:
         """根据用户 ID 获取用户"""
