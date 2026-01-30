@@ -35,12 +35,12 @@ class InputData(BaseModel):
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表（提示词增强使用）")
-    user_id: Optional[str] = Field(default=None, description="用户 ID（save/history/update_user/delete_user 使用）")
+    user_id: Optional[str] = Field(default=None, description="用户 ID（save/update_user/delete_user 使用）")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     operation_type: Optional[str] = Field(default=None, description="操作类型：check_rate_limit/register/login/update_user/delete_user/list_users")
@@ -248,16 +248,6 @@ class SaveOutput(BaseModel):
 
 
 # 历史查询节点
-class HistoryInput(BaseModel):
-    """历史查询节点的输入"""
-    user_id: Optional[str] = Field(default=None, description="用户 ID")
-
-
-class HistoryOutput(BaseModel):
-    """历史查询节点的输出"""
-    result: dict = Field(default={}, description="查询结果：历史记录列表")
-
-
 # 统一返回节点
 class FormatResponseInput(BaseModel):
     """统一返回节点的输入"""

@@ -5,7 +5,6 @@ from graphs.state import (
     GraphOutput,
     UploadInput,
     SaveInput,
-    HistoryInput,
     FormatResponseInput,
     RouterInput,
     RouterOutput,
@@ -19,7 +18,6 @@ from graphs.state import (
 from graphs.node import (
     upload_node,
     save_node,
-    history_node,
     format_response_node,
     router_node,
     operation_route_node,
@@ -53,8 +51,6 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "文件上传"
     elif call_type == "save":
         return "保存历史"
-    elif call_type == "history":
-        return "历史查询"
     elif call_type == "tool":
         return "工具中心"
     else:
@@ -96,7 +92,6 @@ builder.add_node("delete_user", delete_user_node)
 builder.add_node("list_users", list_users_node)
 builder.add_node("upload", upload_node)
 builder.add_node("save", save_node)
-builder.add_node("history", history_node)
 builder.add_node("format_response", format_response_node)
 builder.add_node("tool_route", tool_route_node)
 builder.add_node("reverse_image", reverse_image_node, metadata={"type": "agent", "llm_cfg": "config/reverse_image_cfg.json"})
@@ -117,7 +112,6 @@ builder.add_conditional_edges(
         "账号管理": "operation_route",
         "文件上传": "upload",
         "保存历史": "save",
-        "历史查询": "history",
         "工具中心": "tool_route"
     }
 )
@@ -158,7 +152,6 @@ builder.add_edge("delete_user", "format_response")
 builder.add_edge("list_users", "format_response")
 builder.add_edge("upload", "format_response")
 builder.add_edge("save", "format_response")
-builder.add_edge("history", "format_response")
 builder.add_edge("reverse_image", "format_response")
 builder.add_edge("translate_doubao", "format_response")
 builder.add_edge("prompt_enhance", "format_response")

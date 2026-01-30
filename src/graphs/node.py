@@ -11,7 +11,6 @@ from datetime import datetime
 from graphs.state import (
     UploadInput, UploadOutput,
     SaveInput, SaveOutput,
-    HistoryInput, HistoryOutput,
     FormatResponseInput, FormatResponseOutput,
     GlobalState,
     RouterInput,
@@ -185,7 +184,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         limit=input_data.limit if input_data else None,
         filter=input_data.filter if input_data else None
     )
-from storage.database.history_manager import HistoryManager, HistoryCreate
+
 from storage.s3.s3_storage import S3SyncStorage
 
 
@@ -754,8 +753,8 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
 def save_node(state: SaveInput, config: RunnableConfig, runtime: Runtime[Context]) -> SaveOutput:
     """
     title: 保存历史
-    desc: 接收用户 ID 和 RunningHub 链接，将图片持久化转存到对象存储，并在 History 表记录
-    integrations: 对象存储, 数据库
+    desc: 接收用户 ID 和 RunningHub 链接，将图片持久化转存到对象存储
+    integrations: 对象存储
     """
     ctx = runtime.context
 
@@ -763,83 +762,21 @@ def save_node(state: SaveInput, config: RunnableConfig, runtime: Runtime[Context
         return SaveOutput(result={"success": False, "message": "缺少必要参数：user_id 或 runninghub_link"})
 
     try:
-        # 1. 将 RunningHub 链接中的图片转存到对象存储（持久化）
+        # 将 RunningHub 链接中的图片转存到对象存储（持久化）
         file_key = storage.upload_from_url(url=state.runninghub_link)
 
         # 生成永久链接（不设置过期时间，或者设置很长的时间）
         # 这里使用 10 年有效期作为"永久"链接
         permanent_url = storage.generate_presigned_url(key=file_key, expire_time=315360000)
 
-        # 2. 在 History 表中记录
-        db = get_session()
-        try:
-            history_mgr = HistoryManager()
-
-            # 这里可以添加任务参数，暂时为空
-            history_in = HistoryCreate(
-                user_id=state.user_id,
-                permanent_link=permanent_url,
-                task_params=None
-            )
-
-            db_history = history_mgr.create_history(db, history_in)
-
-            return SaveOutput(result={
-                "success": True,
-                "message": "保存成功",
-                "history_id": db_history.id,
-                "permanent_link": permanent_url,
-                "iso_timestamp": db_history.iso_timestamp
-            })
-
-        finally:
-            db.close()
+        return SaveOutput(result={
+            "success": True,
+            "message": "保存成功",
+            "permanent_link": permanent_url
+        })
 
     except Exception as e:
         return SaveOutput(result={"success": False, "message": f"保存失败: {str(e)}"})
-
-
-def history_node(state: HistoryInput, config: RunnableConfig, runtime: Runtime[Context]) -> HistoryOutput:
-    """
-    title: 历史查询
-    desc: 根据用户 ID 查询该用户的所有历史归档记录
-    integrations: 数据库
-    """
-    ctx = runtime.context
-
-    if not state.user_id:
-        return HistoryOutput(result={"success": False, "message": "缺少必要参数：user_id"})
-
-    try:
-        db = get_session()
-        try:
-            history_mgr = HistoryManager()
-            histories = history_mgr.get_histories_by_user_id(db, state.user_id)
-
-            # 转换为可序列化的字典列表
-            history_list = []
-            for h in histories:
-                history_list.append({
-                    "id": h.id,
-                    "user_id": h.user_id,
-                    "permanent_link": h.permanent_link,
-                    "task_params": h.task_params,
-                    "iso_timestamp": h.iso_timestamp,
-                    "meta_data": h.meta_data,
-                    "created_at": h.created_at.isoformat() if h.created_at is not None else None
-                })
-
-            return HistoryOutput(result={
-                "success": True,
-                "message": "查询成功",
-                "histories": history_list
-            })
-
-        finally:
-            db.close()
-
-    except Exception as e:
-        return HistoryOutput(result={"success": False, "message": f"查询失败: {str(e)}"})
 
 
 def format_response_node(state: FormatResponseInput, config: RunnableConfig, runtime: Runtime[Context]) -> FormatResponseOutput:
