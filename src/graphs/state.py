@@ -13,7 +13,7 @@ class InputData(BaseModel):
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
-    operation_type: Optional[str] = Field(default=None, description="操作类型：check_rate_limit/register/login/update_user/delete_user/list_users")
+    operation_type: Optional[str] = Field(default=None, description="操作类型：check_rate_limit/register/login/update_user/delete_user/list_users/create_task/update_task/delete_task/list_tasks")
 
     # 用户管理相关字段
     phone: Optional[str] = Field(default=None, description="手机号")
@@ -32,18 +32,23 @@ class InputData(BaseModel):
     limit: Optional[int] = Field(default=None, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
 
+    # 任务管理相关字段
+    task_id: Optional[str] = Field(default=None, description="任务ID（update_task/delete_task 使用）")
+    task_data: Optional[dict] = Field(default=None, description="任务数据（create_task 使用）")
+    task_updates: Optional[dict] = Field(default=None, description="任务更新数据（update_task 使用）")
+
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表（提示词增强使用）")
-    user_id: Optional[str] = Field(default=None, description="用户 ID（save/update_user/delete_user 使用）")
+    user_id: Optional[str] = Field(default=None, description="用户 ID（save/update_user/delete_user/create_task/list_tasks 使用）")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
-    operation_type: Optional[str] = Field(default=None, description="操作类型：check_rate_limit/register/login/update_user/delete_user/list_users")
+    operation_type: Optional[str] = Field(default=None, description="操作类型：check_rate_limit/register/login/update_user/delete_user/list_users/create_task/update_task/delete_task/list_tasks")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
     result: dict = Field(default={}, description="各节点的结果")
     response_data: Optional[dict] = Field(default=None, description="统一响应数据")
@@ -64,6 +69,11 @@ class GlobalState(BaseModel):
     page: Optional[int] = Field(default=None, description="页码")
     limit: Optional[int] = Field(default=None, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
+
+    # 任务管理相关字段
+    task_id: Optional[str] = Field(default=None, description="任务ID（update_task/delete_task 使用）")
+    task_data: Optional[dict] = Field(default=None, description="任务数据（create_task 使用）")
+    task_updates: Optional[dict] = Field(default=None, description="任务更新数据（update_task 使用）")
 
 
 class GraphInput(BaseModel):
@@ -248,6 +258,63 @@ class SaveOutput(BaseModel):
 
 
 # 历史查询节点
+# 任务管理相关节点输入输出类
+
+class CreateTaskInput(BaseModel):
+    """创建任务节点的输入"""
+    user_id: str = Field(..., description="用户ID")
+    task_data: dict = Field(..., description="任务数据")
+
+
+class CreateTaskOutput(BaseModel):
+    """创建任务节点的输出"""
+    result: dict = Field(..., description="创建结果")
+
+
+class UpdateTaskInput(BaseModel):
+    """更新任务节点的输入"""
+    task_id: str = Field(..., description="任务ID")
+    task_updates: dict = Field(..., description="更新数据")
+
+
+class UpdateTaskOutput(BaseModel):
+    """更新任务节点的输出"""
+    result: dict = Field(..., description="更新结果")
+
+
+class DeleteTaskInput(BaseModel):
+    """删除任务节点的输入"""
+    task_id: str = Field(..., description="任务ID")
+
+
+class DeleteTaskOutput(BaseModel):
+    """删除任务节点的输出"""
+    result: dict = Field(..., description="删除结果")
+
+
+class ListTasksInput(BaseModel):
+    """查询任务列表节点的输入"""
+    user_id: str = Field(..., description="用户ID")
+    status: Optional[str] = Field(default=None, description="任务状态筛选")
+    page: Optional[int] = Field(default=1, description="页码")
+    limit: Optional[int] = Field(default=10, description="每页数量")
+
+
+class ListTasksOutput(BaseModel):
+    """查询任务列表节点的输出"""
+    result: dict = Field(..., description="查询结果")
+
+
+class TaskRouteInput(BaseModel):
+    """任务路由节点的输入"""
+    operation_type: str = Field(..., description="操作类型：create_task/update_task/delete_task/list_tasks")
+
+
+class TaskRouteOutput(BaseModel):
+    """任务路由节点的输出"""
+    operation_type: str = Field(..., description="操作类型")
+
+
 # 统一返回节点
 class FormatResponseInput(BaseModel):
     """统一返回节点的输入"""
@@ -316,6 +383,10 @@ class UnpackInputDataOutput(BaseModel):
     page: Optional[int] = Field(default=None, description="页码")
     limit: Optional[int] = Field(default=None, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
+    # 任务管理相关字段
+    task_id: Optional[str] = Field(default=None, description="任务ID")
+    task_data: Optional[dict] = Field(default=None, description="任务数据")
+    task_updates: Optional[dict] = Field(default=None, description="任务更新数据")
 
 
 # 工具路由节点

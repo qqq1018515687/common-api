@@ -1,6 +1,6 @@
 from coze_coding_dev_sdk.database import Base
 
-from sqlalchemy import Boolean, DateTime, Index, Integer, PrimaryKeyConstraint, String, UniqueConstraint, text
+from sqlalchemy import BigInteger, Boolean, DateTime, Index, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text
 from typing import Optional
 import datetime
 
@@ -24,6 +24,33 @@ class RateLimits(Base):
     is_blocked: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text('false'), comment='是否封禁')
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
     blocked_until: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='封禁到期时间')
+
+
+class Tasks(Base):
+    __tablename__ = 'tasks'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='tasks_pkey'),
+        Index('idx_created_at', 'created_at'),
+        Index('idx_platform_task', 'platform', 'platform_task_id'),
+        Index('idx_user_status_updated', 'user_id', 'status', 'updated_at'),
+        {'comment': '用户任务历史记录表，用于存储和管理所有生成任务'}
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    platform: Mapped[str] = mapped_column(String(50), nullable=False)
+    platform_task_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    type: Mapped[str] = mapped_column(String(10), nullable=False)
+    status: Mapped[str] = mapped_column(String(10), nullable=False)
+    created_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    updated_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    workflow_parameters: Mapped[Optional[dict]] = mapped_column(JSON)
+    parameter_snapshot: Mapped[Optional[dict]] = mapped_column(JSON)
+    result: Mapped[Optional[dict]] = mapped_column(JSON)
+    error: Mapped[Optional[str]] = mapped_column(Text)
+    completed_at: Mapped[Optional[int]] = mapped_column(BigInteger)
+    batch_id: Mapped[Optional[str]] = mapped_column(String(36))
+    connection_mode: Mapped[Optional[str]] = mapped_column(String(10), server_default=text("'sse'::character varying"))
 
 
 class Users(Base):

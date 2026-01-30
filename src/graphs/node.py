@@ -34,7 +34,12 @@ from graphs.state import (
     GetUserInput, GetUserOutput,
     UpdateUserInput, UpdateUserOutput,
     DeleteUserInput, DeleteUserOutput,
-    ListUsersInput, ListUsersOutput
+    ListUsersInput, ListUsersOutput,
+    CreateTaskInput, CreateTaskOutput,
+    UpdateTaskInput, UpdateTaskOutput,
+    DeleteTaskInput, DeleteTaskOutput,
+    ListTasksInput, ListTasksOutput,
+    TaskRouteInput, TaskRouteOutput
 )
 import os
 import requests
@@ -182,7 +187,11 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         operator_role=input_data.operator_role if input_data else None,
         page=input_data.page if input_data else None,
         limit=input_data.limit if input_data else None,
-        filter=input_data.filter if input_data else None
+        filter=input_data.filter if input_data else None,
+        # 任务管理相关字段
+        task_id=input_data.task_id if input_data else None,
+        task_data=input_data.task_data if input_data else None,
+        task_updates=input_data.task_updates if input_data else None
     )
 
 from storage.s3.s3_storage import S3SyncStorage
@@ -777,6 +786,227 @@ def save_node(state: SaveInput, config: RunnableConfig, runtime: Runtime[Context
 
     except Exception as e:
         return SaveOutput(result={"success": False, "message": f"保存失败: {str(e)}"})
+
+
+def task_route_node(state: TaskRouteInput, config: RunnableConfig, runtime: Runtime[Context]) -> TaskRouteOutput:
+    """
+    title: 任务路由
+    desc: 用于任务管理的二级路由，传递 operation_type
+    """
+    return TaskRouteOutput(operation_type=state.operation_type)
+
+
+def route_by_task_operation_type(state: TaskRouteInput) -> str:
+    """
+    title: 任务管理二级路由
+    desc: 根据操作类型分发到不同的节点
+    """
+    operation_type = state.operation_type
+
+    if operation_type == "create_task":
+        return "创建任务"
+    elif operation_type == "update_task":
+        return "更新任务"
+    elif operation_type == "delete_task":
+        return "删除任务"
+    elif operation_type == "list_tasks":
+        return "查询任务列表"
+    else:
+        return "未知操作"
+
+
+def create_task_node(state: CreateTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> CreateTaskOutput:
+    """
+    title: 创建任务
+    desc: 创建新的任务记录
+    integrations: 数据库
+    """
+    ctx = runtime.context
+
+    if not state.user_id or not state.task_data:
+        return CreateTaskOutput(result={"success": False, "message": "缺少必要参数：user_id 或 task_data"})
+
+    try:
+        from storage.database.task_manager import TaskManager, TaskCreate
+
+        db = get_session()
+        try:
+            task_mgr = TaskManager()
+
+            task_in = TaskCreate(
+                id=state.task_data.get("id"),
+                user_id=state.user_id,
+                platform=state.task_data.get("platform"),
+                platform_task_id=state.task_data.get("platform_task_id"),
+                type=state.task_data.get("type"),
+                workflow_parameters=state.task_data.get("workflow_parameters"),
+                parameter_snapshot=state.task_data.get("parameter_snapshot"),
+                batch_id=state.task_data.get("batch_id"),
+                connection_mode=state.task_data.get("connection_mode", "sse")
+            )
+
+            db_task = task_mgr.create_task(db, task_in)
+
+            return CreateTaskOutput(result={
+                "success": True,
+                "message": "任务创建成功",
+                "task_id": db_task.id,
+                "status": db_task.status
+            })
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        return CreateTaskOutput(result={"success": False, "message": f"创建失败: {str(e)}"})
+
+
+def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> UpdateTaskOutput:
+    """
+    title: 更新任务
+    desc: 更新任务状态、结果或错误信息
+    integrations: 数据库
+    """
+    ctx = runtime.context
+
+    if not state.task_id:
+        return UpdateTaskOutput(result={"success": False, "message": "缺少必要参数：task_id"})
+
+    try:
+        from storage.database.task_manager import TaskManager, TaskUpdate
+
+        db = get_session()
+        try:
+            task_mgr = TaskManager()
+
+            task_in = TaskUpdate(
+                status=state.task_updates.get("status"),
+                result=state.task_updates.get("result"),
+                error=state.task_updates.get("error"),
+                completed_at=state.task_updates.get("completed_at")
+            )
+
+            db_task = task_mgr.update_task(db, state.task_id, task_in)
+
+            if not db_task:
+                return UpdateTaskOutput(result={"success": False, "message": "任务不存在"})
+
+            return UpdateTaskOutput(result={
+                "success": True,
+                "message": "任务更新成功",
+                "task_id": db_task.id,
+                "status": db_task.status
+            })
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        return UpdateTaskOutput(result={"success": False, "message": f"更新失败: {str(e)}"})
+
+
+def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> DeleteTaskOutput:
+    """
+    title: 删除任务
+    desc: 根据任务ID删除任务
+    integrations: 数据库
+    """
+    ctx = runtime.context
+
+    if not state.task_id:
+        return DeleteTaskOutput(result={"success": False, "message": "缺少必要参数：task_id"})
+
+    try:
+        from storage.database.task_manager import TaskManager
+
+        db = get_session()
+        try:
+            task_mgr = TaskManager()
+
+            success = task_mgr.delete_task(db, state.task_id)
+
+            if not success:
+                return DeleteTaskOutput(result={"success": False, "message": "任务不存在"})
+
+            return DeleteTaskOutput(result={
+                "success": True,
+                "message": "任务删除成功"
+            })
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        return DeleteTaskOutput(result={"success": False, "message": f"删除失败: {str(e)}"})
+
+
+def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runtime[Context]) -> ListTasksOutput:
+    """
+    title: 查询任务列表
+    desc: 根据用户ID查询任务列表，支持状态筛选和分页
+    integrations: 数据库
+    """
+    ctx = runtime.context
+
+    if not state.user_id:
+        return ListTasksOutput(result={"success": False, "message": "缺少必要参数：user_id"})
+
+    try:
+        from storage.database.task_manager import TaskManager
+
+        db = get_session()
+        try:
+            task_mgr = TaskManager()
+
+            page = state.page or 1
+            limit = state.limit or 10
+            skip = (page - 1) * limit
+
+            tasks = task_mgr.get_tasks_by_user_id(
+                db,
+                user_id=state.user_id,
+                status=state.status,
+                skip=skip,
+                limit=limit
+            )
+
+            total = task_mgr.count_tasks_by_user_id(db, state.user_id, state.status)
+
+            # 转换为可序列化的字典列表
+            task_list = []
+            for task in tasks:
+                task_list.append({
+                    "id": task.id,
+                    "user_id": task.user_id,
+                    "platform": task.platform,
+                    "platform_task_id": task.platform_task_id,
+                    "type": task.type,
+                    "status": task.status,
+                    "workflow_parameters": task.workflow_parameters,
+                    "parameter_snapshot": task.parameter_snapshot,
+                    "result": task.result,
+                    "error": task.error,
+                    "created_at": task.created_at,
+                    "updated_at": task.updated_at,
+                    "completed_at": task.completed_at,
+                    "batch_id": task.batch_id,
+                    "connection_mode": task.connection_mode
+                })
+
+            return ListTasksOutput(result={
+                "success": True,
+                "message": "查询成功",
+                "tasks": task_list,
+                "total": total,
+                "page": page,
+                "limit": limit
+            })
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        return ListTasksOutput(result={"success": False, "message": f"查询失败: {str(e)}"})
 
 
 def format_response_node(state: FormatResponseInput, config: RunnableConfig, runtime: Runtime[Context]) -> FormatResponseOutput:
