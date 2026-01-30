@@ -295,6 +295,7 @@ class DeleteTaskOutput(BaseModel):
 class ListTasksInput(BaseModel):
     """查询任务列表节点的输入"""
     user_id: str = Field(..., description="用户ID")
+    team_id: Optional[str] = Field(default=None, description="团队ID筛选")
     status: Optional[str] = Field(default=None, description="任务状态筛选")
     page: Optional[int] = Field(default=1, description="页码")
     limit: Optional[int] = Field(default=10, description="每页数量")

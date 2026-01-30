@@ -836,6 +836,7 @@ def create_task_node(state: CreateTaskInput, config: RunnableConfig, runtime: Ru
             task_in = TaskCreate(
                 id=state.task_data.get("id"),
                 user_id=state.user_id,
+                team_id=state.task_data.get("team_id"),
                 platform=state.task_data.get("platform"),
                 platform_task_id=state.task_data.get("platform_task_id"),
                 type=state.task_data.get("type"),
@@ -962,12 +963,18 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
             limit = state.limit or 10
             skip = (page - 1) * limit
 
+            # 构建筛选条件
+            filters = {}
+            if state.team_id:
+                filters["team_id"] = state.team_id
+
             tasks = task_mgr.get_tasks_by_user_id(
                 db,
                 user_id=state.user_id,
                 status=state.status,
                 skip=skip,
-                limit=limit
+                limit=limit,
+                **filters
             )
 
             total = task_mgr.count_tasks_by_user_id(db, state.user_id, state.status)
@@ -978,6 +985,7 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 task_list.append({
                     "id": task.id,
                     "user_id": task.user_id,
+                    "team_id": task.team_id,
                     "platform": task.platform,
                     "platform_task_id": task.platform_task_id,
                     "type": task.type,

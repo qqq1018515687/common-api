@@ -32,6 +32,7 @@ class Tasks(Base):
         PrimaryKeyConstraint('id', name='tasks_pkey'),
         Index('idx_created_at', 'created_at'),
         Index('idx_platform_task', 'platform', 'platform_task_id'),
+        Index('idx_team_id', 'team_id'),
         Index('idx_user_status_updated', 'user_id', 'status', 'updated_at'),
         {'comment': '用户任务历史记录表，用于存储和管理所有生成任务'}
     )
@@ -51,6 +52,7 @@ class Tasks(Base):
     completed_at: Mapped[Optional[int]] = mapped_column(BigInteger)
     batch_id: Mapped[Optional[str]] = mapped_column(String(36))
     connection_mode: Mapped[Optional[str]] = mapped_column(String(10), server_default=text("'sse'::character varying"))
+    team_id: Mapped[Optional[str]] = mapped_column(String(64))
 
 
 class Users(Base):

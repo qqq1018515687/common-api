@@ -11,6 +11,7 @@ class TaskCreate(BaseModel):
     """创建任务的输入"""
     id: str = Field(..., description="任务ID（前端生成的UUID）")
     user_id: str = Field(..., description="用户ID")
+    team_id: Optional[str] = Field(default=None, description="团队ID")
     platform: str = Field(..., description="平台标识")
     platform_task_id: str = Field(..., description="平台任务ID")
     type: str = Field(..., description="任务类型：image/video/audio")
