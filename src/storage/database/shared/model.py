@@ -53,6 +53,7 @@ class Tasks(Base):
     batch_id: Mapped[Optional[str]] = mapped_column(String(36))
     connection_mode: Mapped[Optional[str]] = mapped_column(String(10), server_default=text("'sse'::character varying"))
     team_id: Mapped[Optional[str]] = mapped_column(String(64))
+    is_deleted: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text("false"), comment="是否已删除（软删除标记）")
 
 
 class Users(Base):

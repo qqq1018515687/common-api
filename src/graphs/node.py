@@ -818,7 +818,7 @@ def route_by_task_operation_type(state: TaskRouteInput) -> str:
 def create_task_node(state: CreateTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> CreateTaskOutput:
     """
     title: 创建任务
-    desc: 创建新的任务记录
+    desc: 创建新的任务记录（仅限注册用户）
     integrations: 数据库
     """
     ctx = runtime.context
@@ -832,6 +832,11 @@ def create_task_node(state: CreateTaskInput, config: RunnableConfig, runtime: Ru
         db = get_session()
         try:
             task_mgr = TaskManager()
+
+            # 验证用户权限
+            has_permission, error_msg = task_mgr.verify_user_permission(db, state.user_id)
+            if not has_permission:
+                return CreateTaskOutput(result={"success": False, "message": error_msg})
 
             task_in = TaskCreate(
                 id=state.task_data.get("id"),
@@ -865,7 +870,7 @@ def create_task_node(state: CreateTaskInput, config: RunnableConfig, runtime: Ru
 def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> UpdateTaskOutput:
     """
     title: 更新任务
-    desc: 更新任务状态、结果或错误信息
+    desc: 更新任务状态、结果或错误信息（仅限注册用户）
     integrations: 数据库
     """
     ctx = runtime.context
@@ -879,6 +884,11 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
         db = get_session()
         try:
             task_mgr = TaskManager()
+
+            # 验证用户权限
+            has_permission, error_msg = task_mgr.verify_user_permission(db, state.user_id or "")
+            if not has_permission:
+                return UpdateTaskOutput(result={"success": False, "message": error_msg})
 
             task_in = TaskUpdate(
                 status=state.task_updates.get("status"),
@@ -909,7 +919,7 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
 def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> DeleteTaskOutput:
     """
     title: 删除任务
-    desc: 根据任务ID删除任务
+    desc: 根据任务ID删除任务（软删除，仅限注册用户）
     integrations: 数据库
     """
     ctx = runtime.context
@@ -923,6 +933,11 @@ def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Ru
         db = get_session()
         try:
             task_mgr = TaskManager()
+
+            # 验证用户权限
+            has_permission, error_msg = task_mgr.verify_user_permission(db, state.user_id or "")
+            if not has_permission:
+                return DeleteTaskOutput(result={"success": False, "message": error_msg})
 
             success = task_mgr.delete_task(db, state.task_id)
 
@@ -944,7 +959,7 @@ def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Ru
 def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runtime[Context]) -> ListTasksOutput:
     """
     title: 查询任务列表
-    desc: 根据用户ID查询任务列表，支持状态筛选和分页
+    desc: 根据用户ID查询任务列表，支持状态筛选和分页（仅限注册用户）
     integrations: 数据库
     """
     ctx = runtime.context
@@ -958,6 +973,11 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
         db = get_session()
         try:
             task_mgr = TaskManager()
+
+            # 验证用户权限
+            has_permission, error_msg = task_mgr.verify_user_permission(db, state.user_id)
+            if not has_permission:
+                return ListTasksOutput(result={"success": False, "message": error_msg})
 
             page = state.page or 1
             limit = state.limit or 10
@@ -998,7 +1018,8 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "updated_at": task.updated_at,
                     "completed_at": task.completed_at,
                     "batch_id": task.batch_id,
-                    "connection_mode": task.connection_mode
+                    "connection_mode": task.connection_mode,
+                    "is_deleted": task.is_deleted
                 })
 
             return ListTasksOutput(result={

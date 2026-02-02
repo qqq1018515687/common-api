@@ -4,7 +4,8 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from storage.database.shared.model import Tasks
+from storage.database.shared.model import Tasks, Users
+import time
 
 
 class TaskCreate(BaseModel):
@@ -31,6 +32,32 @@ class TaskUpdate(BaseModel):
 
 class TaskManager:
     """任务管理类"""
+
+    @staticmethod
+    def verify_user_permission(db: Session, user_id: str) -> tuple[bool, Optional[str]]:
+        """
+        验证用户权限
+        
+        Args:
+            db: 数据库会话
+            user_id: 用户ID
+        
+        Returns:
+            (是否有权限, 错误信息)
+        """
+        if not user_id:
+            return False, "请先注册登录"
+        
+        # 查询用户
+        user = db.query(Users).filter(Users.user_id == user_id).first()
+        
+        if not user:
+            return False, "用户不存在，请先注册"
+        
+        if user.account_status != "active":
+            return False, f"账号状态异常：{user.account_status}"
+        
+        return True, None
 
     def create_task(self, db: Session, task_in: TaskCreate) -> Tasks:
         """创建任务"""
@@ -63,8 +90,8 @@ class TaskManager:
         limit: int = 100,
         **filters
     ) -> List[Tasks]:
-        """根据用户ID获取任务列表"""
-        query = db.query(Tasks).filter(Tasks.user_id == user_id)
+        """根据用户ID获取任务列表（自动过滤已删除的任务）"""
+        query = db.query(Tasks).filter(Tasks.user_id == user_id, Tasks.is_deleted == False)
 
         if status:
             query = query.filter(Tasks.status == status)
@@ -115,12 +142,16 @@ class TaskManager:
             raise
 
     def delete_task(self, db: Session, task_id: str) -> bool:
-        """删除任务"""
+        """软删除任务（标记为已删除）"""
         db_task = self.get_task_by_id(db, task_id)
         if not db_task:
             return False
 
-        db.delete(db_task)
+        # 软删除：设置 is_deleted 标记
+        db_task.is_deleted = True
+        db_task.updated_at = int(time.time() * 1000)
+
+        db.add(db_task)
         try:
             db.commit()
             return True
@@ -142,8 +173,8 @@ class TaskManager:
         user_id: str,
         status: Optional[str] = None
     ) -> int:
-        """统计用户任务数量"""
-        query = db.query(Tasks).filter(Tasks.user_id == user_id)
+        """统计用户任务数量（自动过滤已删除的任务）"""
+        query = db.query(Tasks).filter(Tasks.user_id == user_id, Tasks.is_deleted == False)
 
         if status:
             query = query.filter(Tasks.status == status)

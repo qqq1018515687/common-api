@@ -261,8 +261,8 @@ class SaveOutput(BaseModel):
 # 任务管理相关节点输入输出类
 
 class CreateTaskInput(BaseModel):
-    """创建任务节点的输入"""
-    user_id: str = Field(..., description="用户ID")
+    """创建任务节点的输入（仅限注册用户）"""
+    user_id: str = Field(..., description="用户ID（必须是已注册的活跃用户）")
     task_data: dict = Field(..., description="任务数据")
 
 
@@ -272,7 +272,8 @@ class CreateTaskOutput(BaseModel):
 
 
 class UpdateTaskInput(BaseModel):
-    """更新任务节点的输入"""
+    """更新任务节点的输入（仅限注册用户）"""
+    user_id: str = Field(..., description="用户ID（必须是已注册的活跃用户）")
     task_id: str = Field(..., description="任务ID")
     task_updates: dict = Field(..., description="更新数据")
 
@@ -283,18 +284,19 @@ class UpdateTaskOutput(BaseModel):
 
 
 class DeleteTaskInput(BaseModel):
-    """删除任务节点的输入"""
+    """删除任务节点的输入（仅限注册用户）"""
+    user_id: str = Field(..., description="用户ID（必须是已注册的活跃用户）")
     task_id: str = Field(..., description="任务ID")
 
 
 class DeleteTaskOutput(BaseModel):
-    """删除任务节点的输出"""
+    """删除任务节点的输出（软删除）"""
     result: dict = Field(..., description="删除结果")
 
 
 class ListTasksInput(BaseModel):
-    """查询任务列表节点的输入"""
-    user_id: str = Field(..., description="用户ID")
+    """查询任务列表节点的输入（仅限注册用户）"""
+    user_id: str = Field(..., description="用户ID（必须是已注册的活跃用户）")
     team_id: Optional[str] = Field(default=None, description="团队ID筛选")
     status: Optional[str] = Field(default=None, description="任务状态筛选")
     page: Optional[int] = Field(default=1, description="页码")
@@ -302,7 +304,7 @@ class ListTasksInput(BaseModel):
 
 
 class ListTasksOutput(BaseModel):
-    """查询任务列表节点的输出"""
+    """查询任务列表节点的输出（自动过滤已删除的任务）"""
     result: dict = Field(..., description="查询结果")
 
 
