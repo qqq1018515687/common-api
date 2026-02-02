@@ -9,7 +9,7 @@ import contextvars
 import cozeloop
 import uvicorn
 import time
-from fastapi import FastAPI, HTTPException, Request, Query
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph, END
@@ -25,8 +25,6 @@ from utils.messages.server import (
     create_message_error_dict,
     MESSAGE_END_CODE_CANCELED,
 )
-from storage.database.db import get_session
-from storage.database.task_manager import TaskManager, TaskCreate, TaskUpdate
 
 setup_logging(
     log_file=LOG_FILE,
@@ -306,152 +304,7 @@ class GraphService:
 
 
 service = GraphService()
-task_manager = TaskManager()
 app = FastAPI()
-
-
-# API 路由：创建任务
-@app.post("/api/coze/common")
-async def create_task_api(request: Request):
-    """
-    创建任务 API
-    对应前端的 POST /api/coze/common 调用
-    """
-    ctx = new_context(method="create_task", headers=request.headers)
-    request_context.set(ctx)
-
-    try:
-        # 解析请求体
-        task_data = await request.json()
-
-        # 验证必填字段
-        if "id" not in task_data:
-            raise HTTPException(status_code=400, detail="Missing required field: id")
-        if "user_id" not in task_data:
-            raise HTTPException(status_code=400, detail="Missing required field: user_id")
-        if "platform" not in task_data:
-            raise HTTPException(status_code=400, detail="Missing required field: platform")
-        if "platform_task_id" not in task_data:
-            raise HTTPException(status_code=400, detail="Missing required field: platform_task_id")
-        if "type" not in task_data:
-            raise HTTPException(status_code=400, detail="Missing required field: type")
-
-        # 创建任务
-        task_create = TaskCreate(**task_data)
-
-        # 获取数据库会话
-        db = get_session()
-
-        try:
-            db_task = task_manager.create_task(db, task_create)
-            return {
-                "id": db_task.id,
-                "user_id": db_task.user_id,
-                "team_id": db_task.team_id,
-                "platform": db_task.platform,
-                "platform_task_id": db_task.platform_task_id,
-                "type": db_task.type,
-                "status": db_task.status,
-                "created_at": db_task.created_at,
-                "updated_at": db_task.updated_at,
-            }
-        finally:
-            db.close()
-
-    except json.JSONDecodeError as e:
-        logger.error(f"JSON decode error in create_task_api: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
-    except Exception as e:
-        logger.error(f"Error in create_task_api: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        cozeloop.flush()
-
-
-# API 路由：查询任务历史
-@app.get("/api/coze/run-histories")
-async def get_task_histories(
-    execute_id: Optional[str] = Query(None, description="任务ID（execute_id）"),
-    user_id: Optional[str] = Query(None, description="用户ID"),
-    team_id: Optional[str] = Query(None, description="团队ID"),
-    status: Optional[str] = Query(None, description="任务状态"),
-    skip: int = Query(0, description="跳过记录数"),
-    limit: int = Query(100, description="返回记录数"),
-):
-    """
-    查询任务历史 API
-    对应前端的 GET /api/coze/run-histories 调用
-    """
-    try:
-        # 获取数据库会话
-        db = get_session()
-
-        try:
-            # 如果指定了 execute_id，则查询单个任务
-            if execute_id:
-                task = task_manager.get_task_by_id(db, execute_id)
-                if task:
-                    return [{
-                        "id": task.id,
-                        "user_id": task.user_id,
-                        "team_id": task.team_id,
-                        "platform": task.platform,
-                        "platform_task_id": task.platform_task_id,
-                        "type": task.type,
-                        "status": task.status,
-                        "result": task.result,
-                        "error": task.error,
-                        "created_at": task.created_at,
-                        "updated_at": task.updated_at,
-                        "completed_at": task.completed_at,
-                    }]
-                else:
-                    return []
-
-            # 否则，根据用户ID（或其他条件）查询任务列表
-            if not user_id:
-                raise HTTPException(status_code=400, detail="Missing required parameter: user_id or execute_id")
-
-            # 构建过滤条件
-            filters = {}
-            if team_id:
-                filters["team_id"] = team_id
-
-            tasks = task_manager.get_tasks_by_user_id(
-                db=db,
-                user_id=user_id,
-                status=status,
-                skip=skip,
-                limit=limit,
-                **filters
-            )
-
-            return [
-                {
-                    "id": task.id,
-                    "user_id": task.user_id,
-                    "team_id": task.team_id,
-                    "platform": task.platform,
-                    "platform_task_id": task.platform_task_id,
-                    "type": task.type,
-                    "status": task.status,
-                    "result": task.result,
-                    "error": task.error,
-                    "created_at": task.created_at,
-                    "updated_at": task.updated_at,
-                    "completed_at": task.completed_at,
-                }
-                for task in tasks
-            ]
-
-        finally:
-            db.close()
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in get_task_histories: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/run")
