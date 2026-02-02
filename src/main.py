@@ -306,10 +306,6 @@ class GraphService:
 service = GraphService()
 app = FastAPI()
 
-# 导入并注册任务管理 API 路由
-from api.tasks import router as tasks_router
-app.include_router(tasks_router)
-
 
 @app.post("/run")
 async def http_run(request: Request) -> Dict[str, Any]:
