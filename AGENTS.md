@@ -30,6 +30,12 @@
 
 **类型说明**: task(task节点) / agent(大模型) / condition(条件分支)
 
+### API 路由清单
+| 路由 | 方法 | 功能描述 | 参数 | 响应 |
+|-----|------|---------|------|------|
+| /api/coze/common | POST | 创建任务 | TaskCreate (id, user_id, team_id, platform, platform_task_id, type, workflow_parameters, connection_mode) | 任务对象 |
+| /api/coze/run-histories | GET | 查询任务历史 | execute_id (任务ID), user_id (用户ID), team_id (团队ID), status (状态), skip, limit | 任务列表 |
+
 ## 子图清单
 无子图
 
@@ -38,3 +44,4 @@
 - 节点 `upload`, `save` 使用对象存储集成
 - 节点 `reverse_image`, `translate_doubao`, `prompt_enhance` 使用大语言模型集成
 - 节点 `upload` 使用内容处理集成
+- API 路由 `/api/coze/common`, `/api/coze/run-histories` 使用数据库集成
