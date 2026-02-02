@@ -1,0 +1,2051 @@
+forward-logs-shared.ts:95 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+forward-logs-shared.ts:95 [HMR] connected
+contentScript.bundle.js:110 Loomi sidebar content script loaded
+contentScript.bundle.js:110 开始初始化 Loomi 侧边栏...
+contentScript.bundle.js:110 页面已加载
+contentScript.bundle.js:110 创建 Loomi 侧边栏实例
+componentRegistry.js:29 [组件注册] 已注册组件: genericNumberInput (类型: template)
+componentRegistry.js:29 [组件注册] 已注册组件: genericDropdown (类型: template)
+componentRegistry.js:29 [组件注册] 已注册组件: genericSegmentControl (类型: template)
+componentRegistry.js:29 [组件注册] 已注册组件: genericToggleSwitch (类型: template)
+componentRegistry.js:29 [组件注册] 已注册组件: customSelectionGroup (类型: template)
+componentRegistry.js:29 [组件注册] 已注册组件: genericSlider (类型: template)
+componentRegistry.js:29 [组件注册] 已注册组件: prompt (类型: template)
+componentRegistry.js:234 [组件注册] 默认组件初始化完成
+taskListStore.ts:350 [TaskStore] 🔄 状态已从 localStorage 恢复: {任务总数: 5, 活跃任务数: 0, 有参数快照的任务数: 5, 耗时数据: {…}}
+TaskListFloating.tsx:399  A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <LoadingBoundary name="/" loading={null}>
+      <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+        <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+          <RedirectBoundary>
+            <RedirectErrorBoundary router={{...}}>
+              <InnerLayoutRouter url="/" tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} segmentPath={[...]} ...>
+                <SegmentViewNode type="page" pagePath="page.tsx">
+                  <SegmentTrieNode>
+                  <ClientPageRoot Component={function Home} serverProvidedParams={{...}}>
+                    <Home params={Promise} searchParams={Promise}>
+                      <RouteGuard>
+                        <div className="flex h-scr...">
+                          <Navigation>
+                          <div>
+                          <TaskListFloating isOpen={false} onToggle={function bound dispatchSetState}>
+                            <div>
+                            <div className={"\n      ..."}>
+                              <button>
+                              <div
++                               className={"\n                    w-[340px] h-full\n                    bg-[#0E0F0F]/..."}
+-                               className={" w-[340px] h-full bg-[#0E0F0F]/98 backdrop-blur-3xl border-l border-white..."}
+                              >
+                            ...
+                          ...
+                ...
+              ...
+
+error @ intercept-console-error.ts:42
+(匿名) @ react-dom-client.development.js:5729
+runWithFiberInDEV @ react-dom-client.development.js:984
+emitPendingHydrationWarnings @ react-dom-client.development.js:5728
+completeWork @ react-dom-client.development.js:12813
+runWithFiberInDEV @ react-dom-client.development.js:987
+completeUnitOfWork @ react-dom-client.development.js:19037
+performUnitOfWork @ react-dom-client.development.js:18918
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<div>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+TaskListFloating @ TaskListFloating.tsx:399
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooks @ react-dom-client.development.js:7972
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<TaskListFloating>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+Home @ page.tsx:120
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<Home>
+exports.jsx @ react-jsx-runtime.development.js:342
+ClientPageRoot @ client-page.tsx:83
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12041
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+Promise.all @ VM7432 <anonymous>:1
+initializeElement @ react-server-dom-turbopack-client.browser.development.js:1876
+"use server"
+ResponseInstance @ react-server-dom-turbopack-client.browser.development.js:2702
+createResponseFromOptions @ react-server-dom-turbopack-client.browser.development.js:4551
+exports.createFromReadableStream @ react-server-dom-turbopack-client.browser.development.js:4954
+module evaluation @ app-index.tsx:205
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateModuleFromParent @ dev-base.ts:162
+commonJsRequire @ runtime-utils.ts:389
+(匿名) @ app-next-turbopack.ts:11
+(匿名) @ app-bootstrap.ts:79
+loadScriptsInSequence @ app-bootstrap.ts:23
+appBootstrap @ app-bootstrap.ts:61
+module evaluation @ app-next-turbopack.ts:10
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateRuntimeModule @ dev-base.ts:128
+registerChunk @ runtime-backend-dom.ts:57
+await in registerChunk
+registerChunk @ dev-base.ts:1149
+(匿名) @ dev-backend-dom.ts:126
+(匿名) @ dev-backend-dom.ts:126
+logger.ts:92 [02:02:32][事件管理器] 注册监听器: workflowComponentVisibilityUpdated, ID: visibility_workflow_01, 优先级: 10
+logger.ts:92 [02:02:32][事件管理器] 注册监听器: workflowLayoutUpdated, ID: layout_workflow_01, 优先级: 10
+logger.ts:92 [02:02:32][事件管理器] 注册监听器: workflowComponentVisibilityReset, ID: reset_workflow_01, 优先级: 5
+logger.ts:92 [02:02:32][事件管理器] 注册监听器: workflowComponentVisibilityImported, ID: import_workflow_01, 优先级: 5
+logger.ts:92 [02:02:32][事件管理器] 注册监听器: forceRerender, ID: rerender_workflow_01, 优先级: 8
+ImageGenerationParams.tsx:84 [初始化] 页面初始化开始
+ImageGenerationParams.tsx:97 [初始化] 加载默认工作流参数
+logger.ts:92 [02:02:32][GlobalStore] [saveLastStableState] 已保存稳定状态
+logger.ts:86 [02:02:32][数据流] [switchWorkflow] 开始切换工作流: workflow_01
+index.tsx:25 页面刷新，重置结果区选项卡状态
+logger.ts:86 [02:02:32][GlobalStore] [resetGlobalParams] 重置全局参数完成
+logger.ts:92 [02:02:32][GlobalStore] [resetAllParams] 已弃用: 使用 resetGlobalParams 和 resetCurrentWorkflowParams
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+workflowConfigManager.js:443 [配置管理] Phase 2: 开始统一 customInputs 格式
+workflowConfigManager.js:472 [配置管理] Phase 2: customInputs 已全部展开为根级别: {workflowId: 'workflow_01', expandedKeys: Array(4)}
+workflowConfigManager.js:443 [配置管理] Phase 2: 开始统一 customInputs 格式
+workflowConfigManager.js:472 [配置管理] Phase 2: customInputs 已全部展开为根级别: {workflowId: 'workflow_01', expandedKeys: Array(4)}
+workflowConfigManager.js:443 [配置管理] Phase 2: 开始统一 customInputs 格式
+workflowConfigManager.js:472 [配置管理] Phase 2: customInputs 已全部展开为根级别: {workflowId: 'workflow_01', expandedKeys: Array(4)}
+workflowConfigManager.js:443 [配置管理] Phase 2: 开始统一 customInputs 格式
+workflowConfigManager.js:472 [配置管理] Phase 2: customInputs 已全部展开为根级别: {workflowId: 'workflow_01', expandedKeys: Array(4)}
+logger.ts:92 [02:02:32][数据流] [switchWorkflow] 获取默认参数完成: {workflowId: 'workflow_01', paramsKeys: Array(5)}
+logger.ts:92 [02:02:32][数据流] [switchWorkflow] 更新前状态: {currentWorkflowId: 'workflow_01', workflowParams: {…}, globalParams: {…}}
+logger.ts:92 [02:02:32][数据流] [switchWorkflow] 更新后状态: {currentWorkflowId: 'workflow_01', workflowParams: {…}, targetParams: {…}}
+logger.ts:86 [02:02:32][数据流] [resetCurrentWorkflowParams] 重置完成
+workflow.ts:395 [Hooks] 初始化，使用默认值: {prompt: '11', num_01: 0.3, seg_01: '2', sel_01: Array(2), prompt_01: ''}
+workflow.ts:395 [Hooks] 初始化，使用默认值: {prompt: '11', num_01: 0.3, seg_01: '2', sel_01: Array(2), prompt_01: ''}
+workflow.ts:138 [Hooks] 🔄 原子性更新工作流和参数: {workflowId: 'workflow_01', params: {…}, updateSource: 'external', timestamp: '2026-02-02T02:02:32.624Z'}
+workflow.ts:138 [Hooks] 🔄 原子性更新工作流和参数: {workflowId: 'workflow_01', params: {…}, updateSource: 'external', timestamp: '2026-02-02T02:02:32.624Z'}
+workflow.ts:138 [Hooks] 🔄 原子性更新工作流和参数: {workflowId: 'workflow_01', params: {…}, updateSource: 'external', timestamp: '2026-02-02T02:02:32.624Z'}
+workflow.ts:138 [Hooks] 🔄 原子性更新工作流和参数: {workflowId: 'workflow_01', params: {…}, updateSource: 'external', timestamp: '2026-02-02T02:02:32.624Z'}
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+logger.ts:92 [02:02:32][数据同步] 收到工作流切换事件: workflow_01
+logger.ts:92 [02:02:32][数据同步] 收到工作流切换事件: workflow_01
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:32.627Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:32.628Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:32.628Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:32.628Z'}
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+ImageGenerationParams.tsx:102 [初始化] ✅ 工作流初始化完成
+parameterMappingStorage.ts:167 [参数映射存储] API加载成功
+parameterDiscoveryService.ts:27 [参数发现服务] 开始发现参数，Store状态: {globalParams: {…}, workflowParams: {…}, currentWorkflowId: 'workflow_01'}
+parameterDiscoveryService.ts:95 [参数发现服务] 从配置文件中发现全局参数: (3) ['uploadedImage', 'imageUrls', 'imageMark']
+parameterDiscoveryService.ts:138 [参数发现服务] 跳过无效 imageMark 字段: null
+parameterDiscoveryService.ts:41 [参数发现服务] 发现全局参数: 3
+parameterDiscoveryService.ts:353 [参数发现服务] 从 workflow-defaults.js 获取 workflow_01 的 num_01 描述: 重绘幅度
+parameterDiscoveryService.ts:51 [参数发现服务] 发现工作流参数: 5
+parameterDiscoveryService.ts:58 [参数发现服务] 发现特殊参数: 1
+parameterDiscoveryService.ts:61 [参数发现服务] 参数发现完成，总计: 9 个唯一参数
+logger.ts:92 [02:02:32][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:32][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:32][数据同步] 开始同步工作流 workflow_01 的数据，强制刷新: true
+workflowLayoutManager.js:99 [布局管理器] 从源文件获取工作流布局: {workflowId: 'workflow_01', hasLayout: true, hasGlobalConfig: true}
+workflowLayoutManager.js:99 [布局管理器] 从源文件获取工作流布局: {workflowId: 'workflow_01', hasLayout: true, hasGlobalConfig: true}
+workflowComponentVisibilityManager.js:66 [组件可见性管理] 加载工作流布局: workflow_01
+workflowComponentVisibilityManager.js:199 [组件可见性管理] 获取工作流 workflow_01 的可见性配置: {imageUpload: {…}, customInputs: {…}}
+logger.ts:92 [02:02:32][数据同步] 获取到的可见性配置: {imageUpload: {…}, customInputs: {…}}
+logger.ts:92 [02:02:32][数据同步] 获取到的布局配置: {components: Array(4), globalConfig: {…}}
+workflowComponentVisibilityManager.js:51 [组件可见性管理] 使用缓存的工作流布局: workflow_01
+workflowComponentVisibilityManager.js:199 [组件可见性管理] 获取工作流 workflow_01 的可见性配置: {imageUpload: {…}, customInputs: {…}}
+workflowLayoutManager.js:99 [布局管理器] 从源文件获取工作流布局: {workflowId: 'workflow_01', hasLayout: true, hasGlobalConfig: true}
+logger.ts:92 [02:02:32][ImageUploadMaskWorkbench] 根据配置隐藏图片上传组件
+logger.ts:92 [02:02:32][ImageUploadMaskWorkbench] 根据配置隐藏图片上传组件
+logger.ts:92 [02:02:32][ImageUploadMaskWorkbench] 页面刷新，重置图片上传模式状态
+logger.ts:92 [02:02:32][ImageUploadMaskWorkbench] 页面刷新，重置图片上传模式状态
+logger.ts:92 [02:02:32][ImageUploadMaskWorkbench] 根据配置隐藏图片上传组件
+workflowLayoutManager.js:99 [布局管理器] 从源文件获取工作流布局: {workflowId: 'workflow_01', hasLayout: true, hasGlobalConfig: true}
+workflowLayoutManager.js:99 [布局管理器] 从源文件获取工作流布局: {workflowId: 'workflow_01', hasLayout: true, hasGlobalConfig: true}
+workflowLayoutManager.js:527 [布局管理器] 获取自定义输入实例: {workflowId: 'workflow_01', count: 4}
+workflowLayoutManager.js:527 [布局管理器] 获取自定义输入实例: {workflowId: 'workflow_01', count: 4}
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+(索引):1 [Intervention]Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113
+PromptParamItem.tsx:239 [PromptParamItem prompt_01] 组件渲染: {instanceId: 'prompt_01', label: '', config: {…}, currentValue: '', currentWorkflowId: 'workflow_01'}
+PromptParamItem.tsx:239 [PromptParamItem prompt_01] 组件渲染: {instanceId: 'prompt_01', label: '', config: {…}, currentValue: '', currentWorkflowId: 'workflow_01'}
+workflowComponentVisibilityManager.js:51 [组件可见性管理] 使用缓存的工作流布局: workflow_01
+workflowComponentVisibilityManager.js:199 [组件可见性管理] 获取工作流 workflow_01 的可见性配置: {imageUpload: {…}, customInputs: {…}}
+workflowLayoutManager.js:99 [布局管理器] 从源文件获取工作流布局: {workflowId: 'workflow_01', hasLayout: true, hasGlobalConfig: true}
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+contentScript.bundle.js:96 消息监听器已注册
+contentScript.bundle.js:110 启动路由监听器...
+contentScript.bundle.js:110 开始按钮注入监听...
+contentScript.bundle.js:110 当前页面URL: http://localhost:3000/
+contentScript.bundle.js:110 页面title: AIGC Platform
+contentScript.bundle.js:96 Loomi ContentScript 初始化完成
+contentScript.bundle.js:110 延迟检查，强制重新注入按钮
+taskDatabaseService.ts:156   POST http://localhost:3000/api/coze/common 500 (Internal Server Error)
+listTasks @ taskDatabaseService.ts:156
+_useTaskRecoveryUseEffect恢复任务 @ useTaskRecovery.ts:68
+setTimeout
+useTaskRecovery[useEffect()] @ useTaskRecovery.ts:223
+react_stack_bottom_frame @ react-dom-client.development.js:28010
+runWithFiberInDEV @ react-dom-client.development.js:984
+commitHookEffectListMount @ react-dom-client.development.js:13611
+commitHookPassiveMountEffects @ react-dom-client.development.js:13698
+commitPassiveMountOnFiber @ react-dom-client.development.js:16638
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16658
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16658
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16658
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16658
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16658
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16658
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16658
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16673
+flushPassiveEffects @ react-dom-client.development.js:19763
+flushPendingEffects @ react-dom-client.development.js:19689
+performSyncWorkOnRoot @ react-dom-client.development.js:20300
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:20145
+flushSpawnedWork @ react-dom-client.development.js:19656
+commitRoot @ react-dom-client.development.js:19239
+commitRootWhenReady @ react-dom-client.development.js:18082
+performWorkOnRoot @ react-dom-client.development.js:17958
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<TaskListFloating>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+Home @ page.tsx:120
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<Home>
+exports.jsx @ react-jsx-runtime.development.js:342
+ClientPageRoot @ client-page.tsx:83
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12041
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+Promise.all @ VM7432 <anonymous>:1
+initializeElement @ react-server-dom-turbopack-client.browser.development.js:1876
+"use server"
+ResponseInstance @ react-server-dom-turbopack-client.browser.development.js:2702
+createResponseFromOptions @ react-server-dom-turbopack-client.browser.development.js:4551
+exports.createFromReadableStream @ react-server-dom-turbopack-client.browser.development.js:4954
+module evaluation @ app-index.tsx:205
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateModuleFromParent @ dev-base.ts:162
+commonJsRequire @ runtime-utils.ts:389
+(匿名) @ app-next-turbopack.ts:11
+(匿名) @ app-bootstrap.ts:79
+loadScriptsInSequence @ app-bootstrap.ts:23
+appBootstrap @ app-bootstrap.ts:61
+module evaluation @ app-next-turbopack.ts:10
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateRuntimeModule @ dev-base.ts:128
+registerChunk @ runtime-backend-dom.ts:57
+await in registerChunk
+registerChunk @ dev-base.ts:1149
+(匿名) @ dev-backend-dom.ts:126
+(匿名) @ dev-backend-dom.ts:126
+taskDatabaseService.ts:200  [TaskDatabase] ❌ 查询任务失败: Error: HTTP 500
+    at listTasks (taskDatabaseService.ts:171:19)
+    at async _useTaskRecoveryUseEffect恢复任务 (useTaskRecovery.ts:68:35)
+error @ intercept-console-error.ts:42
+listTasks @ taskDatabaseService.ts:200
+await in listTasks
+_useTaskRecoveryUseEffect恢复任务 @ useTaskRecovery.ts:68
+setTimeout
+useTaskRecovery[useEffect()] @ useTaskRecovery.ts:223
+react_stack_bottom_frame @ react-dom-client.development.js:28010
+runWithFiberInDEV @ react-dom-client.development.js:984
+commitHookEffectListMount @ react-dom-client.development.js:13611
+commitHookPassiveMountEffects @ react-dom-client.development.js:13698
+commitPassiveMountOnFiber @ react-dom-client.development.js:16638
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16658
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16658
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16658
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16658
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16658
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16658
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16658
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16630
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16915
+recursivelyTraversePassiveMountEffects @ react-dom-client.development.js:16583
+commitPassiveMountOnFiber @ react-dom-client.development.js:16673
+flushPassiveEffects @ react-dom-client.development.js:19763
+flushPendingEffects @ react-dom-client.development.js:19689
+performSyncWorkOnRoot @ react-dom-client.development.js:20300
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:20145
+flushSpawnedWork @ react-dom-client.development.js:19656
+commitRoot @ react-dom-client.development.js:19239
+commitRootWhenReady @ react-dom-client.development.js:18082
+performWorkOnRoot @ react-dom-client.development.js:17958
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<TaskListFloating>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+Home @ page.tsx:120
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<Home>
+exports.jsx @ react-jsx-runtime.development.js:342
+ClientPageRoot @ client-page.tsx:83
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12041
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+Promise.all @ VM7432 <anonymous>:1
+initializeElement @ react-server-dom-turbopack-client.browser.development.js:1876
+"use server"
+ResponseInstance @ react-server-dom-turbopack-client.browser.development.js:2702
+createResponseFromOptions @ react-server-dom-turbopack-client.browser.development.js:4551
+exports.createFromReadableStream @ react-server-dom-turbopack-client.browser.development.js:4954
+module evaluation @ app-index.tsx:205
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateModuleFromParent @ dev-base.ts:162
+commonJsRequire @ runtime-utils.ts:389
+(匿名) @ app-next-turbopack.ts:11
+(匿名) @ app-bootstrap.ts:79
+loadScriptsInSequence @ app-bootstrap.ts:23
+appBootstrap @ app-bootstrap.ts:61
+module evaluation @ app-next-turbopack.ts:10
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateRuntimeModule @ dev-base.ts:128
+registerChunk @ runtime-backend-dom.ts:57
+await in registerChunk
+registerChunk @ dev-base.ts:1149
+(匿名) @ dev-backend-dom.ts:126
+(匿名) @ dev-backend-dom.ts:126
+useTaskRecovery.ts:95 ===== [TaskRecovery] 诊断模式开始 ======
+useTaskRecovery.ts:96 [TaskRecovery] 总任务数: 5
+useTaskRecovery.ts:100 [TaskRecovery] 任务 #1 详情: {id: 'a47fb635-c3b9-4335-b2a8-805ef9703d34', id_后6位: '703d34', status: 'success', status类型: 'string', status是否FAILED: false, …}
+useTaskRecovery.ts:100 [TaskRecovery] 任务 #2 详情: {id: '15689cf7-7c86-49b8-af28-f1c70a97b3bc', id_后6位: '97b3bc', status: 'success', status类型: 'string', status是否FAILED: false, …}
+useTaskRecovery.ts:100 [TaskRecovery] 任务 #3 详情: {id: '2ccc69e4-4d1c-487c-a526-fad95bbabf1d', id_后6位: 'babf1d', status: 'success', status类型: 'string', status是否FAILED: false, …}
+useTaskRecovery.ts:100 [TaskRecovery] 任务 #4 详情: {id: '2caf246c-e710-4bef-8ea5-4824981bf040', id_后6位: '1bf040', status: 'failed', status类型: 'string', status是否FAILED: true, …}
+useTaskRecovery.ts:100 [TaskRecovery] 任务 #5 详情: {id: '214f11d8-3f50-4d83-aa8c-cf12073457cf', id_后6位: '3457cf', status: 'success', status类型: 'string', status是否FAILED: false, …}
+useTaskRecovery.ts:128 ===== [TaskRecovery] 过滤条件检查 ======
+useTaskRecovery.ts:134 [TaskRecovery] status === FAILED 的任务数: 1
+useTaskRecovery.ts:140 [TaskRecovery] 有 cozeRunId 的任务数: 0
+useTaskRecovery.ts:146 [TaskRecovery] 有 workflowParameters 的任务数: 0
+useTaskRecovery.ts:153 [TaskRecovery] ❌ 失败但有参数的任务数（应该恢复）: 0
+useTaskRecovery.ts:157 ===== [TaskRecovery] 诊断：为何过滤失败？ ======
+useTaskRecovery.ts:159 [TaskRecovery] 失败任务 #1: {id: '1bf040', status: 'failed', status检查1: true, status检查2: true, 有cozeRunId: false, …}
+useTaskRecovery.ts:171 ===== [TaskRecovery] 诊断模式结束 ======
+useTaskRecovery.ts:206 [TaskRecovery] ✅ 无需恢复的任务
+logger.ts:92 [02:02:35][开始上传文件到队列:] 花瓣素材_人物系列写实感亚洲一家三口坐在客厅地毯上图片_194662141.jpg 槽位: 1
+logger.ts:92 [02:02:35][上传队列] 开始处理文件: 1769997755614___194662141_n67jd1.jpg, 队列中剩余: 0
+logger.ts:92 [02:02:35][上传队列] 文件 1769997755614___194662141_n67jd1.jpg Base64 转换完成
+cozeUploadHelper.ts:322 [Coze上传] 开始上传文件到 Coze 工作流 API
+cozeUploadHelper.ts:323 [Coze上传] 上传端点: https://sy7g62x9hc.coze.site/run
+cozeUploadHelper.ts:332 [Coze上传] 原始文件信息: {name: '1769997755614___194662141_n67jd1.jpg', size: '210.34 KB', type: 'image/jpeg'}
+cozeUploadHelper.ts:371 [Coze上传] 文件大小小于 10MB，禁止压缩，使用原始画质
+cozeUploadHelper.ts:390 [Coze上传] Base64 转换完成: {长度: 287211, 是否压缩: false, 原始大小: '210.34 KB'}
+logger.ts:92 [02:02:35][上传队列] 文件 1769997755614___194662141_n67jd1.jpg 上传进度: 30%
+cozeUploadHelper.ts:412 [Coze上传] 发送请求到本地代理，请求体大小: 287281
+cozeUploadHelper.ts:413 [Coze上传] 请求体结构: {call_type: 'upload', input: {…}}
+cozeUploadHelper.ts:439 [Coze上传] 本地代理响应状态: 200
+cozeUploadHelper.ts:443 [Coze上传] 响应数据: {response_data: {…}, run_id: '3f2d8cee-bb47-4341-89ba-3c416dc152eb'}
+logger.ts:92 [02:02:36][上传队列] 文件 1769997755614___194662141_n67jd1.jpg 上传进度: 100%
+cozeUploadHelper.ts:455 [Coze上传] ✅ 上传成功，public_url: https://coze-coding-project.tos.coze.site/coze_storage_7592875716484562994/image_eeb70d82.jpg?sign=1770084156-fb7178ab92-0-524a2d926d801a2d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907
+logger.ts:92 [02:02:36][上传队列] 文件 1769997755614___194662141_n67jd1.jpg 上传完成: {success: true, url: 'https://coze-coding-project.tos.coze.site/coze_sto…d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907'}
+logger.ts:92 [02:02:36][ImageUploadMaskWorkbench] 上传成功，URL: https://coze-coding-project.tos.coze.site/coze_storage_7592875716484562994/image_eeb70d82.jpg?sign=1770084156-fb7178ab92-0-524a2d926d801a2d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907, 槽位: 1
+logger.ts:92 [02:02:36][GlobalStore] [updateGlobalParam] 更新全局参数: {key: 'uploadedImage', value: 'https://coze-coding-project.tos.coze.site/coze_sto…d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907'}
+logger.ts:92 [02:02:36][ImageUploadMaskWorkbench] 自动递补到槽位: 1 (用户选择槽位: 1), URL: https://coze-coding-project.tos.coze.site/coze_storage_7592875716484562994/image_eeb70d82.jpg?sign=1770084156-fb7178ab92-0-524a2d926d801a2d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:36.952Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:36.952Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:36.952Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:36.952Z'}
+logger.ts:92 [02:02:36][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:36][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:36][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+logger.ts:92 [02:02:36][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+logger.ts:92 [02:02:37][ImageUploadMaskWorkbench] 图片尺寸获取成功: 1279x2147
+MultiImageSlot.tsx:173 图片加载成功: https://coze-coding-project.tos.coze.site/coze_storage_7592875716484562994/image_eeb70d82.jpg?sign=1770084156-fb7178ab92-0-524a2d926d801a2d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907
+PromptParamItem.tsx:175 [PromptParamItem prompt_01] 开始提示词生成: {imageUrl: 'https://coze-coding-project.tos.coze.site/coze_sto…d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907'}
+promptEnhancementManager.ts:147 [提示词增强管理器] 发起新的生成请求: {imageUrl: 'https://coze-coding-project.tos.coze.site/coze_sto…d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907', requestKey: 'generate_https://coze-coding-project.tos.coze.site…d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907'}
+logger.ts:92 [02:02:38][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:38][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:41][GlobalStore] [updateCurrentWorkflowParam] 更新工作流参数: {workflowId: 'workflow_01', key: 'num_01', value: 0.4}
+logger.ts:92 [02:02:41][GlobalStore] [setParameter] 已弃用: {key: 'num_01', value: 0.4}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:41.548Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:41.548Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:41.549Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:41.549Z'}
+logger.ts:92 [02:02:41][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:41][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:41][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.382Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.382Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.382Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.382Z'}
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+logger.ts:92 [02:02:42][GlobalStore] [updateCurrentWorkflowParam] 更新工作流参数: {workflowId: 'workflow_01', key: 'num_01', value: 0.6}
+logger.ts:92 [02:02:42][GlobalStore] [setParameter] 已弃用: {key: 'num_01', value: 0.6}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.557Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.557Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.557Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.557Z'}
+logger.ts:92 [02:02:42][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:42][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:42][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.731Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.732Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.732Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.732Z'}
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.915Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.915Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.915Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:42.915Z'}
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:43.348Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:43.348Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:43.349Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:43.349Z'}
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+logger.ts:92 [02:02:43][GlobalStore] [updateCurrentWorkflowParam] 更新工作流参数: {workflowId: 'workflow_01', key: 'num_01', value: 1}
+logger.ts:92 [02:02:43][GlobalStore] [setParameter] 已弃用: {key: 'num_01', value: 1}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:43.657Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:43.657Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:43.657Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:43.657Z'}
+logger.ts:92 [02:02:43][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:43][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:43][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+promptEnhancementManager.ts:184 [提示词增强管理器] ✅ 生成成功: {imageUrl: 'https://coze-coding-project.tos.coze.site/coze_sto…d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907', generatedPrompt: '这张图片展现了一个温馨的家庭场景，主体是一家三口在客厅互动的画面。\n\n前景中，小男孩坐在浅色地毯上，…，自然光透过纱帘营造出柔和的氛围，让整个画面充满了温馨、幸福的家庭氛围，传递出亲子间的亲密与快乐。', requestKey: 'generate_https://coze-coding-project.tos.coze.site…d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907'}
+logger.ts:92 [02:02:45][GlobalStore] [updateCurrentWorkflowParam] 更新工作流参数: {workflowId: 'workflow_01', key: 'prompt_01', value: '这张图片展现了一个温馨的家庭场景，主体是一家三口在客厅互动的画面。  前景中，小男孩坐在浅色地毯上，…，自然光透过纱帘营造出柔和的氛围，让整个画面充满了温馨、幸福的家庭氛围，传递出亲子间的亲密与快乐。'}
+logger.ts:92 [02:02:45][GlobalStore] [setParameter] 已弃用: {key: 'prompt_01', value: '这张图片展现了一个温馨的家庭场景，主体是一家三口在客厅互动的画面。  前景中，小男孩坐在浅色地毯上，…，自然光透过纱帘营造出柔和的氛围，让整个画面充满了温馨、幸福的家庭氛围，传递出亲子间的亲密与快乐。'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:45.831Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:45.831Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:45.831Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:02:45.831Z'}
+logger.ts:92 [02:02:45][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:45][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:45][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+PromptParamItem.tsx:239 [PromptParamItem prompt_01] 组件渲染: {instanceId: 'prompt_01', label: '', config: {…}, currentValue: '这张图片展现了一个温馨的家庭场景，主体是一家三口在客厅互动的画面。  前景中，小男孩坐在浅色地毯上，…，自然光透过纱帘营造出柔和的氛围，让整个画面充满了温馨、幸福的家庭氛围，传递出亲子间的亲密与快乐。', currentWorkflowId: 'workflow_01'}
+ImageGenerationParams.tsx:1614  Invalid DOM property `stroke-dasharray`. Did you mean `strokeDasharray`?
+error @ intercept-console-error.ts:42
+validateProperty @ react-dom-client.development.js:3112
+warnUnknownProperties @ react-dom-client.development.js:3266
+validatePropertiesInDevelopment @ react-dom-client.development.js:21169
+setInitialProperties @ react-dom-client.development.js:21802
+completeWork @ react-dom-client.development.js:13019
+runWithFiberInDEV @ react-dom-client.development.js:984
+completeUnitOfWork @ react-dom-client.development.js:19037
+performUnitOfWork @ react-dom-client.development.js:18918
+workLoopSync @ react-dom-client.development.js:18729
+renderRootSync @ react-dom-client.development.js:18710
+performWorkOnRoot @ react-dom-client.development.js:17740
+performSyncWorkOnRoot @ react-dom-client.development.js:20303
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:20145
+processRootScheduleInMicrotask @ react-dom-client.development.js:20184
+(匿名) @ react-dom-client.development.js:20322
+<circle>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+ImageGenerationParams @ ImageGenerationParams.tsx:1614
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopSync @ react-dom-client.development.js:18729
+renderRootSync @ react-dom-client.development.js:18710
+performWorkOnRoot @ react-dom-client.development.js:17740
+performSyncWorkOnRoot @ react-dom-client.development.js:20303
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:20145
+processRootScheduleInMicrotask @ react-dom-client.development.js:20184
+(匿名) @ react-dom-client.development.js:20322
+<ImageGenerationParams>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+renderActiveParams @ page.tsx:48
+Home @ page.tsx:106
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<Home>
+exports.jsx @ react-jsx-runtime.development.js:342
+ClientPageRoot @ client-page.tsx:83
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12041
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+Promise.all @ VM7432 <anonymous>:1
+initializeElement @ react-server-dom-turbopack-client.browser.development.js:1876
+"use server"
+ResponseInstance @ react-server-dom-turbopack-client.browser.development.js:2702
+createResponseFromOptions @ react-server-dom-turbopack-client.browser.development.js:4551
+exports.createFromReadableStream @ react-server-dom-turbopack-client.browser.development.js:4954
+module evaluation @ app-index.tsx:205
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateModuleFromParent @ dev-base.ts:162
+commonJsRequire @ runtime-utils.ts:389
+(匿名) @ app-next-turbopack.ts:11
+(匿名) @ app-bootstrap.ts:79
+loadScriptsInSequence @ app-bootstrap.ts:23
+appBootstrap @ app-bootstrap.ts:61
+module evaluation @ app-next-turbopack.ts:10
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateRuntimeModule @ dev-base.ts:128
+registerChunk @ runtime-backend-dom.ts:57
+await in registerChunk
+registerChunk @ dev-base.ts:1149
+(匿名) @ dev-backend-dom.ts:126
+(匿名) @ dev-backend-dom.ts:126
+ImageGenerationParams.tsx:1614  Invalid DOM property `stroke-dashoffset`. Did you mean `strokeDashoffset`?
+error @ intercept-console-error.ts:42
+validateProperty @ react-dom-client.development.js:3112
+warnUnknownProperties @ react-dom-client.development.js:3266
+validatePropertiesInDevelopment @ react-dom-client.development.js:21169
+setInitialProperties @ react-dom-client.development.js:21802
+completeWork @ react-dom-client.development.js:13019
+runWithFiberInDEV @ react-dom-client.development.js:984
+completeUnitOfWork @ react-dom-client.development.js:19037
+performUnitOfWork @ react-dom-client.development.js:18918
+workLoopSync @ react-dom-client.development.js:18729
+renderRootSync @ react-dom-client.development.js:18710
+performWorkOnRoot @ react-dom-client.development.js:17740
+performSyncWorkOnRoot @ react-dom-client.development.js:20303
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:20145
+processRootScheduleInMicrotask @ react-dom-client.development.js:20184
+(匿名) @ react-dom-client.development.js:20322
+<circle>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+ImageGenerationParams @ ImageGenerationParams.tsx:1614
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopSync @ react-dom-client.development.js:18729
+renderRootSync @ react-dom-client.development.js:18710
+performWorkOnRoot @ react-dom-client.development.js:17740
+performSyncWorkOnRoot @ react-dom-client.development.js:20303
+flushSyncWorkAcrossRoots_impl @ react-dom-client.development.js:20145
+processRootScheduleInMicrotask @ react-dom-client.development.js:20184
+(匿名) @ react-dom-client.development.js:20322
+<ImageGenerationParams>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+renderActiveParams @ page.tsx:48
+Home @ page.tsx:106
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<Home>
+exports.jsx @ react-jsx-runtime.development.js:342
+ClientPageRoot @ client-page.tsx:83
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12041
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+Promise.all @ VM7432 <anonymous>:1
+initializeElement @ react-server-dom-turbopack-client.browser.development.js:1876
+"use server"
+ResponseInstance @ react-server-dom-turbopack-client.browser.development.js:2702
+createResponseFromOptions @ react-server-dom-turbopack-client.browser.development.js:4551
+exports.createFromReadableStream @ react-server-dom-turbopack-client.browser.development.js:4954
+module evaluation @ app-index.tsx:205
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateModuleFromParent @ dev-base.ts:162
+commonJsRequire @ runtime-utils.ts:389
+(匿名) @ app-next-turbopack.ts:11
+(匿名) @ app-bootstrap.ts:79
+loadScriptsInSequence @ app-bootstrap.ts:23
+appBootstrap @ app-bootstrap.ts:61
+module evaluation @ app-next-turbopack.ts:10
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateRuntimeModule @ dev-base.ts:128
+registerChunk @ runtime-backend-dom.ts:57
+await in registerChunk
+registerChunk @ dev-base.ts:1149
+(匿名) @ dev-backend-dom.ts:126
+(匿名) @ dev-backend-dom.ts:126
+workflowComponentVisibilityManager.js:51 [组件可见性管理] 使用缓存的工作流布局: workflow_01
+workflowComponentVisibilityManager.js:199 [组件可见性管理] 获取工作流 workflow_01 的可见性配置: {imageUpload: {…}, customInputs: {…}}
+logger.ts:92 [02:02:47][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+useParameterExport.ts:210 🚀 [useParameterExport] 最终SDK格式参数: {
+  "workflow_id": "7569119072085524506",
+  "app_id": "7528684477728882734",
+  "parameters": {
+    "input": "{\"img\":\"https://coze-coding-project.tos.coze.site/coze_storage_7592875716484562994/image_eeb70d82.jpg?sign=1770084156-fb7178ab92-0-524a2d926d801a2d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907\",\"prompt\":\"这张图片展现了一个温馨的家庭场景，主体是一家三口在客厅互动的画面。  前景中，小男孩坐在浅色地毯上，穿着米白色毛衣和卡其色裤子、白色袜子，正专注地捧着一本带有月亮图案的绘本，脸上洋溢着灿烂的笑容。他身旁的毛绒泰迪熊增添了童趣感，地毯上还有几块彩色拼图，丰富了细节。  中景里，父母陪伴在孩子身边。妈妈穿着米黄色毛衣，长发披肩，笑容温暖，手臂环抱着孩子，尽显温柔；爸爸身着深蓝色毛衣和卡其色裤子，手臂搭在妈妈肩上，三人一同看向绘本，笑容真挚，氛围亲密融洽。  背景是布置温馨的客厅，浅米色的沙发搭配同色系靠枕，柔和舒适。后方的窗户装着木质窗框，白色的纱帘半透，让自然光柔和地洒入室内，增添了温暖感。左侧的边几上摆放着台灯、小盆栽等，进一步烘托出居家的温馨氛围。  构图上，人物居于画面中心，形成紧密的互动关系，背景的家居布置则衬托出家庭的温暖感。色调以柔和的米白、卡其色和深蓝色为主，搭配暖黄的光线，整体呈现出温暖柔和的暖色调。光影方面，自然光透过纱帘营造出柔和的氛围，让整个画面充满了温馨、幸福的家庭氛围，传递出亲子间的亲密与快乐。\",\"num_01\":\"1\",\"seg_01\":\"2\",\"model_name\":[\"model1\",\"model2\"],\"workflow\":\"01\"}"
+  }
+}
+logger.ts:92 [02:02:47][参数快照] 📸 开始生成参数快照 {workflowId: 'workflow_01'}
+logger.ts:92 [02:02:47][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:02:47][参数快照] ✅ 参数快照生成完成 {snapshotId: '287ee2ad-b676-4c57-a984-8e7f81ac7384', workflowId: 'workflow_01', totalParams: 11, filledParams: 7, completeness: 64}
+workflowLayoutManager.js:99 [布局管理器] 从源文件获取工作流布局: {workflowId: 'workflow_01', hasLayout: true, hasGlobalConfig: true}
+ImageGenerationParams.tsx:297 [Generate] 检测到多任务组件: {componentId: 'sel_01', selectedModels: Array(2), modelCount: 2}
+workflowLayoutManager.js:99 [布局管理器] 从源文件获取工作流布局: {workflowId: 'workflow_01', hasLayout: true, hasGlobalConfig: true}
+ImageGenerationParams.tsx:1052 [MultiTask] 开始批量生成: {batchId: '4ab10603-a9e9-4795-8dcd-c7f89b82a33f', modelCount: 2, models: Array(2)}
+taskListStore.ts:48 [TaskStore] ✅ 任务已添加: {id: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', type: 'image', workflowId: 'workflow_01', status: 'running', hasParameterSnapshot: true}
+ImageGenerationParams.tsx:1126 [MultiTask] 任务创建成功 [1/2]: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', model: 'Flux2_Klein', realtimeStatus: '已初始化'}
+taskListStore.ts:48 [TaskStore] ✅ 任务已添加: {id: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', type: 'image', workflowId: 'workflow_01', status: 'running', hasParameterSnapshot: true}
+ImageGenerationParams.tsx:1126 [MultiTask] 任务创建成功 [2/2]: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', model: '阿里Z', realtimeStatus: '已初始化'}
+ImageGenerationParams.tsx:1238 [MultiTask] 🔧 开始执行模型任务: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', model: 'model1', modelLabel: 'Flux2_Klein', hasInput: true}
+ImageGenerationParams.tsx:1251 [MultiTask] 🔧 API 请求参数: {originalModelName: Array(2), correctedModelName: 'model1', modelLabel: 'Flux2_Klein'}
+ImageGenerationParams.tsx:1258 [MultiTask] 🚀 准备发送请求到 /api/coze/main
+ImageGenerationParams.tsx:1259 [MultiTask] 📋 请求 Body 结构: {
+  "input": {
+    "img": "https://coze-coding-project.tos.coze.site/coze_storage_7592875716484562994/image_eeb70d82.jpg?sign=1770084156-fb7178ab92-0-524a2d926d801a2d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907",
+    "prompt": "这张图片展现了一个温馨的家庭场景，主体是一家三口在客厅互动的画面。  前景中，小男孩坐在浅色地毯上，穿着米白色毛衣和卡其色裤子、白色袜子，正专注地捧着一本带有月亮图案的绘本，脸上洋溢着灿烂的笑容。他身旁的毛绒泰迪熊增添了童趣感，地毯上还有几块彩色拼图，丰富了细节。  中景里，父母陪伴在孩子身边。妈妈穿着米黄色毛衣，长发披肩，笑容温暖，手臂环抱着孩子，尽显温柔；爸爸身着深蓝色毛衣和卡其色裤子，手臂搭在妈妈肩上，三人一同看向绘本，笑容真挚，氛围亲密融洽。  背景是布置温馨的客厅，浅米色的沙发搭配同色系靠枕，柔和舒适。后方的窗户装着木质窗框，白色的纱帘半透，让自然光柔和地洒入室内，增添了温暖感。左侧的边几上摆放着台灯、小盆栽等，进一步烘托出居家的温馨氛围。  构图上，人物居于画面中心，形成紧密的互动关系，背景的家居布置则衬托出家庭的温暖感。色调以柔和的米白、卡其色和深蓝色为主，搭配暖黄的光线，整体呈现出温暖柔和的暖色调。光影方面，自然光透过纱帘营造出柔和的氛围，让整个画面充满了温馨、幸福的家庭氛围，传递出亲子间的亲密与快乐。",
+    "num_01": "1",
+    "seg_01": "2",
+    "model_name": "model1",
+    "workflow": "01"
+  }
+}
+ImageGenerationParams.tsx:1260 [MultiTask] 📋 请求 Body 类型: object
+ImageGenerationParams.tsx:1261 [MultiTask] 📋 requestInput 内容: {img: 'https://coze-coding-project.tos.coze.site/coze_sto…d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907', prompt: '这张图片展现了一个温馨的家庭场景，主体是一家三口在客厅互动的画面。  前景中，小男孩坐在浅色地毯上，…，自然光透过纱帘营造出柔和的氛围，让整个画面充满了温馨、幸福的家庭氛围，传递出亲子间的亲密与快乐。', num_01: '1', seg_01: '2', model_name: 'model1', …}
+ImageGenerationParams.tsx:1238 [MultiTask] 🔧 开始执行模型任务: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', model: 'model2', modelLabel: '阿里Z', hasInput: true}
+ImageGenerationParams.tsx:1251 [MultiTask] 🔧 API 请求参数: {originalModelName: Array(2), correctedModelName: 'model2', modelLabel: '阿里Z'}
+ImageGenerationParams.tsx:1258 [MultiTask] 🚀 准备发送请求到 /api/coze/main
+ImageGenerationParams.tsx:1259 [MultiTask] 📋 请求 Body 结构: {
+  "input": {
+    "img": "https://coze-coding-project.tos.coze.site/coze_storage_7592875716484562994/image_eeb70d82.jpg?sign=1770084156-fb7178ab92-0-524a2d926d801a2d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907",
+    "prompt": "这张图片展现了一个温馨的家庭场景，主体是一家三口在客厅互动的画面。  前景中，小男孩坐在浅色地毯上，穿着米白色毛衣和卡其色裤子、白色袜子，正专注地捧着一本带有月亮图案的绘本，脸上洋溢着灿烂的笑容。他身旁的毛绒泰迪熊增添了童趣感，地毯上还有几块彩色拼图，丰富了细节。  中景里，父母陪伴在孩子身边。妈妈穿着米黄色毛衣，长发披肩，笑容温暖，手臂环抱着孩子，尽显温柔；爸爸身着深蓝色毛衣和卡其色裤子，手臂搭在妈妈肩上，三人一同看向绘本，笑容真挚，氛围亲密融洽。  背景是布置温馨的客厅，浅米色的沙发搭配同色系靠枕，柔和舒适。后方的窗户装着木质窗框，白色的纱帘半透，让自然光柔和地洒入室内，增添了温暖感。左侧的边几上摆放着台灯、小盆栽等，进一步烘托出居家的温馨氛围。  构图上，人物居于画面中心，形成紧密的互动关系，背景的家居布置则衬托出家庭的温暖感。色调以柔和的米白、卡其色和深蓝色为主，搭配暖黄的光线，整体呈现出温暖柔和的暖色调。光影方面，自然光透过纱帘营造出柔和的氛围，让整个画面充满了温馨、幸福的家庭氛围，传递出亲子间的亲密与快乐。",
+    "num_01": "1",
+    "seg_01": "2",
+    "model_name": "model2",
+    "workflow": "01"
+  }
+}
+ImageGenerationParams.tsx:1260 [MultiTask] 📋 请求 Body 类型: object
+ImageGenerationParams.tsx:1261 [MultiTask] 📋 requestInput 内容: {img: 'https://coze-coding-project.tos.coze.site/coze_sto…d1b36628888108dbc3b4d4daed34cc36a74e8495769e38907', prompt: '这张图片展现了一个温馨的家庭场景，主体是一家三口在客厅互动的画面。  前景中，小男孩坐在浅色地毯上，…，自然光透过纱帘营造出柔和的氛围，让整个画面充满了温馨、幸福的家庭氛围，传递出亲子间的亲密与快乐。', num_01: '1', seg_01: '2', model_name: 'model2', …}
+ImageGenerationParams.tsx:1274 [MultiTask] 🔧 API 响应已接收，开始处理流式数据: {responseOk: true, status: 200, hasBody: true}
+ImageGenerationParams.tsx:1316 [Stream] 🔧 开始处理流式响应: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', modelLabel: '阿里Z', hasReader: true, hasDecoder: true}
+ImageGenerationParams.tsx:1370 [Stream] 🔧 收到数据块: {chunkLength: 921, preview: 'event: message\ndata: {"type": "node_update", "node…: null, "data": {"netWssUrl": "wss://www.runningh'}
+ImageGenerationParams.tsx:1384 [Stream] 🔧 解析到事件: {type: 'node_update', node_name: 'call_runninghub_api', hasTaskId: true}
+taskListStore.ts:104 [TaskStore] 🔄 任务已更新: {id: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', updates: {…}, activeTaskIds: Array(2)}
+ImageGenerationParams.tsx:1434 [MultiTask] 验证任务状态更新: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', model: '阿里Z', realtimeStatus: {…}, taskIdValue: '2018143029801656321', statusText: '阿里Z 图片生成中...'}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 1, 原耗时: 0}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 1, 原耗时: 0}
+ImageGenerationParams.tsx:1274 [MultiTask] 🔧 API 响应已接收，开始处理流式数据: {responseOk: true, status: 200, hasBody: true}
+ImageGenerationParams.tsx:1316 [Stream] 🔧 开始处理流式响应: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', modelLabel: 'Flux2_Klein', hasReader: true, hasDecoder: true}
+ImageGenerationParams.tsx:1370 [Stream] 🔧 收到数据块: {chunkLength: 917, preview: 'event: message\ndata: {"type": "node_update", "node…: null, "data": {"netWssUrl": "wss://www.runningh'}
+ImageGenerationParams.tsx:1384 [Stream] 🔧 解析到事件: {type: 'node_update', node_name: 'call_runninghub_api', hasTaskId: true}
+taskListStore.ts:104 [TaskStore] 🔄 任务已更新: {id: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', updates: {…}, activeTaskIds: Array(2)}
+ImageGenerationParams.tsx:1434 [MultiTask] 验证任务状态更新: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', model: 'Flux2_Klein', realtimeStatus: {…}, taskIdValue: '2018143031458402306', statusText: 'Flux2_Klein 图片生成中...'}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 2, 原耗时: 1}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 2, 原耗时: 1}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 3, 原耗时: 2}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 3, 原耗时: 2}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 4, 原耗时: 3}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 4, 原耗时: 3}
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143029801656321 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+<button>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+ImageGenerationParams @ ImageGenerationParams.tsx:1601
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<ImageGenerationParams>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+renderActiveParams @ page.tsx:48
+Home @ page.tsx:106
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<Home>
+exports.jsx @ react-jsx-runtime.development.js:342
+ClientPageRoot @ client-page.tsx:83
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12041
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+Promise.all @ VM7432 <anonymous>:1
+initializeElement @ react-server-dom-turbopack-client.browser.development.js:1876
+"use server"
+ResponseInstance @ react-server-dom-turbopack-client.browser.development.js:2702
+createResponseFromOptions @ react-server-dom-turbopack-client.browser.development.js:4551
+exports.createFromReadableStream @ react-server-dom-turbopack-client.browser.development.js:4954
+module evaluation @ app-index.tsx:205
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateModuleFromParent @ dev-base.ts:162
+commonJsRequire @ runtime-utils.ts:389
+(匿名) @ app-next-turbopack.ts:11
+(匿名) @ app-bootstrap.ts:79
+loadScriptsInSequence @ app-bootstrap.ts:23
+appBootstrap @ app-bootstrap.ts:61
+module evaluation @ app-next-turbopack.ts:10
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateRuntimeModule @ dev-base.ts:128
+registerChunk @ runtime-backend-dom.ts:57
+await in registerChunk
+registerChunk @ dev-base.ts:1149
+(匿名) @ dev-backend-dom.ts:126
+(匿名) @ dev-backend-dom.ts:126
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143031458402306 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+<button>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+ImageGenerationParams @ ImageGenerationParams.tsx:1601
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<ImageGenerationParams>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+renderActiveParams @ page.tsx:48
+Home @ page.tsx:106
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<Home>
+exports.jsx @ react-jsx-runtime.development.js:342
+ClientPageRoot @ client-page.tsx:83
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12041
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+Promise.all @ VM7432 <anonymous>:1
+initializeElement @ react-server-dom-turbopack-client.browser.development.js:1876
+"use server"
+ResponseInstance @ react-server-dom-turbopack-client.browser.development.js:2702
+createResponseFromOptions @ react-server-dom-turbopack-client.browser.development.js:4551
+exports.createFromReadableStream @ react-server-dom-turbopack-client.browser.development.js:4954
+module evaluation @ app-index.tsx:205
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateModuleFromParent @ dev-base.ts:162
+commonJsRequire @ runtime-utils.ts:389
+(匿名) @ app-next-turbopack.ts:11
+(匿名) @ app-bootstrap.ts:79
+loadScriptsInSequence @ app-bootstrap.ts:23
+appBootstrap @ app-bootstrap.ts:61
+module evaluation @ app-next-turbopack.ts:10
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateRuntimeModule @ dev-base.ts:128
+registerChunk @ runtime-backend-dom.ts:57
+await in registerChunk
+registerChunk @ dev-base.ts:1149
+(匿名) @ dev-backend-dom.ts:126
+(匿名) @ dev-backend-dom.ts:126
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 5, 原耗时: 4}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 5, 原耗时: 4}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 6, 原耗时: 5}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 6, 原耗时: 5}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 7, 原耗时: 6}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 7, 原耗时: 6}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 8, 原耗时: 7}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 8, 原耗时: 7}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 9, 原耗时: 8}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 9, 原耗时: 8}
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143029801656321 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+<button>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+ImageGenerationParams @ ImageGenerationParams.tsx:1601
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<ImageGenerationParams>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+renderActiveParams @ page.tsx:48
+Home @ page.tsx:106
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<Home>
+exports.jsx @ react-jsx-runtime.development.js:342
+ClientPageRoot @ client-page.tsx:83
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12041
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+Promise.all @ VM7432 <anonymous>:1
+initializeElement @ react-server-dom-turbopack-client.browser.development.js:1876
+"use server"
+ResponseInstance @ react-server-dom-turbopack-client.browser.development.js:2702
+createResponseFromOptions @ react-server-dom-turbopack-client.browser.development.js:4551
+exports.createFromReadableStream @ react-server-dom-turbopack-client.browser.development.js:4954
+module evaluation @ app-index.tsx:205
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateModuleFromParent @ dev-base.ts:162
+commonJsRequire @ runtime-utils.ts:389
+(匿名) @ app-next-turbopack.ts:11
+(匿名) @ app-bootstrap.ts:79
+loadScriptsInSequence @ app-bootstrap.ts:23
+appBootstrap @ app-bootstrap.ts:61
+module evaluation @ app-next-turbopack.ts:10
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateRuntimeModule @ dev-base.ts:128
+registerChunk @ runtime-backend-dom.ts:57
+await in registerChunk
+registerChunk @ dev-base.ts:1149
+(匿名) @ dev-backend-dom.ts:126
+(匿名) @ dev-backend-dom.ts:126
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143031458402306 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+<button>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+ImageGenerationParams @ ImageGenerationParams.tsx:1601
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<ImageGenerationParams>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+renderActiveParams @ page.tsx:48
+Home @ page.tsx:106
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<Home>
+exports.jsx @ react-jsx-runtime.development.js:342
+ClientPageRoot @ client-page.tsx:83
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12041
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+Promise.all @ VM7432 <anonymous>:1
+initializeElement @ react-server-dom-turbopack-client.browser.development.js:1876
+"use server"
+ResponseInstance @ react-server-dom-turbopack-client.browser.development.js:2702
+createResponseFromOptions @ react-server-dom-turbopack-client.browser.development.js:4551
+exports.createFromReadableStream @ react-server-dom-turbopack-client.browser.development.js:4954
+module evaluation @ app-index.tsx:205
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateModuleFromParent @ dev-base.ts:162
+commonJsRequire @ runtime-utils.ts:389
+(匿名) @ app-next-turbopack.ts:11
+(匿名) @ app-bootstrap.ts:79
+loadScriptsInSequence @ app-bootstrap.ts:23
+appBootstrap @ app-bootstrap.ts:61
+module evaluation @ app-next-turbopack.ts:10
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateRuntimeModule @ dev-base.ts:128
+registerChunk @ runtime-backend-dom.ts:57
+await in registerChunk
+registerChunk @ dev-base.ts:1149
+(匿名) @ dev-backend-dom.ts:126
+(匿名) @ dev-backend-dom.ts:126
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 10, 原耗时: 9}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 10, 原耗时: 9}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 11, 原耗时: 10}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 11, 原耗时: 10}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 12, 原耗时: 11}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 12, 原耗时: 11}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 13, 原耗时: 12}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 13, 原耗时: 12}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 14, 原耗时: 13}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 14, 原耗时: 13}
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143029801656321 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+<button>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+ImageGenerationParams @ ImageGenerationParams.tsx:1601
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<ImageGenerationParams>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+renderActiveParams @ page.tsx:48
+Home @ page.tsx:106
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<Home>
+exports.jsx @ react-jsx-runtime.development.js:342
+ClientPageRoot @ client-page.tsx:83
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12041
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+Promise.all @ VM7432 <anonymous>:1
+initializeElement @ react-server-dom-turbopack-client.browser.development.js:1876
+"use server"
+ResponseInstance @ react-server-dom-turbopack-client.browser.development.js:2702
+createResponseFromOptions @ react-server-dom-turbopack-client.browser.development.js:4551
+exports.createFromReadableStream @ react-server-dom-turbopack-client.browser.development.js:4954
+module evaluation @ app-index.tsx:205
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateModuleFromParent @ dev-base.ts:162
+commonJsRequire @ runtime-utils.ts:389
+(匿名) @ app-next-turbopack.ts:11
+(匿名) @ app-bootstrap.ts:79
+loadScriptsInSequence @ app-bootstrap.ts:23
+appBootstrap @ app-bootstrap.ts:61
+module evaluation @ app-next-turbopack.ts:10
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateRuntimeModule @ dev-base.ts:128
+registerChunk @ runtime-backend-dom.ts:57
+await in registerChunk
+registerChunk @ dev-base.ts:1149
+(匿名) @ dev-backend-dom.ts:126
+(匿名) @ dev-backend-dom.ts:126
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143031458402306 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+<button>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+ImageGenerationParams @ ImageGenerationParams.tsx:1601
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<ImageGenerationParams>
+exports.jsxDEV @ react-jsx-dev-runtime.development.js:342
+renderActiveParams @ page.tsx:48
+Home @ page.tsx:106
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12092
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+<Home>
+exports.jsx @ react-jsx-runtime.development.js:342
+ClientPageRoot @ client-page.tsx:83
+react_stack_bottom_frame @ react-dom-client.development.js:27925
+renderWithHooksAgain @ react-dom-client.development.js:8072
+renderWithHooks @ react-dom-client.development.js:7984
+updateFunctionComponent @ react-dom-client.development.js:10480
+beginWork @ react-dom-client.development.js:12041
+runWithFiberInDEV @ react-dom-client.development.js:984
+performUnitOfWork @ react-dom-client.development.js:18901
+workLoopConcurrentByScheduler @ react-dom-client.development.js:18895
+renderRootConcurrent @ react-dom-client.development.js:18877
+performWorkOnRoot @ react-dom-client.development.js:17739
+performWorkOnRootViaSchedulerTask @ react-dom-client.development.js:20288
+performWorkUntilDeadline @ scheduler.development.js:45
+"use client"
+Promise.all @ VM7432 <anonymous>:1
+initializeElement @ react-server-dom-turbopack-client.browser.development.js:1876
+"use server"
+ResponseInstance @ react-server-dom-turbopack-client.browser.development.js:2702
+createResponseFromOptions @ react-server-dom-turbopack-client.browser.development.js:4551
+exports.createFromReadableStream @ react-server-dom-turbopack-client.browser.development.js:4954
+module evaluation @ app-index.tsx:205
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateModuleFromParent @ dev-base.ts:162
+commonJsRequire @ runtime-utils.ts:389
+(匿名) @ app-next-turbopack.ts:11
+(匿名) @ app-bootstrap.ts:79
+loadScriptsInSequence @ app-bootstrap.ts:23
+appBootstrap @ app-bootstrap.ts:61
+module evaluation @ app-next-turbopack.ts:10
+(匿名) @ dev-base.ts:244
+runModuleExecutionHooks @ dev-base.ts:278
+instantiateModule @ dev-base.ts:238
+getOrInstantiateRuntimeModule @ dev-base.ts:128
+registerChunk @ runtime-backend-dom.ts:57
+await in registerChunk
+registerChunk @ dev-base.ts:1149
+(匿名) @ dev-backend-dom.ts:126
+(匿名) @ dev-backend-dom.ts:126
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 15, 原耗时: 14}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 15, 原耗时: 14}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 16, 原耗时: 15}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 16, 原耗时: 15}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 17, 原耗时: 16}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 17, 原耗时: 16}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 18, 原耗时: 17}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 18, 原耗时: 17}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 19, 原耗时: 18}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 19, 原耗时: 18}
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143031458402306 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143029801656321 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 20, 原耗时: 19}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 20, 原耗时: 19}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 21, 原耗时: 20}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 21, 原耗时: 20}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 22, 原耗时: 21}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 22, 原耗时: 21}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 23, 原耗时: 22}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 23, 原耗时: 22}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 24, 原耗时: 23}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 24, 原耗时: 23}
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143029801656321 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143031458402306 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 25, 原耗时: 24}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 25, 原耗时: 24}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 26, 原耗时: 25}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 26, 原耗时: 25}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 27, 原耗时: 26}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 27, 原耗时: 26}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 28, 原耗时: 27}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 28, 原耗时: 27}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 29, 原耗时: 28}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 29, 原耗时: 28}
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143029801656321 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143031458402306 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 30, 原耗时: 29}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 30, 原耗时: 29}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 31, 原耗时: 30}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 31, 原耗时: 30}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 32, 原耗时: 31}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 32, 原耗时: 31}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 33, 原耗时: 32}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 33, 原耗时: 32}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 34, 原耗时: 33}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 34, 原耗时: 33}
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143029801656321 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143031458402306 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 35, 原耗时: 34}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 35, 原耗时: 34}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 36, 原耗时: 35}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 36, 原耗时: 35}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 37, 原耗时: 36}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 37, 原耗时: 36}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 38, 原耗时: 37}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 38, 原耗时: 37}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 39, 原耗时: 38}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 39, 原耗时: 38}
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143029801656321 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143031458402306 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 40, 原耗时: 39}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 40, 原耗时: 39}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 41, 原耗时: 40}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 41, 原耗时: 40}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 42, 原耗时: 41}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 42, 原耗时: 41}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 43, 原耗时: 42}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 43, 原耗时: 42}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 44, 原耗时: 43}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 44, 原耗时: 43}
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143029801656321 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143031458402306 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+setInterval
+start @ taskWatcher.ts:41
+ImageGenerationParams.useCallback[handleMultiTaskGenerate] @ ImageGenerationParams.tsx:1058
+await in ImageGenerationParams.useCallback[handleMultiTaskGenerate]
+ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:310
+await in ImageGenerationParams.useCallback[handleGenerate]
+executeDispatch @ react-dom-client.development.js:20447
+runWithFiberInDEV @ react-dom-client.development.js:984
+processDispatchQueue @ react-dom-client.development.js:20497
+(匿名) @ react-dom-client.development.js:21068
+batchedUpdates$1 @ react-dom-client.development.js:3375
+dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
+dispatchEvent @ react-dom-client.development.js:25580
+dispatchDiscreteEvent @ react-dom-client.development.js:25548
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 45, 原耗时: 44}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 45, 原耗时: 44}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 46, 原耗时: 45}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 46, 原耗时: 45}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 47, 原耗时: 46}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', elapsedSeconds: 47, 原耗时: 46}
+ImageGenerationParams.tsx:1370 [Stream] 🔧 收到数据块: {chunkLength: 998, preview: 'event: message\ndata: {"type": "node_update", "node…ll, "data": [{"fileUrl": "https://rh-images.xiaoy'}
+ImageGenerationParams.tsx:1384 [Stream] 🔧 解析到事件: {type: 'node_update', node_name: 'poll_task_status', hasTaskId: false}
+taskListStore.ts:70 [TaskStore] ⏱️ 记录任务最终耗时: {id: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', 最终耗时: 47}
+taskListStore.ts:104 [TaskStore] 🔄 任务已更新: {id: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', updates: {…}, activeTaskIds: Array(1)}
+ImageGenerationParams.tsx:1521 [MultiTask] 实时更新结果区: {completedCount: 1, totalModels: 2, imageCount: 2, allComplete: false}
+logger.ts:92 [02:03:34][GlobalStore] [updateGlobalParam] 更新全局参数: {key: 'imageUrls', value: Array(2)}
+ImageGenerationParams.tsx:1531 [Stream] 模型 Flux2_Klein 生成完成: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', imageCount: 2}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:03:34.995Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:03:34.995Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:03:34.995Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:03:34.995Z'}
+logger.ts:92 [02:03:34][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:03:34][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:03:35][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+logger.ts:92 [02:03:35][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+ImageGenerationParams.tsx:1370 [Stream] 🔧 收到数据块: {chunkLength: 203, preview: 'event: message\ndata: {"type": "done", "message": "…002471E4A203CAE8760DF3B4D", "time_cost_ms": 47312'}
+ImageGenerationParams.tsx:1384 [Stream] 🔧 解析到事件: {type: 'done', node_name: undefined, hasTaskId: false}
+ImageGenerationParams.tsx:1471 [MultiTask] 验证任务成功状态: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', model: 'Flux2_Klein', status: 'success', realtimeStatus: {…}, statusText: 'Flux2_Klein 生成完成'}
+ImageGenerationParams.tsx:1338 [Stream] 模型 Flux2_Klein 流式响应完成
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 48, 原耗时: 47}
+ImageDisplay.tsx:267 图片加载完成: https://rh-images.xiaoyaoyou.com/9e74ececa9d19e14687bb10416aee7da/output/ComfyUI_00001_gjila_1769997809.png
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 49, 原耗时: 48}
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143029801656321 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 50, 原耗时: 49}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 51, 原耗时: 50}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 52, 原耗时: 51}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 53, 原耗时: 52}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 54, 原耗时: 53}
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143029801656321 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 55, 原耗时: 54}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 56, 原耗时: 55}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 57, 原耗时: 56}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 58, 原耗时: 57}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 59, 原耗时: 58}
+taskWatcher.ts:91   GET http://localhost:3000/api/coze/run-histories?execute_id=2018143029801656321 500 (Internal Server Error)
+checkTaskStatus @ taskWatcher.ts:91
+(匿名) @ taskWatcher.ts:68
+poll @ taskWatcher.ts:68
+(匿名) @ taskWatcher.ts:42
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 60, 原耗时: 59}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 61, 原耗时: 60}
+taskListStore.ts:184 [TaskStore] ⏱️ 更新任务耗时: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', elapsedSeconds: 62, 原耗时: 61}
+ImageGenerationParams.tsx:1370 [Stream] 🔧 收到数据块: {chunkLength: 1002, preview: 'event: message\ndata: {"type": "node_update", "node…ll, "data": [{"fileUrl": "https://rh-images.xiaoy'}
+ImageGenerationParams.tsx:1384 [Stream] 🔧 解析到事件: {type: 'node_update', node_name: 'poll_task_status', hasTaskId: false}
+taskListStore.ts:70 [TaskStore] ⏱️ 记录任务最终耗时: {id: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', 最终耗时: 62}
+taskListStore.ts:104 [TaskStore] 🔄 任务已更新: {id: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', updates: {…}, activeTaskIds: Array(0)}
+ImageGenerationParams.tsx:1521 [MultiTask] 实时更新结果区: {completedCount: 2, totalModels: 2, imageCount: 4, allComplete: true}
+logger.ts:92 [02:03:50][GlobalStore] [updateGlobalParam] 更新全局参数: {key: 'imageUrls', value: Array(2)}
+ImageGenerationParams.tsx:1531 [Stream] 模型 阿里Z 生成完成: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', imageCount: 2}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:03:50.306Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:03:50.306Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:03:50.306Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:03:50.306Z'}
+logger.ts:92 [02:03:50][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:03:50][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+logger.ts:92 [02:03:50][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+logger.ts:92 [02:03:50][GlobalStore] [getCurrentWorkflowParameters] 已弃用: 使用 getMergedParams
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+ImageGenerationParams.tsx:1370 [Stream] 🔧 收到数据块: {chunkLength: 203, preview: 'event: message\ndata: {"type": "done", "message": "…00247225B26E228825DDE1D75", "time_cost_ms": 62674'}
+ImageGenerationParams.tsx:1384 [Stream] 🔧 解析到事件: {type: 'done', node_name: undefined, hasTaskId: false}
+ImageGenerationParams.tsx:1471 [MultiTask] 验证任务成功状态: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', model: '阿里Z', status: 'success', realtimeStatus: {…}, statusText: '阿里Z 生成完成'}
+ImageGenerationParams.tsx:1338 [Stream] 模型 阿里Z 流式响应完成
+ImageGenerationParams.tsx:1164 [MultiTask] 批量生成完成: {batchId: '4ab10603-a9e9-4795-8dcd-c7f89b82a33f', totalModels: 2, completed: 2, failed: 0}
+ImageGenerationParams.tsx:1177 [MultiTask] 收集任务图片: {taskId: '4cef9ab2-ae0e-4e59-859c-de10edd88d1b', model: '阿里Z', imageCount: 2}
+ImageGenerationParams.tsx:1177 [MultiTask] 收集任务图片: {taskId: 'c36de41a-ce26-45c6-8217-b9d9e04d5aaf', model: 'Flux2_Klein', imageCount: 2}
+ImageGenerationParams.tsx:1185 [MultiTask] 所有任务图片收集完成: {totalImages: 4, expectedImages: 4}
+ImageGenerationParams.tsx:1216 [MultiTask] ✅ 批量生成完成，已更新 globalStore.imageUrls: {batchId: '4ab10603-a9e9-4795-8dcd-c7f89b82a33f', totalModels: 2, totalImages: 4}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:03:50.502Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:03:50.502Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:03:50.502Z'}
+workflow.ts:174 [Hooks] 🔄 更新参数: {params: {…}, promptValue: '11', updateSource: 'external', timestamp: '2026-02-02T02:03:50.502Z'}
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:111 [CustomSelectionInput] 组件ID: sel_01
+CustomSelectionParamItem.tsx:112 [CustomSelectionInput] 配置默认值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:113 [CustomSelectionInput] 当前参数值: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:114 [CustomSelectionInput] 有效选项列表: (2) ['model1', 'model2']
+CustomSelectionParamItem.tsx:115 [CustomSelectionInput] 最终使用值: (2) ['model1', 'model2']
+ImageGenerationParams.tsx:205 [初始化] ✅ 已清理布局更新事件监听器
+ImageDisplay.tsx:267 图片加载完成: https://rh-images.xiaoyaoyou.com/9e74ececa9d19e14687bb10416aee7da/output/ComfyUI_00001_tevpp_1769997822.png
