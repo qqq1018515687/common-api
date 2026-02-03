@@ -141,12 +141,37 @@ class TaskManager:
             db.rollback()
             raise
 
-    def delete_task(self, db: Session, task_id: str) -> bool:
-        """软删除任务（标记为已删除）"""
+    def delete_task(self, db: Session, task_id: str, user_id: str) -> tuple[bool, str]:
+        """
+        软删除任务（标记为已删除）
+        
+        Args:
+            db: 数据库会话
+            task_id: 任务ID
+            user_id: 用户ID
+        
+        Returns:
+            (是否成功, 消息)
+        """
+        # 验证用户权限
+        has_permission, error_msg = self.verify_user_permission(db, user_id)
+        if not has_permission:
+            return False, error_msg
+        
+        # 查询任务
         db_task = self.get_task_by_id(db, task_id)
         if not db_task:
-            return False
-
+            return False, "任务不存在"
+        
+        # 查询用户信息（检查是否为管理员）
+        user = db.query(Users).filter(Users.user_id == user_id).first()
+        if not user:
+            return False, "用户不存在"
+        
+        # 权限验证：管理员可以删除任何任务，普通用户只能删除自己的任务
+        if user.role != 'admin' and db_task.user_id != user_id:
+            return False, "无权删除此任务"
+        
         # 软删除：设置 is_deleted 标记
         db_task.is_deleted = True
         db_task.updated_at = int(time.time() * 1000)
@@ -154,7 +179,7 @@ class TaskManager:
         db.add(db_task)
         try:
             db.commit()
-            return True
+            return True, "任务删除成功"
         except Exception:
             db.rollback()
             raise

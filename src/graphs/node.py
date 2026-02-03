@@ -919,13 +919,13 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
 def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> DeleteTaskOutput:
     """
     title: 删除任务
-    desc: 根据任务ID删除任务（软删除，仅限注册用户）
+    desc: 根据任务ID删除任务（软删除，仅限注册用户；管理员可删除任何任务，普通用户只能删除自己的任务）
     integrations: 数据库
     """
     ctx = runtime.context
 
-    if not state.task_id:
-        return DeleteTaskOutput(result={"success": False, "message": "缺少必要参数：task_id"})
+    if not state.task_id or not state.user_id:
+        return DeleteTaskOutput(result={"success": False, "message": "缺少必要参数：task_id 或 user_id"})
 
     try:
         from storage.database.task_manager import TaskManager
@@ -933,20 +933,11 @@ def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Ru
         db = get_session()
         try:
             task_mgr = TaskManager()
-
-            # 验证用户权限
-            has_permission, error_msg = task_mgr.verify_user_permission(db, state.user_id or "")
-            if not has_permission:
-                return DeleteTaskOutput(result={"success": False, "message": error_msg})
-
-            success = task_mgr.delete_task(db, state.task_id)
-
-            if not success:
-                return DeleteTaskOutput(result={"success": False, "message": "任务不存在"})
-
+            success, message = task_mgr.delete_task(db, state.task_id, state.user_id)
+            
             return DeleteTaskOutput(result={
-                "success": True,
-                "message": "任务删除成功"
+                "success": success,
+                "message": message
             })
 
         finally:
