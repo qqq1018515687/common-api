@@ -49,6 +49,7 @@ class Tasks(Base):
     parameter_snapshot: Mapped[Optional[dict]] = mapped_column(JSON)
     result: Mapped[Optional[dict]] = mapped_column(JSON)
     error: Mapped[Optional[str]] = mapped_column(Text)
+    deduction_result: Mapped[Optional[dict]] = mapped_column(JSON, comment="扣费结果记录")
     completed_at: Mapped[Optional[int]] = mapped_column(BigInteger)
     batch_id: Mapped[Optional[str]] = mapped_column(String(36))
     connection_mode: Mapped[Optional[str]] = mapped_column(String(10), server_default=text("'sse'::character varying"))

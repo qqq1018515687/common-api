@@ -894,7 +894,8 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
                 status=state.task_updates.get("status"),
                 result=state.task_updates.get("result"),
                 error=state.task_updates.get("error"),
-                completed_at=state.task_updates.get("completed_at")
+                completed_at=state.task_updates.get("completed_at"),
+                deduction_result=state.task_updates.get("deduction_result")
             )
 
             db_task = task_mgr.update_task(db, state.task_id, task_in)
@@ -1005,6 +1006,7 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "parameter_snapshot": task.parameter_snapshot,
                     "result": task.result,
                     "error": task.error,
+                    "deduction_result": task.deduction_result,
                     "created_at": task.created_at,
                     "updated_at": task.updated_at,
                     "completed_at": task.completed_at,

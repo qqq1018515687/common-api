@@ -4,12 +4,15 @@
 
 ### 任务管理功能说明
 - **创建任务**：注册用户可创建任务，支持存储 workflow_parameters 和 parameter_snapshot
-- **更新任务**：注册用户可更新任务状态和结果（已适配 RunningHub 响应结构）
+- **更新任务**：
+  - 注册用户可更新任务状态、结果、错误信息、完成时间和扣费结果
+  - 支持扣费结果记录（deduction_result），包含扣费模式、预扣金额、最终金额和结算时间
+  - 已适配 RunningHub 响应结构
 - **删除任务**：
   - 注册用户可软删除任务（is_deleted=true）
   - **管理员**（role='admin'）可删除任何任务
   - **普通用户**（role='user'）只能删除自己的任务
-- **查询任务**：注册用户可查询自己的任务列表（自动过滤已删除任务）
+- **查询任务**：注册用户可查询自己的任务列表（自动过滤已删除任务），包含扣费结果信息
 - **权限控制**：所有任务操作仅限已注册的活跃用户（user_id 存在且 account_status=active）
 - **RunningHub 集成**：提供工具函数将 RunningHub 响应转换为任务更新格式（详见 `docs/RunningHub_RESPONSE_CONVERSION.md`）
 
@@ -55,3 +58,4 @@
 |------|------|------|
 | 数据库迁移指南 | `docs/ALEMBIC_GUIDE.md` | Alembic 迁移工具使用指南 |
 | RunningHub 响应转换 | `docs/RunningHub_RESPONSE_CONVERSION.md` | RunningHub API 响应转换工具与示例 |
+| 扣费结果字段说明 | `docs/DEDUCTION_RESULT_FIELD.md` | Tasks 表 deduction_result 字段结构和使用指南 |

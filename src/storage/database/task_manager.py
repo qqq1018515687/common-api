@@ -28,6 +28,7 @@ class TaskUpdate(BaseModel):
     result: Optional[dict] = Field(default=None, description="生成结果")
     error: Optional[str] = Field(default=None, description="错误信息")
     completed_at: Optional[int] = Field(default=None, description="完成时间")
+    deduction_result: Optional[dict] = Field(default=None, description="扣费结果记录")
 
 
 class TaskManager:

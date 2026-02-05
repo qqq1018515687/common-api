@@ -17,8 +17,7 @@ from storage.database.shared.model import Base
 # 导入所有模型以确保元数据完整
 from storage.database.shared.model import (
     Users,
-    RateLimits,
-    History
+    RateLimits
 )
 
 # this is the Alembic Config object, which provides
