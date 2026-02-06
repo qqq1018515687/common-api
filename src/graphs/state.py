@@ -175,6 +175,20 @@ class GetUserOutput(BaseModel):
     error: Optional[str] = Field(default=None, description="错误信息")
 
 
+# 查询单个用户节点（通过 user_id）
+class GetUserByIdInput(BaseModel):
+    """查询单个用户节点的输入"""
+    user_id: str = Field(..., description="用户ID")
+
+
+class GetUserByIdOutput(BaseModel):
+    """查询单个用户节点的输出"""
+    result: dict = Field(default={}, description="查询结果")
+    success: bool = Field(default=True, description="是否成功")
+    user: Optional[dict] = Field(default=None, description="用户数据")
+    error: Optional[str] = Field(default=None, description="错误信息")
+
+
 # 更新用户节点
 class UpdateUserInput(BaseModel):
     """更新用户节点的输入"""

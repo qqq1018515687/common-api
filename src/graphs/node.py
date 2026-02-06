@@ -32,6 +32,7 @@ from graphs.state import (
     UpdateRateLimitInput, UpdateRateLimitOutput,
     RegisterWithLimitInput, RegisterWithLimitOutput,
     GetUserInput, GetUserOutput,
+    GetUserByIdInput, GetUserByIdOutput,
     UpdateUserInput, UpdateUserOutput,
     DeleteUserInput, DeleteUserOutput,
     ListUsersInput, ListUsersOutput,
@@ -88,6 +89,8 @@ def route_by_operation_type(state: OperationRouteInput) -> str:
         return "用户注册"
     elif operation_type == "login":
         return "用户登录"
+    elif operation_type == "get_user_by_id":
+        return "查询单个用户"
     elif operation_type == "update_user":
         return "更新用户"
     elif operation_type == "delete_user":
@@ -501,6 +504,55 @@ def get_user_node(state: GetUserInput, config: RunnableConfig, runtime: Runtime[
         }
 
         return GetUserOutput(
+            result={"success": True, "user": user_data},
+            success=True,
+            user=user_data
+        )
+
+    finally:
+        db.close()
+
+
+def get_user_by_id_node(state: GetUserByIdInput, config: RunnableConfig, runtime: Runtime[Context]) -> GetUserByIdOutput:
+    """
+    title: 查询单个用户
+    desc: 根据用户ID查询用户信息
+    integrations: 数据库
+    """
+    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
+    ctx = runtime.context
+
+    db = get_session()
+    try:
+        user_mgr = UserManager()
+
+        # 查询用户
+        db_user = user_mgr.get_user_by_id(db, state.user_id)
+
+        if not db_user:
+            return GetUserByIdOutput(
+                result={"success": False, "error": "用户不存在"},
+                success=False,
+                error="用户不存在"
+            )
+
+        # 返回用户信息
+        user_data = {
+            "user_id": db_user.user_id,
+            "phone": db_user.phone,
+            "username": db_user.username,
+            "avatar": db_user.avatar,
+            "team_id": db_user.team_id,
+            "gold_credits": db_user.gold_credits,
+            "silver_credits": db_user.silver_credits,
+            "role": db_user.role,
+            "tier": db_user.tier,
+            "account_status": db_user.account_status,
+            "created_at": int(db_user.created_at.timestamp() * 1000),
+            "updated_at": int(db_user.updated_at.timestamp() * 1000) if db_user.updated_at else None
+        }
+
+        return GetUserByIdOutput(
             result={"success": True, "user": user_data},
             success=True,
             user=user_data
