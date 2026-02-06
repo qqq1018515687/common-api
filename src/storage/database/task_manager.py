@@ -28,7 +28,6 @@ class TaskUpdate(BaseModel):
     result: Optional[dict] = Field(default=None, description="生成结果")
     error: Optional[str] = Field(default=None, description="错误信息")
     completed_at: Optional[int] = Field(default=None, description="完成时间")
-    disconnected_at: Optional[str] = Field(default=None, description="连接断开时间（毫秒时间戳）")
     deduction_result: Optional[dict] = Field(default=None, description="扣费结果记录")
 
 
@@ -129,14 +128,6 @@ class TaskManager:
 
         update_data = task_in.model_dump(exclude_unset=True)
         update_data['updated_at'] = int(time.time() * 1000)
-
-        # 保护 deduction_result 不被覆盖为 null
-        if 'deduction_result' in update_data and update_data['deduction_result'] is None:
-            del update_data['deduction_result']
-
-        # 保护 disconnected_at 不被覆盖为 null
-        if 'disconnected_at' in update_data and update_data['disconnected_at'] is None:
-            del update_data['disconnected_at']
 
         for field, value in update_data.items():
             if hasattr(db_task, field):

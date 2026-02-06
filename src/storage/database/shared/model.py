@@ -51,7 +51,6 @@ class Tasks(Base):
     error: Mapped[Optional[str]] = mapped_column(Text)
     deduction_result: Mapped[Optional[dict]] = mapped_column(JSON, comment="扣费结果记录")
     completed_at: Mapped[Optional[int]] = mapped_column(BigInteger)
-    disconnected_at: Mapped[Optional[str]] = mapped_column(String(30), comment="连接断开时间（毫秒时间戳）")
     batch_id: Mapped[Optional[str]] = mapped_column(String(36))
     connection_mode: Mapped[Optional[str]] = mapped_column(String(10), server_default=text("'sse'::character varying"))
     team_id: Mapped[Optional[str]] = mapped_column(String(64))

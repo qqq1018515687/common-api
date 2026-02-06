@@ -5,17 +5,14 @@
 ### 任务管理功能说明
 - **创建任务**：注册用户可创建任务，支持存储 workflow_parameters 和 parameter_snapshot
 - **更新任务**：
-  - 注册用户可更新任务状态、结果、错误信息、完成时间、连接断开时间和扣费结果
+  - 注册用户可更新任务状态、结果、错误信息、完成时间和扣费结果
   - 支持扣费结果记录（deduction_result），包含扣费模式、预扣金额、最终金额和结算时间
-  - 支持连接断开时间记录（disconnected_at），记录 SSE 连接断开的毫秒时间戳
-  - **deduction_result 保护机制**：更新时如果未传入或传入 null，不会覆盖已有的 deduction_result 值
-  - **disconnected_at 保护机制**：更新时如果未传入或传入 null，不会覆盖已有的 disconnected_at 值
   - 已适配 RunningHub 响应结构
 - **删除任务**：
   - 注册用户可软删除任务（is_deleted=true）
   - **管理员**（role='admin'）可删除任何任务
   - **普通用户**（role='user'）只能删除自己的任务
-- **查询任务**：注册用户可查询自己的任务列表（自动过滤已删除任务），包含扣费结果和连接断开时间信息
+- **查询任务**：注册用户可查询自己的任务列表（自动过滤已删除任务），包含扣费结果信息
 - **权限控制**：所有任务操作仅限已注册的活跃用户（user_id 存在且 account_status=active）
 - **RunningHub 集成**：提供工具函数将 RunningHub 响应转换为任务更新格式（详见 `docs/RunningHub_RESPONSE_CONVERSION.md`）
 
