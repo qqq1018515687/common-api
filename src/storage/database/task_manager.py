@@ -27,7 +27,7 @@ class TaskUpdate(BaseModel):
     status: Optional[str] = Field(default=None, description="任务状态")
     result: Optional[dict] = Field(default=None, description="生成结果")
     error: Optional[str] = Field(default=None, description="错误信息")
-    completed_at: Optional[int] = Field(default=None, description="完成时间")
+    completed_at: Optional[str] = Field(default=None, description="完成时间")
     deduction_result: Optional[dict] = Field(default=None, description="扣费结果记录")
 
 
@@ -62,7 +62,7 @@ class TaskManager:
 
     def create_task(self, db: Session, task_in: TaskCreate) -> Tasks:
         """创建任务"""
-        current_time = int(time.time() * 1000)
+        current_time = str(int(time.time() * 1000))
         task_data = task_in.model_dump()
         task_data['status'] = 'running'
         task_data['created_at'] = current_time
@@ -127,7 +127,7 @@ class TaskManager:
             return None
 
         update_data = task_in.model_dump(exclude_unset=True)
-        update_data['updated_at'] = int(time.time() * 1000)
+        update_data['updated_at'] = str(int(time.time() * 1000))
 
         # 保护 deduction_result 不被覆盖为 null
         if 'deduction_result' in update_data and update_data['deduction_result'] is None:
@@ -179,7 +179,7 @@ class TaskManager:
         
         # 软删除：设置 is_deleted 标记
         db_task.is_deleted = True
-        db_task.updated_at = int(time.time() * 1000)
+        db_task.updated_at = str(int(time.time() * 1000))
 
         db.add(db_task)
         try:
