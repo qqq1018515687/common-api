@@ -895,6 +895,7 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
                 result=state.task_updates.get("result"),
                 error=state.task_updates.get("error"),
                 completed_at=state.task_updates.get("completed_at"),
+                disconnected_at=state.task_updates.get("disconnected_at"),
                 deduction_result=state.task_updates.get("deduction_result")
             )
 
