@@ -129,6 +129,10 @@ class TaskManager:
         update_data = task_in.model_dump(exclude_unset=True)
         update_data['updated_at'] = int(time.time() * 1000)
 
+        # 保护 deduction_result 不被覆盖为 null
+        if 'deduction_result' in update_data and update_data['deduction_result'] is None:
+            del update_data['deduction_result']
+
         for field, value in update_data.items():
             if hasattr(db_task, field):
                 setattr(db_task, field, value)

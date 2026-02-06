@@ -7,6 +7,7 @@
 - **更新任务**：
   - 注册用户可更新任务状态、结果、错误信息、完成时间和扣费结果
   - 支持扣费结果记录（deduction_result），包含扣费模式、预扣金额、最终金额和结算时间
+  - **deduction_result 保护机制**：更新时如果未传入或传入 null，不会覆盖已有的 deduction_result 值
   - 已适配 RunningHub 响应结构
 - **删除任务**：
   - 注册用户可软删除任务（is_deleted=true）
