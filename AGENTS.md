@@ -60,4 +60,3 @@
 | 数据库迁移指南 | `docs/ALEMBIC_GUIDE.md` | Alembic 迁移工具使用指南 |
 | RunningHub 响应转换 | `docs/RunningHub_RESPONSE_CONVERSION.md` | RunningHub API 响应转换工具与示例 |
 | 扣费结果字段说明 | `docs/DEDUCTION_RESULT_FIELD.md` | Tasks 表 deduction_result 字段结构和使用指南 |
-| 时间字段类型变更 | `docs/TIMESTAMP_FIELD_TYPE_CHANGE.md` | tasks 表时间字段从 BIGINT 改为 VARCHAR(30) 的迁移说明 |
