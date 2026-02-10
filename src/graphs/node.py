@@ -1284,7 +1284,10 @@ def prompt_enhance_node(state: PromptEnhanceInput, config: RunnableConfig, runti
         system_prompt_content = sp_tpl.render({"prompt": state.prompt})
 
         up_tpl = Template(up)
-        user_prompt_content = up_tpl.render()
+        user_prompt_content = up_tpl.render({
+            "file_list": [f.url for f in state.file_list],
+            "prompt": state.prompt
+        })
 
         # 初始化 LLM 客户端
         client = LLMClient(ctx=ctx)
