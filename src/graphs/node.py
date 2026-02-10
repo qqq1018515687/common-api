@@ -1158,7 +1158,7 @@ def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime
     """
     ctx = runtime.context
 
-    if not state.file:
+    if not state.file_list or len(state.file_list) == 0:
         return ReverseImageOutput(result={"success": False, "message": "未提供图像文件"})
 
     try:
@@ -1181,19 +1181,24 @@ def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime
         # 初始化 LLM 客户端
         client = LLMClient(ctx=ctx)
 
-        # 构造多模态消息
+        # 构造多模态消息，支持多张图片
+        content_list = [
+            {
+                "type": "text",
+                "text": user_prompt_content
+            }
+        ]
+
+        # 添加所有图片
+        for file_item in state.file_list:
+            content_list.append({
+                "type": "image_url",
+                "image_url": {"url": file_item.url}
+            })
+
         messages = [
             SystemMessage(content=system_prompt_content),
-            HumanMessage(content=[
-                {
-                    "type": "text",
-                    "text": user_prompt_content
-                },
-                {
-                    "type": "image_url",
-                    "image_url": {"url": state.file.url}
-                }
-            ])
+            HumanMessage(content=content_list)
         ]
 
         # 调用模型
