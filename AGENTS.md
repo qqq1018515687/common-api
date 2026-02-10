@@ -38,7 +38,7 @@
 | update_task | node.py | task | 更新任务 | - | - |
 | delete_task | node.py | task | 删除任务 | - | - |
 | list_tasks | node.py | task | 查询任务列表 | - | - |
-| reverse_image | node.py | agent | 反推图像提示词（支持多张图片） | - | config/reverse_image_cfg.json |
+| reverse_image | node.py | agent | 反推图像提示词 | - | config/reverse_image_cfg.json |
 | translate_doubao | node.py | agent | 豆包翻译 | - | config/translate_doubao_cfg.json |
 | prompt_enhance | node.py | agent | 提示词增强 | - | config/prompt_enhance_cfg.json |
 | format_response | node.py | task | 格式化响应 | - | - |

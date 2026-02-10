@@ -420,7 +420,7 @@ class ToolRouteOutput(BaseModel):
 # 提示词生成节点
 class ReverseImageInput(BaseModel):
     """提示词生成节点的输入"""
-    file_list: Optional[List[File]] = Field(default=None, description="图像文件列表")
+    file: Optional[File] = Field(default=None, description="图像文件")
 
 
 class ReverseImageOutput(BaseModel):
