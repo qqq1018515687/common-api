@@ -114,7 +114,7 @@ class CreateUserInput(BaseModel):
     avatar: str = Field(..., description="头像URL")
     team_id: Optional[str] = Field(default=None, description="团队ID")
     gold_credits: int = Field(default=0, description="金豆余额")
-    silver_credits: int = Field(default=999999999, description="银豆余额")
+    silver_credits: int = Field(default=10000, description="银豆余额")
     role: str = Field(default="user", description="用户角色")
     tier: str = Field(default="standard", description="用户等级")
     account_status: str = Field(default="active", description="账号状态")
