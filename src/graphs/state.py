@@ -325,6 +325,17 @@ class ListTasksOutput(BaseModel):
     result: dict = Field(..., description="查询结果")
 
 
+# 查询服务器槽位状态节点
+class SlotStatusInput(BaseModel):
+    """查询服务器槽位状态节点的输入"""
+    pass  # 不需要额外参数，使用环境变量中的 APIKEY
+
+
+class SlotStatusOutput(BaseModel):
+    """查询服务器槽位状态节点的输出"""
+    result: dict = Field(..., description="查询结果")
+
+
 class TaskRouteInput(BaseModel):
     """任务路由节点的输入"""
     operation_type: str = Field(..., description="操作类型：create_task/update_task/delete_task/list_tasks")

@@ -41,7 +41,8 @@ from graphs.node import (
     create_task_node,
     update_task_node,
     delete_task_node,
-    list_tasks_node
+    list_tasks_node,
+    slot_status_node
 )
 
 
@@ -107,6 +108,7 @@ builder.add_node("create_task", create_task_node)
 builder.add_node("update_task", update_task_node)
 builder.add_node("delete_task", delete_task_node)
 builder.add_node("list_tasks", list_tasks_node)
+builder.add_node("slot_status", slot_status_node)
 builder.add_node("format_response", format_response_node)
 builder.add_node("tool_route", tool_route_node)
 builder.add_node("reverse_image", reverse_image_node, metadata={"type": "agent", "llm_cfg": "config/reverse_image_cfg.json"})
@@ -167,7 +169,8 @@ builder.add_conditional_edges(
         "创建任务": "create_task",
         "更新任务": "update_task",
         "删除任务": "delete_task",
-        "查询任务列表": "list_tasks"
+        "查询任务列表": "list_tasks",
+        "查询槽位状态": "slot_status"
     }
 )
 
@@ -186,6 +189,7 @@ builder.add_edge("create_task", "format_response")
 builder.add_edge("update_task", "format_response")
 builder.add_edge("delete_task", "format_response")
 builder.add_edge("list_tasks", "format_response")
+builder.add_edge("slot_status", "format_response")
 builder.add_edge("reverse_image", "format_response")
 builder.add_edge("translate_doubao", "format_response")
 builder.add_edge("prompt_enhance", "format_response")
