@@ -28,6 +28,7 @@ class InputData(BaseModel):
     account_status: Optional[str] = Field(default=None, description="账号状态")
     updates: Optional[dict] = Field(default=None, description="更新字段")
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
     page: Optional[int] = Field(default=None, description="页码")
     limit: Optional[int] = Field(default=None, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
@@ -66,6 +67,7 @@ class GlobalState(BaseModel):
     account_status: Optional[str] = Field(default=None, description="账号状态")
     updates: Optional[dict] = Field(default=None, description="更新字段")
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
     page: Optional[int] = Field(default=None, description="页码")
     limit: Optional[int] = Field(default=None, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
@@ -192,7 +194,9 @@ class GetUserByIdOutput(BaseModel):
 # 更新用户节点
 class UpdateUserInput(BaseModel):
     """更新用户节点的输入"""
-    user_id: str = Field(..., description="用户ID")
+    user_id: str = Field(..., description="用户ID（要被更新的用户）")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色（admin 或 user）")
     phone: Optional[str] = Field(default=None, description="手机号")
     username: Optional[str] = Field(default=None, description="用户名")
     avatar: Optional[str] = Field(default=None, description="头像URL")
@@ -203,7 +207,6 @@ class UpdateUserInput(BaseModel):
     tier: Optional[str] = Field(default=None, description="用户等级")
     account_status: Optional[str] = Field(default=None, description="账号状态")
     updates: Optional[dict] = Field(default=None, description="更新字段（已废弃，使用上面的具体字段）")
-    operator_role: Optional[str] = Field(default=None, description="操作者角色")
 
 
 class UpdateUserOutput(BaseModel):
@@ -397,6 +400,7 @@ class UnpackInputDataOutput(BaseModel):
     account_status: Optional[str] = Field(default=None, description="账号状态")
     updates: Optional[dict] = Field(default=None, description="更新字段")
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
     page: Optional[int] = Field(default=None, description="页码")
     limit: Optional[int] = Field(default=None, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
