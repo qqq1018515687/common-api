@@ -21,7 +21,7 @@
 |-------|---------|------|---------|---------|---------|
 | unpack_input_data | node.py | task | 解包输入数据 | - | - |
 | call_type_router | node.py | condition | 根据调用类型路由 | 账号管理→operation_route, 文件上传→upload, 保存历史→save, 任务管理→task_route, 工具中心→tool_route | - |
-| operation_route | node.py | condition | 根据操作类型路由 | 限流检查→check_rate_limit, 更新限流→update_rate_limit, 用户注册→register_with_limit, 用户登录→get_user, 查询单个用户→get_user_by_id, 更新用户→update_user, 删除用户→delete_user, 用户列表→list_users | - |
+| operation_route | node.py | condition | 根据操作类型路由 | 限流检查→check_rate_limit, 更新限流→update_rate_limit, 用户注册→register_with_limit, 用户登录→get_user, 查询单个用户→get_user_by_id, 更新用户→update_user, 删除用户→delete_user, 用户列表→list_users, 槽位状态查询→slot_status | - |
 | tool_route | node.py | condition | 根据工具类型路由 | 反推图像→reverse_image, 翻译推荐→translate_doubao, 提示词增强→prompt_enhance | - |
 | task_route | node.py | condition | 根据任务操作类型路由 | 创建任务→create_task, 更新任务→update_task, 删除任务→delete_task, 查询任务列表→list_tasks | - |
 | check_rate_limit | node.py | task | 检查限流 | - | - |
@@ -32,6 +32,7 @@
 | update_user | node.py | task | 更新用户信息 | - | - |
 | delete_user | node.py | task | 删除用户 | - | - |
 | list_users | node.py | task | 用户列表 | - | - |
+| slot_status | node.py | task | 槽位状态查询 | - | - |
 | upload | node.py | task | 文件上传 | - | - |
 | save | node.py | task | 保存历史记录 | - | - |
 | create_task | node.py | task | 创建任务 | - | - |

@@ -248,6 +248,20 @@ class ListUsersOutput(BaseModel):
     error: Optional[str] = Field(default=None, description="错误信息")
 
 
+# 槽位状态查询节点
+class SlotStatusInput(BaseModel):
+    """槽位状态查询节点的输入"""
+    pass  # 无需输入参数，从环境变量读取
+
+
+class SlotStatusOutput(BaseModel):
+    """槽位状态查询节点的输出"""
+    result: dict = Field(default={}, description="查询结果")
+    available: bool = Field(default=False, description="是否有空闲槽位")
+    total: int = Field(default=6, description="总槽位数")
+    occupied: int = Field(default=0, description="已占用槽位数")
+
+
 # 文件上传节点
 class UploadInput(BaseModel):
     """文件上传节点的输入"""

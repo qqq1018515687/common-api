@@ -36,6 +36,7 @@ from graphs.state import (
     UpdateUserInput, UpdateUserOutput,
     DeleteUserInput, DeleteUserOutput,
     ListUsersInput, ListUsersOutput,
+    SlotStatusInput, SlotStatusOutput,
     CreateTaskInput, CreateTaskOutput,
     UpdateTaskInput, UpdateTaskOutput,
     DeleteTaskInput, DeleteTaskOutput,
@@ -97,6 +98,8 @@ def route_by_operation_type(state: OperationRouteInput) -> str:
         return "删除用户"
     elif operation_type == "list_users":
         return "用户列表"
+    elif operation_type == "slot_status":
+        return "槽位状态查询"
     else:
         return "未知操作"
 
@@ -726,6 +729,72 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
 
     finally:
         db.close()
+
+
+def slot_status_node(state: SlotStatusInput, config: RunnableConfig, runtime: Runtime[Context]) -> SlotStatusOutput:
+    """
+    title: 槽位状态查询
+    desc: 查询 RunningHub 服务器的生成槽位占用情况
+    integrations: RunningHub API
+    """
+    ctx = runtime.context
+
+    # 从环境变量读取 RunningHub API Key
+    api_key_1 = os.getenv("RUNNINGHUB_API_KEY_1", "")
+    api_key_2 = os.getenv("RUNNINGHUB_API_KEY_2", "")
+
+    if not api_key_1 or not api_key_2:
+        return SlotStatusOutput(
+            result={"success": False, "error": "未配置 RunningHub API Key"},
+            available=False,
+            total=6,
+            occupied=0
+        )
+
+    # 调用 RunningHub API 查询账户状态
+    total_occupied = 0
+    errors = []
+
+    for api_key in [api_key_1, api_key_2]:
+        try:
+            response = requests.post(
+                "https://www.runninghub.cn/uc/openapi/accountStatus",
+                headers={
+                    "Host": "www.runninghub.cn",
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={"apikey": api_key},
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("code") == 0:
+                    account_data = data.get("data", {})
+                    current_task_counts = int(account_data.get("currentTaskCounts", 0))
+                    total_occupied += current_task_counts
+                else:
+                    errors.append(f"API返回错误: {data.get('msg', '未知错误')}")
+            else:
+                errors.append(f"HTTP错误: {response.status_code}")
+        except Exception as e:
+            errors.append(f"请求异常: {str(e)}")
+
+    # 计算槽位状态
+    total_slots = 6
+    available_slots = total_slots - total_occupied
+
+    return SlotStatusOutput(
+        result={
+            "success": True if not errors else False,
+            "errors": errors,
+            "api_key_1_current_tasks": total_occupied if errors else None
+        },
+        available=available_slots > 0,
+        total=total_slots,
+        occupied=total_occupied
+    )
 
 
 def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Context]) -> UploadOutput:

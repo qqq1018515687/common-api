@@ -36,6 +36,7 @@ from graphs.node import (
     update_user_node,
     delete_user_node,
     list_users_node,
+    slot_status_node,
     task_route_node,
     route_by_task_operation_type,
     create_task_node,
@@ -100,6 +101,7 @@ builder.add_node("get_user_by_id", get_user_by_id_node)
 builder.add_node("update_user", update_user_node)
 builder.add_node("delete_user", delete_user_node)
 builder.add_node("list_users", list_users_node)
+builder.add_node("slot_status", slot_status_node)
 builder.add_node("upload", upload_node)
 builder.add_node("save", save_node)
 builder.add_node("task_route", task_route_node)
@@ -155,7 +157,8 @@ builder.add_conditional_edges(
         "查询单个用户": "get_user_by_id",
         "更新用户": "update_user",
         "删除用户": "delete_user",
-        "用户列表": "list_users"
+        "用户列表": "list_users",
+        "槽位状态查询": "slot_status"
     }
 )
 
@@ -180,6 +183,7 @@ builder.add_edge("get_user_by_id", "format_response")
 builder.add_edge("update_user", "format_response")
 builder.add_edge("delete_user", "format_response")
 builder.add_edge("list_users", "format_response")
+builder.add_edge("slot_status", "format_response")
 builder.add_edge("upload", "format_response")
 builder.add_edge("save", "format_response")
 builder.add_edge("create_task", "format_response")
