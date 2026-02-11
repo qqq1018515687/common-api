@@ -743,26 +743,17 @@ def slot_status_node(state: SlotStatusInput, config: RunnableConfig, runtime: Ru
     api_key_1 = os.getenv("RUNNINGHUB_API_KEY_1", "")
     api_key_2 = os.getenv("RUNNINGHUB_API_KEY_2", "")
 
-    # 支持只配置一个 API Key
-    api_keys = []
-    if api_key_1:
-        api_keys.append(api_key_1)
-    if api_key_2:
-        api_keys.append(api_key_2)
-
-    if not api_keys:
+    if not api_key_1 or not api_key_2:
         return SlotStatusOutput(
-            result={"success": False, "error": "未配置 RunningHub API Key，请配置 RUNNINGHUB_API_KEY_1 或 RUNNINGHUB_API_KEY_2"},
-            available=False,
-            total=6,
-            occupied=0
+            result={"success": False, "error": "未配置 RunningHub API Key"},
         )
 
     # 调用 RunningHub API 查询账户状态
     total_occupied = 0
     errors = []
 
-    for api_key in api_keys:
+    # 遍历两个 API Key
+    for api_key in [api_key_1, api_key_2]:
         try:
             response = requests.post(
                 "https://www.runninghub.cn/uc/openapi/accountStatus",
