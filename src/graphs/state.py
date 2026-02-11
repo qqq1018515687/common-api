@@ -28,6 +28,7 @@ class InputData(BaseModel):
     account_status: Optional[str] = Field(default=None, description="账号状态")
     updates: Optional[dict] = Field(default=None, description="更新字段")
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
     page: Optional[int] = Field(default=None, description="页码")
     limit: Optional[int] = Field(default=None, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
@@ -66,6 +67,7 @@ class GlobalState(BaseModel):
     account_status: Optional[str] = Field(default=None, description="账号状态")
     updates: Optional[dict] = Field(default=None, description="更新字段")
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
     page: Optional[int] = Field(default=None, description="页码")
     limit: Optional[int] = Field(default=None, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
@@ -204,6 +206,7 @@ class UpdateUserInput(BaseModel):
     account_status: Optional[str] = Field(default=None, description="账号状态")
     updates: Optional[dict] = Field(default=None, description="更新字段（已废弃，使用上面的具体字段）")
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
 
 
 class UpdateUserOutput(BaseModel):
@@ -408,6 +411,7 @@ class UnpackInputDataOutput(BaseModel):
     account_status: Optional[str] = Field(default=None, description="账号状态")
     updates: Optional[dict] = Field(default=None, description="更新字段")
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
     page: Optional[int] = Field(default=None, description="页码")
     limit: Optional[int] = Field(default=None, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")

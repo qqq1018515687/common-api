@@ -191,6 +191,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         account_status=input_data.account_status if input_data else None,
         updates=input_data.updates if input_data else None,
         operator_role=input_data.operator_role if input_data else None,
+        operator_user_id=input_data.operator_user_id if input_data else None,
         page=input_data.page if input_data else None,
         limit=input_data.limit if input_data else None,
         filter=input_data.filter if input_data else None,
@@ -568,15 +569,24 @@ def get_user_by_id_node(state: GetUserByIdInput, config: RunnableConfig, runtime
 def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Runtime[Context]) -> UpdateUserOutput:
     """
     title: 更新用户
-    desc: 更新用户信息（管理员功能）
+    desc: 更新用户信息（管理员可以修改任何用户，普通用户只能修改自己）
     integrations: 数据库
     """
     UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
     ctx = runtime.context
 
-    # 验证管理员权限
-    if state.operator_role != 'admin':
-        return UpdateUserOutput(success=False, error="权限不足，仅管理员可操作")
+    # 验证权限
+    # 管理员可以修改任何用户
+    # 普通用户只能修改自己的信息（user_id == operator_user_id）
+    if state.operator_role == 'admin':
+        # 管理员可以修改任何用户，不做限制
+        pass
+    elif state.operator_role == 'user':
+        # 普通用户只能修改自己的信息
+        if state.operator_user_id != state.user_id:
+            return UpdateUserOutput(success=False, error="权限不足，只能修改自己的信息")
+    else:
+        return UpdateUserOutput(success=False, error="权限不足")
 
     db = get_session()
     try:
