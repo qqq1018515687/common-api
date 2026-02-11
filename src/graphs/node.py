@@ -1187,7 +1187,11 @@ def format_response_node(state: FormatResponseInput, config: RunnableConfig, run
             if result.get("success"):
                 code = 0
                 msg = result.get("message", "操作成功")
-                data = {k: v for k, v in result.items() if k not in ["success", "message"]}
+                # 提取数据字段，排除 success、message、result
+                data = {k: v for k, v in result.items() if k not in ["success", "message", "result"]}
+                # 如果 data 中只有一个 user 字段，则将 user 的值直接作为 data
+                if len(data) == 1 and "user" in data and isinstance(data["user"], dict):
+                    data = data["user"]
             else:
                 code = -1
                 msg = result.get("error", result.get("message", "操作失败"))
