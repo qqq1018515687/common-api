@@ -263,10 +263,10 @@ class RateLimitManager:
             "phone_1hour": count_phone_1hour,
             "ip_10min": count_ip_10min,
             "ip_1hour": count_ip_1hour,
-            "blocked_phone_10min": count_phone_10min >= 3,
-            "blocked_phone_1hour": count_phone_1hour >= 5,
-            "blocked_ip_10min": count_ip_10min >= 10,
-            "blocked_ip_1hour": count_ip_1hour >= 20,
+            "blocked_phone_10min": count_phone_10min >= 5,
+            "blocked_phone_1hour": count_phone_1hour >= 10,
+            "blocked_ip_10min": count_ip_10min >= 20,
+            "blocked_ip_1hour": count_ip_1hour >= 40,
         }
 
     def get_active_records(self, db: Session, phone: Optional[str] = None, ip_address: Optional[str] = None) -> List[RateLimits]:
