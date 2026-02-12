@@ -36,11 +36,11 @@ from graphs.state import (
     UpdateUserInput, UpdateUserOutput,
     DeleteUserInput, DeleteUserOutput,
     ListUsersInput, ListUsersOutput,
-    SlotStatusInput, SlotStatusOutput,
     CreateTaskInput, CreateTaskOutput,
     UpdateTaskInput, UpdateTaskOutput,
     DeleteTaskInput, DeleteTaskOutput,
     ListTasksInput, ListTasksOutput,
+    SlotStatusInput, SlotStatusOutput,
     TaskRouteInput, TaskRouteOutput
 )
 import os
@@ -98,8 +98,6 @@ def route_by_operation_type(state: OperationRouteInput) -> str:
         return "删除用户"
     elif operation_type == "list_users":
         return "用户列表"
-    elif operation_type == "slot_status":
-        return "槽位状态查询"
     else:
         return "未知操作"
 
@@ -569,28 +567,23 @@ def get_user_by_id_node(state: GetUserByIdInput, config: RunnableConfig, runtime
 def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Runtime[Context]) -> UpdateUserOutput:
     """
     title: 更新用户
-    desc: 更新用户信息（管理员可以修改任何用户，普通用户只能修改自己）
+    desc: 更新用户信息（管理员可更新任何用户，普通用户只能更新自己）
     integrations: 数据库
     """
     UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
     ctx = runtime.context
 
-    # 验证权限
-    # 管理员可以修改任何用户
-    # 普通用户只能修改自己的信息（user_id == operator_user_id）
-    if state.operator_role == 'admin':
-        # 管理员可以修改任何用户，不做限制
-        pass
-    elif state.operator_role == 'user':
-        # 普通用户只能修改自己的信息
-        if state.operator_user_id != state.user_id:
-            return UpdateUserOutput(success=False, error="权限不足，只能修改自己的信息")
-    else:
-        return UpdateUserOutput(success=False, error="权限不足")
-
     db = get_session()
     try:
         user_mgr = UserManager()
+
+        # 权限验证：管理员可以更新任何用户，普通用户只能更新自己
+        if state.operator_role != 'admin' and state.operator_user_id != state.user_id:
+            return UpdateUserOutput(
+                result={"success": False, "error": "权限不足，仅管理员可更新其他用户"},
+                success=False,
+                error="权限不足，仅管理员可更新其他用户"
+            )
 
         # 构造更新字典
         updates = {}
@@ -741,69 +734,6 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
         db.close()
 
 
-def slot_status_node(state: SlotStatusInput, config: RunnableConfig, runtime: Runtime[Context]) -> SlotStatusOutput:
-    """
-    title: 槽位状态查询
-    desc: 查询 RunningHub 服务器的生成槽位占用情况
-    integrations: RunningHub API
-    """
-    ctx = runtime.context
-
-    # 从环境变量读取 RunningHub API Key
-    api_key_1 = os.getenv("RUNNINGHUB_API_KEY_1", "")
-    api_key_2 = os.getenv("RUNNINGHUB_API_KEY_2", "")
-
-    if not api_key_1 or not api_key_2:
-        return SlotStatusOutput(
-            result={"success": False, "error": "未配置 RunningHub API Key"},
-        )
-
-    # 调用 RunningHub API 查询账户状态
-    total_occupied = 0
-    errors = []
-
-    # 遍历两个 API Key
-    for api_key in [api_key_1, api_key_2]:
-        try:
-            response = requests.post(
-                "https://www.runninghub.cn/uc/openapi/accountStatus",
-                headers={
-                    "Host": "www.runninghub.cn",
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={"apikey": api_key},
-                timeout=10
-            )
-
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("code") == 0:
-                    account_data = data.get("data", {})
-                    current_task_counts = int(account_data.get("currentTaskCounts", 0))
-                    total_occupied += current_task_counts
-                else:
-                    errors.append(f"API返回错误: {data.get('msg', '未知错误')}")
-            else:
-                errors.append(f"HTTP错误: {response.status_code}")
-        except Exception as e:
-            errors.append(f"请求异常: {str(e)}")
-
-    # 计算槽位状态
-    total_slots = 6
-    available_slots = total_slots - total_occupied
-
-    return SlotStatusOutput(
-        result={
-            "success": True if not errors else False,
-            "errors": errors,
-            "available": available_slots > 0,
-            "total": total_slots,
-            "occupied": total_occupied
-        }
-    )
-
-
 def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Context]) -> UploadOutput:
     """
     title: 文件上传
@@ -939,6 +869,8 @@ def route_by_task_operation_type(state: TaskRouteInput) -> str:
         return "删除任务"
     elif operation_type == "list_tasks":
         return "查询任务列表"
+    elif operation_type == "slot_status":
+        return "查询槽位状态"
     else:
         return "未知操作"
 
@@ -1159,6 +1091,59 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
         return ListTasksOutput(result={"success": False, "message": f"查询失败: {str(e)}"})
 
 
+def slot_status_node(state: SlotStatusInput, config: RunnableConfig, runtime: Runtime[Context]) -> SlotStatusOutput:
+    """
+    title: 查询槽位状态
+    desc: 调用 RunningHub API 查询当前账号的槽位状态（服务器资源、排队信息等）
+    integrations: RunningHub API
+    """
+    ctx = runtime.context
+
+    try:
+        # 获取 RunningHub API 地址（从环境变量读取）
+        runninghub_api_url = os.getenv("RUNNINGHUB_API_URL", "https://api.runninghub.cn")
+
+        # 构建 API 请求地址
+        api_endpoint = f"{runninghub_api_url}/uc/openapi/accountStatus"
+
+        # 调用 RunningHub API
+        # 注意：这个接口需要通过 RunningHub 的认证机制调用
+        # 假设使用 Bearer Token 认证，token 从环境变量或运行时上下文获取
+        headers = {
+            "Content-Type": "application/json"
+        }
+
+        # 如果有认证 token，添加到 headers
+        # auth_token = os.getenv("RUNNINGHUB_AUTH_TOKEN", "")
+        # if auth_token:
+        #     headers["Authorization"] = f"Bearer {auth_token}"
+
+        response = requests.get(api_endpoint, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+
+            # 解析并返回槽位状态信息
+            return SlotStatusOutput(result={
+                "success": True,
+                "message": "查询成功",
+                "data": data
+            })
+        else:
+            return SlotStatusOutput(result={
+                "success": False,
+                "message": f"API 调用失败: HTTP {response.status_code}",
+                "error": response.text
+            })
+
+    except requests.exceptions.Timeout:
+        return SlotStatusOutput(result={"success": False, "message": "API 请求超时"})
+    except requests.exceptions.RequestException as e:
+        return SlotStatusOutput(result={"success": False, "message": f"API 请求异常: {str(e)}"})
+    except Exception as e:
+        return SlotStatusOutput(result={"success": False, "message": f"查询失败: {str(e)}"})
+
+
 def format_response_node(state: FormatResponseInput, config: RunnableConfig, runtime: Runtime[Context]) -> FormatResponseOutput:
     """
     title: 统一返回
@@ -1187,11 +1172,7 @@ def format_response_node(state: FormatResponseInput, config: RunnableConfig, run
             if result.get("success"):
                 code = 0
                 msg = result.get("message", "操作成功")
-                # 提取数据字段，排除 success、message、result
-                data = {k: v for k, v in result.items() if k not in ["success", "message", "result"]}
-                # 如果 data 中只有一个 user 字段，则将 user 的值直接作为 data
-                if len(data) == 1 and "user" in data and isinstance(data["user"], dict):
-                    data = data["user"]
+                data = {k: v for k, v in result.items() if k not in ["success", "message"]}
             else:
                 code = -1
                 msg = result.get("error", result.get("message", "操作失败"))

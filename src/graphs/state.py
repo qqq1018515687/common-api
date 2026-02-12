@@ -194,7 +194,9 @@ class GetUserByIdOutput(BaseModel):
 # 更新用户节点
 class UpdateUserInput(BaseModel):
     """更新用户节点的输入"""
-    user_id: str = Field(..., description="用户ID")
+    user_id: str = Field(..., description="用户ID（要被更新的用户）")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色（admin 或 user）")
     phone: Optional[str] = Field(default=None, description="手机号")
     username: Optional[str] = Field(default=None, description="用户名")
     avatar: Optional[str] = Field(default=None, description="头像URL")
@@ -205,8 +207,6 @@ class UpdateUserInput(BaseModel):
     tier: Optional[str] = Field(default=None, description="用户等级")
     account_status: Optional[str] = Field(default=None, description="账号状态")
     updates: Optional[dict] = Field(default=None, description="更新字段（已废弃，使用上面的具体字段）")
-    operator_role: Optional[str] = Field(default=None, description="操作者角色")
-    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
 
 
 class UpdateUserOutput(BaseModel):
@@ -249,17 +249,6 @@ class ListUsersOutput(BaseModel):
     page: Optional[int] = Field(default=None, description="当前页")
     limit: Optional[int] = Field(default=None, description="每页数量")
     error: Optional[str] = Field(default=None, description="错误信息")
-
-
-# 槽位状态查询节点
-class SlotStatusInput(BaseModel):
-    """槽位状态查询节点的输入"""
-    pass  # 无需输入参数，从环境变量读取
-
-
-class SlotStatusOutput(BaseModel):
-    """槽位状态查询节点的输出"""
-    result: dict = Field(default={}, description="查询结果")
 
 
 # 文件上传节点
@@ -333,6 +322,17 @@ class ListTasksInput(BaseModel):
 
 class ListTasksOutput(BaseModel):
     """查询任务列表节点的输出（自动过滤已删除的任务）"""
+    result: dict = Field(..., description="查询结果")
+
+
+# 查询服务器槽位状态节点
+class SlotStatusInput(BaseModel):
+    """查询服务器槽位状态节点的输入"""
+    pass  # 不需要额外参数，使用环境变量中的 APIKEY
+
+
+class SlotStatusOutput(BaseModel):
+    """查询服务器槽位状态节点的输出"""
     result: dict = Field(..., description="查询结果")
 
 

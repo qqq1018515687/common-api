@@ -36,13 +36,13 @@ from graphs.node import (
     update_user_node,
     delete_user_node,
     list_users_node,
-    slot_status_node,
     task_route_node,
     route_by_task_operation_type,
     create_task_node,
     update_task_node,
     delete_task_node,
-    list_tasks_node
+    list_tasks_node,
+    slot_status_node
 )
 
 
@@ -101,7 +101,6 @@ builder.add_node("get_user_by_id", get_user_by_id_node)
 builder.add_node("update_user", update_user_node)
 builder.add_node("delete_user", delete_user_node)
 builder.add_node("list_users", list_users_node)
-builder.add_node("slot_status", slot_status_node)
 builder.add_node("upload", upload_node)
 builder.add_node("save", save_node)
 builder.add_node("task_route", task_route_node)
@@ -109,6 +108,7 @@ builder.add_node("create_task", create_task_node)
 builder.add_node("update_task", update_task_node)
 builder.add_node("delete_task", delete_task_node)
 builder.add_node("list_tasks", list_tasks_node)
+builder.add_node("slot_status", slot_status_node)
 builder.add_node("format_response", format_response_node)
 builder.add_node("tool_route", tool_route_node)
 builder.add_node("reverse_image", reverse_image_node, metadata={"type": "agent", "llm_cfg": "config/reverse_image_cfg.json"})
@@ -157,8 +157,7 @@ builder.add_conditional_edges(
         "查询单个用户": "get_user_by_id",
         "更新用户": "update_user",
         "删除用户": "delete_user",
-        "用户列表": "list_users",
-        "槽位状态查询": "slot_status"
+        "用户列表": "list_users"
     }
 )
 
@@ -170,7 +169,8 @@ builder.add_conditional_edges(
         "创建任务": "create_task",
         "更新任务": "update_task",
         "删除任务": "delete_task",
-        "查询任务列表": "list_tasks"
+        "查询任务列表": "list_tasks",
+        "查询槽位状态": "slot_status"
     }
 )
 
@@ -183,13 +183,13 @@ builder.add_edge("get_user_by_id", "format_response")
 builder.add_edge("update_user", "format_response")
 builder.add_edge("delete_user", "format_response")
 builder.add_edge("list_users", "format_response")
-builder.add_edge("slot_status", "format_response")
 builder.add_edge("upload", "format_response")
 builder.add_edge("save", "format_response")
 builder.add_edge("create_task", "format_response")
 builder.add_edge("update_task", "format_response")
 builder.add_edge("delete_task", "format_response")
 builder.add_edge("list_tasks", "format_response")
+builder.add_edge("slot_status", "format_response")
 builder.add_edge("reverse_image", "format_response")
 builder.add_edge("translate_doubao", "format_response")
 builder.add_edge("prompt_enhance", "format_response")
