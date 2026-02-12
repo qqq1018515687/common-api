@@ -40,7 +40,6 @@ from graphs.state import (
     UpdateTaskInput, UpdateTaskOutput,
     DeleteTaskInput, DeleteTaskOutput,
     ListTasksInput, ListTasksOutput,
-    SlotStatusInput, SlotStatusOutput,
     TaskRouteInput, TaskRouteOutput
 )
 import os
@@ -869,8 +868,6 @@ def route_by_task_operation_type(state: TaskRouteInput) -> str:
         return "删除任务"
     elif operation_type == "list_tasks":
         return "查询任务列表"
-    elif operation_type == "slot_status":
-        return "查询槽位状态"
     else:
         return "未知操作"
 
@@ -1089,59 +1086,6 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
 
     except Exception as e:
         return ListTasksOutput(result={"success": False, "message": f"查询失败: {str(e)}"})
-
-
-def slot_status_node(state: SlotStatusInput, config: RunnableConfig, runtime: Runtime[Context]) -> SlotStatusOutput:
-    """
-    title: 查询槽位状态
-    desc: 调用 RunningHub API 查询当前账号的槽位状态（服务器资源、排队信息等）
-    integrations: RunningHub API
-    """
-    ctx = runtime.context
-
-    try:
-        # 获取 RunningHub API 地址（从环境变量读取）
-        runninghub_api_url = os.getenv("RUNNINGHUB_API_URL", "https://api.runninghub.cn")
-
-        # 构建 API 请求地址
-        api_endpoint = f"{runninghub_api_url}/uc/openapi/accountStatus"
-
-        # 调用 RunningHub API
-        # 注意：这个接口需要通过 RunningHub 的认证机制调用
-        # 假设使用 Bearer Token 认证，token 从环境变量或运行时上下文获取
-        headers = {
-            "Content-Type": "application/json"
-        }
-
-        # 如果有认证 token，添加到 headers
-        # auth_token = os.getenv("RUNNINGHUB_AUTH_TOKEN", "")
-        # if auth_token:
-        #     headers["Authorization"] = f"Bearer {auth_token}"
-
-        response = requests.get(api_endpoint, headers=headers, timeout=10)
-
-        if response.status_code == 200:
-            data = response.json()
-
-            # 解析并返回槽位状态信息
-            return SlotStatusOutput(result={
-                "success": True,
-                "message": "查询成功",
-                "data": data
-            })
-        else:
-            return SlotStatusOutput(result={
-                "success": False,
-                "message": f"API 调用失败: HTTP {response.status_code}",
-                "error": response.text
-            })
-
-    except requests.exceptions.Timeout:
-        return SlotStatusOutput(result={"success": False, "message": "API 请求超时"})
-    except requests.exceptions.RequestException as e:
-        return SlotStatusOutput(result={"success": False, "message": f"API 请求异常: {str(e)}"})
-    except Exception as e:
-        return SlotStatusOutput(result={"success": False, "message": f"查询失败: {str(e)}"})
 
 
 def format_response_node(state: FormatResponseInput, config: RunnableConfig, runtime: Runtime[Context]) -> FormatResponseOutput:
