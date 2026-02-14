@@ -574,46 +574,69 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
 
     # 处理头像：如果为Base64则转换为永久URL
     processed_avatar = state.avatar
+    base64_data = None
+    mime_type = "image/png"  # 默认 MIME 类型
+    
+    # 检查是否为 Data URL 格式：data:image/png;base64,xxx
     if state.avatar and state.avatar.startswith('data:image'):
         try:
-            # 解析 Data URL 格式：data:image/png;base64,xxx
             match = re.match(r"data:([^;]+);base64,(.+)", state.avatar)
             if match:
                 mime_type = match.group(1)  # 例如：image/png
                 base64_data = match.group(2)
-
-                # 解码 Base64
-                try:
-                    file_content = base64.b64decode(base64_data)
-                except Exception:
-                    # 解码失败，保持原样
-                    processed_avatar = state.avatar
-                else:
-                    # 根据类型确定文件名
-                    if "png" in mime_type:
-                        filename = "avatar.png"
-                    elif "jpeg" in mime_type or "jpg" in mime_type:
-                        filename = "avatar.jpg"
-                    elif "gif" in mime_type:
-                        filename = "avatar.gif"
-                    elif "webp" in mime_type:
-                        filename = "avatar.webp"
-                    else:
-                        filename = f"avatar.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
-
-                    # 上传到对象存储，设置为公共可读
-                    file_key = storage.upload_file(
-                        file_content=file_content,
-                        file_name=filename,
-                        content_type=mime_type,
-                        acl='public-read'
-                    )
-
-                    # 生成签名 URL（10年有效期）
-                    processed_avatar = storage.generate_presigned_url(
-                        key=file_key,
-                        expire_time=315360000  # 3650天 = 10年
-                    )
+        except Exception:
+            pass
+    # 检查是否为纯 Base64 字符串（通过尝试解码来验证）
+    elif state.avatar:
+        try:
+            # 尝试解码，如果成功则是 Base64
+            file_content = base64.b64decode(state.avatar)
+            # 验证解码后的内容是否为有效的图片数据
+            # PNG 文件以 89 50 4E 47 开头
+            # JPEG 文件以 FF D8 FF 开头
+            if len(file_content) >= 8:
+                header = file_content[:8]
+                # 检查是否为 PNG 或 JPEG
+                if header[:4] == b'\x89PNG' or header[:3] == b'\xff\xd8\xff':
+                    base64_data = state.avatar
+                    # 根据文件头确定 MIME 类型
+                    if header[:4] == b'\x89PNG':
+                        mime_type = "image/png"
+                    elif header[:3] == b'\xff\xd8\xff':
+                        mime_type = "image/jpeg"
+        except Exception:
+            # 解码失败，保持原样
+            pass
+    
+    # 如果检测到 Base64 数据，则上传到对象存储
+    if base64_data:
+        try:
+            file_content = base64.b64decode(base64_data)
+            # 根据类型确定文件名
+            if "png" in mime_type:
+                filename = "avatar.png"
+            elif "jpeg" in mime_type or "jpg" in mime_type:
+                filename = "avatar.jpg"
+            elif "gif" in mime_type:
+                filename = "avatar.gif"
+            elif "webp" in mime_type:
+                filename = "avatar.webp"
+            else:
+                filename = f"avatar.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
+            
+            # 上传到对象存储，设置为公共可读
+            file_key = storage.upload_file(
+                file_content=file_content,
+                file_name=filename,
+                content_type=mime_type,
+                acl='public-read'
+            )
+            
+            # 生成签名 URL（10年有效期）
+            processed_avatar = storage.generate_presigned_url(
+                key=file_key,
+                expire_time=315360000  # 3650天 = 10年
+            )
         except Exception:
             # 处理失败，保持原样
             processed_avatar = state.avatar
