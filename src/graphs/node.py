@@ -609,9 +609,11 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
                         acl='public-read'
                     )
 
-                    # 生成永久公开 URL（使用 Coze 公开域名）
-                    public_domain = "https://coze-coding-project.tos.coze.site"
-                    processed_avatar = f"{public_domain}/{storage.bucket_name}/{file_key}"
+                    # 生成签名 URL（10年有效期）
+                    processed_avatar = storage.generate_presigned_url(
+                        key=file_key,
+                        expire_time=315360000  # 3650天 = 10年
+                    )
         except Exception:
             # 处理失败，保持原样
             processed_avatar = state.avatar
