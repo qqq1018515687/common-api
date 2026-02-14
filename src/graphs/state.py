@@ -331,7 +331,7 @@ class ListTasksOutput(BaseModel):
 
 class TaskRouteInput(BaseModel):
     """任务路由节点的输入"""
-    operation_type: str = Field(..., description="操作类型：create_task/update_task/delete_task/list_tasks")
+    operation_type: Optional[str] = Field(default=None, description="操作类型：create_task/update_task/delete_task/list_tasks")
 
 
 class TaskRouteOutput(BaseModel):

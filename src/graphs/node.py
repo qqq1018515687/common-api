@@ -5,8 +5,12 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from coze_coding_dev_sdk import LLMClient
 from jinja2 import Template
 import json
+import logging
 from typing import Optional, List
 from datetime import datetime
+
+# 初始化日志
+logger = logging.getLogger(__name__)
 
 from graphs.state import (
     UploadInput, UploadOutput,
@@ -643,22 +647,26 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
             # 记录文件元数据到数据库
             try:
                 from storage.file_metadata_manager import FileMetadataManager
-                
-                meta_manager = FileMetadataManager(db)
-                file_type = 'image'  # 头像都是图片
 
-                # 记录元数据（头像文件，永久保留）
-                meta_manager.record_file(
-                    file_key=file_key,
-                    file_prefix='avatar',
-                    file_type=file_type,
-                    file_size=len(file_content),
-                    mime_type=mime_type,
-                    source_type='avatar',
-                    source_id=state.user_id,
-                    retention_policy='permanent',
-                    expire_hours=None
-                )
+                db_temp = get_session()
+                try:
+                    meta_manager = FileMetadataManager(db_temp)
+                    file_type = 'image'  # 头像都是图片
+
+                    # 记录元数据（头像文件，永久保留）
+                    meta_manager.record_file(
+                        file_key=file_key,
+                        file_prefix='avatar',
+                        file_type=file_type,
+                        file_size=len(file_content),
+                        mime_type=mime_type,
+                        source_type='avatar',
+                        source_id=state.user_id,
+                        retention_policy='permanent',
+                        expire_hours=None
+                    )
+                finally:
+                    db_temp.close()
             except Exception as meta_error:
                 # 元数据记录失败不影响主流程
                 logger.error(f"记录头像元数据失败: {meta_error}")
@@ -956,13 +964,10 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
         # 记录文件元数据到数据库
         try:
             from storage.file_metadata_manager import FileMetadataManager
-            from storage.database.db import get_db
 
-            db_gen = get_db()
-            db = next(db_gen)
-
+            db_temp = get_session()
             try:
-                meta_manager = FileMetadataManager(db)
+                meta_manager = FileMetadataManager(db_temp)
 
                 # 提取文件类型
                 file_type = storage.extract_file_type(filename, mime_type)
@@ -980,8 +985,7 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
                     expire_hours=24
                 )
             finally:
-                db.close()
-                db_gen.close()
+                db_temp.close()
         except Exception as meta_error:
             # 元数据记录失败不影响主流程
             logger.error(f"记录文件元数据失败: {meta_error}")
@@ -1019,13 +1023,10 @@ def save_node(state: SaveInput, config: RunnableConfig, runtime: Runtime[Context
         # 记录文件元数据到数据库
         try:
             from storage.file_metadata_manager import FileMetadataManager
-            from storage.database.db import get_db
 
-            db_gen = get_db()
-            db = next(db_gen)
-
+            db_temp = get_session()
             try:
-                meta_manager = FileMetadataManager(db)
+                meta_manager = FileMetadataManager(db_temp)
 
                 # 提取文件类型（默认为image）
                 file_type = 'image'  # RunningHub 主要生成图片
@@ -1043,8 +1044,7 @@ def save_node(state: SaveInput, config: RunnableConfig, runtime: Runtime[Context
                     expire_hours=None
                 )
             finally:
-                db.close()
-                db_gen.close()
+                db_temp.close()
         except Exception as meta_error:
             # 元数据记录失败不影响主流程
             logger.error(f"记录文件元数据失败: {meta_error}")
@@ -1064,7 +1064,7 @@ def task_route_node(state: TaskRouteInput, config: RunnableConfig, runtime: Runt
     title: 任务路由
     desc: 用于任务管理的二级路由，传递 operation_type
     """
-    return TaskRouteOutput(operation_type=state.operation_type)
+    return TaskRouteOutput(operation_type=state.operation_type or "")
 
 
 def route_by_task_operation_type(state: TaskRouteInput) -> str:
@@ -1072,7 +1072,7 @@ def route_by_task_operation_type(state: TaskRouteInput) -> str:
     title: 任务管理二级路由
     desc: 根据操作类型分发到不同的节点
     """
-    operation_type = state.operation_type
+    operation_type = state.operation_type if state.operation_type else ""
 
     if operation_type == "create_task":
         return "创建任务"
