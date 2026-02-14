@@ -10,7 +10,7 @@ import cozeloop
 import uvicorn
 import time
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, Response
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
@@ -25,6 +25,8 @@ from utils.messages.server import (
     create_message_error_dict,
     MESSAGE_END_CODE_CANCELED,
 )
+from storage.s3.s3_storage import S3SyncStorage
+import os
 
 setup_logging(
     log_file=LOG_FILE,
@@ -506,6 +508,45 @@ async def health_check():
         }
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
+
+
+@app.get("/avatar/{file_key:path}")
+async def get_avatar(file_key: str):
+    """
+    代理访问用户头像文件
+    参数：file_key - 对象存储的文件key
+    """
+    try:
+        # 初始化存储客户端
+        storage = S3SyncStorage(
+            endpoint_url=os.getenv("COZE_BUCKET_ENDPOINT_URL"),
+            access_key=os.getenv("COZE_ACCESS_KEY", ""),
+            secret_key=os.getenv("COZE_SECRET_KEY", ""),
+            bucket_name=os.getenv("COZE_BUCKET_NAME"),
+            region=os.getenv("COZE_BUCKET_REGION", "cn-beijing"),
+        )
+
+        # 从对象存储读取文件
+        file_content = storage.read_file(file_key=file_key)
+
+        # 根据 file_key 判断 Content-Type
+        if file_key.endswith('.png'):
+            content_type = 'image/png'
+        elif file_key.endswith('.jpg') or file_key.endswith('.jpeg'):
+            content_type = 'image/jpeg'
+        elif file_key.endswith('.gif'):
+            content_type = 'image/gif'
+        elif file_key.endswith('.webp'):
+            content_type = 'image/webp'
+        else:
+            content_type = 'application/octet-stream'
+
+        # 返回文件内容
+        return Response(content=file_content, media_type=content_type)
+
+    except Exception as e:
+        logger.error(f"Error getting avatar: {e}")
+        raise HTTPException(status_code=404, detail=f"Avatar not found: {str(e)}")
 
 
 @app.get(path="/graph_parameter")

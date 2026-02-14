@@ -632,11 +632,16 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
                 acl='public-read'
             )
             
-            # 生成签名 URL（10年有效期）
-            processed_avatar = storage.generate_presigned_url(
-                key=file_key,
-                expire_time=315360000  # 3650天 = 10年
-            )
+            # 生成代理 URL（通过项目域名访问）
+            project_domain = os.getenv("COZE_PROJECT_DOMAIN_DEFAULT", "")
+            if project_domain:
+                processed_avatar = f"{project_domain.rstrip('/')}/avatar/{file_key}"
+            else:
+                # 如果没有配置项目域名，则使用签名 URL
+                processed_avatar = storage.generate_presigned_url(
+                    key=file_key,
+                    expire_time=315360000  # 3650天 = 10年
+                )
         except Exception:
             # 处理失败，保持原样
             processed_avatar = state.avatar
