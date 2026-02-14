@@ -189,8 +189,9 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         updates=input_data.updates if input_data else None,
         operator_role=input_data.operator_role if input_data else None,
         operator_user_id=input_data.operator_user_id if input_data else None,
-        page=input_data.page if input_data else None,
-        limit=input_data.limit if input_data else None,
+        time_range=input_data.time_range if input_data else None,
+        start_date=input_data.start_date if input_data else None,
+        end_date=input_data.end_date if input_data else None,
         filter=input_data.filter if input_data else None,
         # 任务管理相关字段
         task_id=input_data.task_id if input_data else None,
@@ -776,7 +777,7 @@ def delete_user_node(state: DeleteUserInput, config: RunnableConfig, runtime: Ru
 def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runtime[Context]) -> ListUsersOutput:
     """
     title: 用户列表
-    desc: 查询用户列表（管理员功能）
+    desc: 查询用户列表（管理员功能），支持按时间范围筛选
     integrations: 数据库
     """
     UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
@@ -790,6 +791,31 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
     try:
         user_mgr = UserManager()
 
+        # 计算时间范围
+        from datetime import datetime, timedelta
+
+        start_date = None
+        end_date = None
+
+        if state.start_date and state.end_date:
+            # 自定义时间范围
+            start_date = datetime.strptime(state.start_date, "%Y-%m-%d")
+            end_date = datetime.strptime(state.end_date, "%Y-%m-%d") + timedelta(days=1)  # 包含结束日期当天
+        else:
+            # 预设时间范围
+            now = datetime.utcnow()
+            if state.time_range == "last_7_days":
+                start_date = now - timedelta(days=7)
+            elif state.time_range == "last_15_days":
+                start_date = now - timedelta(days=15)
+            elif state.time_range == "last_30_days":
+                start_date = now - timedelta(days=30)
+            elif state.time_range == "all_time":
+                start_date = None
+                end_date = None
+            else:
+                start_date = now - timedelta(days=7)  # 默认最近7天
+
         filter_dict = {}
         if state.filter:
             filter_dict = {
@@ -798,10 +824,11 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
                 "account_status": state.filter.get("account_status")
             }
 
-        users, total = user_mgr.list_users(
+        # 使用时间范围查询用户
+        users = user_mgr.list_users_by_time_range(
             db,
-            page=state.page,
-            limit=state.limit,
+            start_date=start_date,
+            end_date=end_date,
             **filter_dict
         )
 
@@ -822,13 +849,24 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
                 "updated_at": int(user.updated_at.timestamp() * 1000) if user.updated_at else None
             })
 
+        # 格式化时间范围用于返回
+        time_range_display = state.time_range or "last_7_days"
+        start_date_display = start_date.strftime("%Y-%m-%d") if start_date else None
+        end_date_display = end_date.strftime("%Y-%m-%d") if end_date else None
+
         return ListUsersOutput(
-            result={"success": True, "users": users_data, "total": total, "page": state.page, "limit": state.limit},
+            result={
+                "success": True,
+                "users": users_data,
+                "time_range": time_range_display,
+                "start_date": start_date_display,
+                "end_date": end_date_display
+            },
             success=True,
             users=users_data,
-            total=total,
-            page=state.page,
-            limit=state.limit
+            time_range=time_range_display,
+            start_date=start_date_display,
+            end_date=end_date_display
         )
 
     finally:
@@ -1184,7 +1222,7 @@ def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Ru
 def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runtime[Context]) -> ListTasksOutput:
     """
     title: 查询任务列表
-    desc: 根据用户ID查询任务列表，支持状态筛选和分页（仅限注册用户）
+    desc: 根据用户ID查询任务列表，支持状态筛选和时间范围（仅限注册用户）
     integrations: 数据库
     """
     ctx = runtime.context
@@ -1204,25 +1242,45 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
             if not has_permission:
                 return ListTasksOutput(result={"success": False, "message": error_msg})
 
-            page = state.page or 1
-            limit = state.limit or 10
-            skip = (page - 1) * limit
+            # 计算时间范围
+            from datetime import datetime, timedelta
+
+            start_date = None
+            end_date = None
+
+            if state.start_date and state.end_date:
+                # 自定义时间范围
+                start_date = datetime.strptime(state.start_date, "%Y-%m-%d")
+                end_date = datetime.strptime(state.end_date, "%Y-%m-%d") + timedelta(days=1)  # 包含结束日期当天
+            else:
+                # 预设时间范围
+                now = datetime.utcnow()
+                if state.time_range == "last_7_days":
+                    start_date = now - timedelta(days=7)
+                elif state.time_range == "last_15_days":
+                    start_date = now - timedelta(days=15)
+                elif state.time_range == "last_30_days":
+                    start_date = now - timedelta(days=30)
+                elif state.time_range == "all_time":
+                    start_date = None
+                    end_date = None
+                else:
+                    start_date = now - timedelta(days=7)  # 默认最近7天
 
             # 构建筛选条件
             filters = {}
             if state.team_id:
                 filters["team_id"] = state.team_id
 
-            tasks = task_mgr.get_tasks_by_user_id(
+            # 使用时间范围查询任务
+            tasks = task_mgr.get_tasks_by_user_id_with_time_range(
                 db,
                 user_id=state.user_id,
                 status=state.status,
-                skip=skip,
-                limit=limit,
+                start_date=start_date,
+                end_date=end_date,
                 **filters
             )
-
-            total = task_mgr.count_tasks_by_user_id(db, state.user_id, state.status)
 
             # 转换为可序列化的字典列表
             task_list = []
@@ -1248,13 +1306,18 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "is_deleted": task.is_deleted
                 })
 
+            # 格式化时间范围用于返回
+            time_range_display = state.time_range or "last_7_days"
+            start_date_display = start_date.strftime("%Y-%m-%d") if start_date else None
+            end_date_display = end_date.strftime("%Y-%m-%d") if end_date else None
+
             return ListTasksOutput(result={
                 "success": True,
                 "message": "查询成功",
                 "tasks": task_list,
-                "total": total,
-                "page": page,
-                "limit": limit
+                "time_range": time_range_display,
+                "start_date": start_date_display,
+                "end_date": end_date_display
             })
 
         finally:

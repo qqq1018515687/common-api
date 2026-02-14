@@ -29,8 +29,9 @@ class InputData(BaseModel):
     updates: Optional[dict] = Field(default=None, description="更新字段")
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
-    page: Optional[int] = Field(default=None, description="页码")
-    limit: Optional[int] = Field(default=None, description="每页数量")
+    time_range: Optional[str] = Field(default="last_7_days", description="时间范围：last_7_days/last_15_days/last_30_days/all_time")
+    start_date: Optional[str] = Field(default=None, description="开始日期（YYYY-MM-DD）")
+    end_date: Optional[str] = Field(default=None, description="结束日期（YYYY-MM-DD）")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
 
     # 任务管理相关字段
@@ -68,8 +69,9 @@ class GlobalState(BaseModel):
     updates: Optional[dict] = Field(default=None, description="更新字段")
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
-    page: Optional[int] = Field(default=None, description="页码")
-    limit: Optional[int] = Field(default=None, description="每页数量")
+    time_range: Optional[str] = Field(default="last_7_days", description="时间范围：last_7_days/last_15_days/last_30_days/all_time")
+    start_date: Optional[str] = Field(default=None, description="开始日期（YYYY-MM-DD）")
+    end_date: Optional[str] = Field(default=None, description="结束日期（YYYY-MM-DD）")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
 
     # 任务管理相关字段
@@ -234,8 +236,9 @@ class DeleteUserOutput(BaseModel):
 # 用户列表节点
 class ListUsersInput(BaseModel):
     """用户列表节点的输入"""
-    page: Optional[int] = Field(default=1, description="页码")
-    limit: Optional[int] = Field(default=20, description="每页数量")
+    time_range: Optional[str] = Field(default="last_7_days", description="时间范围：last_7_days/last_15_days/last_30_days/all_time")
+    start_date: Optional[str] = Field(default=None, description="开始日期（YYYY-MM-DD）")
+    end_date: Optional[str] = Field(default=None, description="结束日期（YYYY-MM-DD）")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
     operator_role: str = Field(..., description="操作者角色")
 
@@ -245,9 +248,9 @@ class ListUsersOutput(BaseModel):
     result: dict = Field(default={}, description="列表结果")
     success: bool = Field(default=True, description="是否成功")
     users: Optional[List[dict]] = Field(default=None, description="用户列表")
-    total: Optional[int] = Field(default=None, description="总数")
-    page: Optional[int] = Field(default=None, description="当前页")
-    limit: Optional[int] = Field(default=None, description="每页数量")
+    time_range: Optional[str] = Field(default=None, description="查询的时间范围")
+    start_date: Optional[str] = Field(default=None, description="开始日期")
+    end_date: Optional[str] = Field(default=None, description="结束日期")
     error: Optional[str] = Field(default=None, description="错误信息")
 
 
@@ -316,8 +319,9 @@ class ListTasksInput(BaseModel):
     user_id: str = Field(..., description="用户ID（必须是已注册的活跃用户）")
     team_id: Optional[str] = Field(default=None, description="团队ID筛选")
     status: Optional[str] = Field(default=None, description="任务状态筛选")
-    page: Optional[int] = Field(default=1, description="页码")
-    limit: Optional[int] = Field(default=10, description="每页数量")
+    time_range: Optional[str] = Field(default="last_7_days", description="时间范围：last_7_days/last_15_days/last_30_days/all_time")
+    start_date: Optional[str] = Field(default=None, description="开始日期（YYYY-MM-DD）")
+    end_date: Optional[str] = Field(default=None, description="结束日期（YYYY-MM-DD）")
 
 
 class ListTasksOutput(BaseModel):
@@ -401,8 +405,9 @@ class UnpackInputDataOutput(BaseModel):
     updates: Optional[dict] = Field(default=None, description="更新字段")
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
-    page: Optional[int] = Field(default=None, description="页码")
-    limit: Optional[int] = Field(default=None, description="每页数量")
+    time_range: Optional[str] = Field(default="last_7_days", description="时间范围：last_7_days/last_15_days/last_30_days/all_time")
+    start_date: Optional[str] = Field(default=None, description="开始日期（YYYY-MM-DD）")
+    end_date: Optional[str] = Field(default=None, description="结束日期（YYYY-MM-DD）")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
     # 任务管理相关字段
     task_id: Optional[str] = Field(default=None, description="任务ID")

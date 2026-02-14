@@ -166,6 +166,46 @@ class UserManager:
 
         return users, total
 
+    def list_users_by_time_range(
+        self,
+        db: Session,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        role: Optional[str] = None,
+        tier: Optional[str] = None,
+        account_status: Optional[str] = None
+    ) -> List[Users]:
+        """
+        根据时间范围查询用户列表
+
+        Args:
+            db: 数据库会话
+            start_date: 开始日期（UTC时间）
+            end_date: 结束日期（UTC时间，不包含此时刻）
+            role: 用户角色筛选
+            tier: 用户等级筛选
+            account_status: 账号状态筛选
+
+        Returns:
+            用户列表
+        """
+        query = db.query(Users).filter(Users.account_status != "deleted")
+
+        if start_date:
+            query = query.filter(Users.created_at >= start_date)
+        if end_date:
+            query = query.filter(Users.created_at < end_date)
+        if role:
+            query = query.filter(Users.role == role)
+        if tier:
+            query = query.filter(Users.tier == tier)
+        if account_status:
+            query = query.filter(Users.account_status == account_status)
+
+        users = query.order_by(Users.created_at.desc()).all()
+
+        return users
+
 
 class RateLimitManager:
     """Manager class for RateLimit operations."""
