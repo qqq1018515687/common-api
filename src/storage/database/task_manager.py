@@ -1,10 +1,8 @@
 """任务管理接口"""
 import time
-from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from sqlalchemy import cast, BigInteger
 
 from storage.database.shared.model import Tasks, Users
 import time
@@ -104,52 +102,6 @@ class TaskManager:
                 query = query.filter(getattr(Tasks, attr) == value)
 
         return query.order_by(Tasks.updated_at.desc()).offset(skip).limit(limit).all()
-
-    def get_tasks_by_user_id_with_time_range(
-        self,
-        db: Session,
-        user_id: str,
-        status: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        **filters
-    ) -> List[Tasks]:
-        """
-        根据用户ID和时间范围获取任务列表（自动过滤已删除的任务）
-
-        Args:
-            db: 数据库会话
-            user_id: 用户ID
-            status: 任务状态筛选
-            start_date: 开始日期（UTC时间）
-            end_date: 结束日期（UTC时间，不包含此时刻）
-            **filters: 其他筛选条件
-
-        Returns:
-            任务列表
-        """
-        query = db.query(Tasks).filter(Tasks.user_id == user_id, Tasks.is_deleted == False)
-
-        if status:
-            query = query.filter(Tasks.status == status)
-
-        if start_date:
-            # 将 start_date 转换为毫秒时间戳
-            start_timestamp = int(start_date.timestamp() * 1000)
-            # 将 updated_at 从字符串转换为 bigint 后再比较
-            query = query.filter(cast(Tasks.updated_at, BigInteger) >= start_timestamp)
-
-        if end_date:
-            # 将 end_date 转换为毫秒时间戳
-            end_timestamp = int(end_date.timestamp() * 1000)
-            # 将 updated_at 从字符串转换为 bigint 后再比较
-            query = query.filter(cast(Tasks.updated_at, BigInteger) < end_timestamp)
-
-        for attr, value in filters.items():
-            if hasattr(Tasks, attr):
-                query = query.filter(getattr(Tasks, attr) == value)
-
-        return query.order_by(Tasks.updated_at.desc()).all()
 
     def get_task_by_platform_task_id(
         self,

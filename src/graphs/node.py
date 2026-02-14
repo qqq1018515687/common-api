@@ -5,12 +5,8 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from coze_coding_dev_sdk import LLMClient
 from jinja2 import Template
 import json
-import logging
 from typing import Optional, List
 from datetime import datetime
-
-# 初始化日志
-logger = logging.getLogger(__name__)
 
 from graphs.state import (
     UploadInput, UploadOutput,
@@ -193,9 +189,8 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         updates=input_data.updates if input_data else None,
         operator_role=input_data.operator_role if input_data else None,
         operator_user_id=input_data.operator_user_id if input_data else None,
-        time_range=input_data.time_range if input_data else None,
-        start_date=input_data.start_date if input_data else None,
-        end_date=input_data.end_date if input_data else None,
+        page=input_data.page if input_data else None,
+        limit=input_data.limit if input_data else None,
         filter=input_data.filter if input_data else None,
         # 任务管理相关字段
         task_id=input_data.task_id if input_data else None,
@@ -647,26 +642,22 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
             # 记录文件元数据到数据库
             try:
                 from storage.file_metadata_manager import FileMetadataManager
+                
+                meta_manager = FileMetadataManager(db)
+                file_type = 'image'  # 头像都是图片
 
-                db_temp = get_session()
-                try:
-                    meta_manager = FileMetadataManager(db_temp)
-                    file_type = 'image'  # 头像都是图片
-
-                    # 记录元数据（头像文件，永久保留）
-                    meta_manager.record_file(
-                        file_key=file_key,
-                        file_prefix='avatar',
-                        file_type=file_type,
-                        file_size=len(file_content),
-                        mime_type=mime_type,
-                        source_type='avatar',
-                        source_id=state.user_id,
-                        retention_policy='permanent',
-                        expire_hours=None
-                    )
-                finally:
-                    db_temp.close()
+                # 记录元数据（头像文件，永久保留）
+                meta_manager.record_file(
+                    file_key=file_key,
+                    file_prefix='avatar',
+                    file_type=file_type,
+                    file_size=len(file_content),
+                    mime_type=mime_type,
+                    source_type='avatar',
+                    source_id=state.user_id,
+                    retention_policy='permanent',
+                    expire_hours=None
+                )
             except Exception as meta_error:
                 # 元数据记录失败不影响主流程
                 logger.error(f"记录头像元数据失败: {meta_error}")
@@ -785,7 +776,7 @@ def delete_user_node(state: DeleteUserInput, config: RunnableConfig, runtime: Ru
 def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runtime[Context]) -> ListUsersOutput:
     """
     title: 用户列表
-    desc: 查询用户列表（管理员功能），支持按时间范围筛选
+    desc: 查询用户列表（管理员功能）
     integrations: 数据库
     """
     UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
@@ -799,31 +790,6 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
     try:
         user_mgr = UserManager()
 
-        # 计算时间范围
-        from datetime import datetime, timedelta
-
-        start_date = None
-        end_date = None
-
-        if state.start_date and state.end_date:
-            # 自定义时间范围
-            start_date = datetime.strptime(state.start_date, "%Y-%m-%d")
-            end_date = datetime.strptime(state.end_date, "%Y-%m-%d") + timedelta(days=1)  # 包含结束日期当天
-        else:
-            # 预设时间范围
-            now = datetime.utcnow()
-            if state.time_range == "last_7_days":
-                start_date = now - timedelta(days=7)
-            elif state.time_range == "last_15_days":
-                start_date = now - timedelta(days=15)
-            elif state.time_range == "last_30_days":
-                start_date = now - timedelta(days=30)
-            elif state.time_range == "all_time":
-                start_date = None
-                end_date = None
-            else:
-                start_date = now - timedelta(days=7)  # 默认最近7天
-
         filter_dict = {}
         if state.filter:
             filter_dict = {
@@ -832,11 +798,10 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
                 "account_status": state.filter.get("account_status")
             }
 
-        # 使用时间范围查询用户
-        users = user_mgr.list_users_by_time_range(
+        users, total = user_mgr.list_users(
             db,
-            start_date=start_date,
-            end_date=end_date,
+            page=state.page,
+            limit=state.limit,
             **filter_dict
         )
 
@@ -857,24 +822,13 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
                 "updated_at": int(user.updated_at.timestamp() * 1000) if user.updated_at else None
             })
 
-        # 格式化时间范围用于返回
-        time_range_display = state.time_range or "last_7_days"
-        start_date_display = start_date.strftime("%Y-%m-%d") if start_date else None
-        end_date_display = end_date.strftime("%Y-%m-%d") if end_date else None
-
         return ListUsersOutput(
-            result={
-                "success": True,
-                "users": users_data,
-                "time_range": time_range_display,
-                "start_date": start_date_display,
-                "end_date": end_date_display
-            },
+            result={"success": True, "users": users_data, "total": total, "page": state.page, "limit": state.limit},
             success=True,
             users=users_data,
-            time_range=time_range_display,
-            start_date=start_date_display,
-            end_date=end_date_display
+            total=total,
+            page=state.page,
+            limit=state.limit
         )
 
     finally:
@@ -964,10 +918,13 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
         # 记录文件元数据到数据库
         try:
             from storage.file_metadata_manager import FileMetadataManager
+            from storage.database.db import get_db
 
-            db_temp = get_session()
+            db_gen = get_db()
+            db = next(db_gen)
+
             try:
-                meta_manager = FileMetadataManager(db_temp)
+                meta_manager = FileMetadataManager(db)
 
                 # 提取文件类型
                 file_type = storage.extract_file_type(filename, mime_type)
@@ -985,7 +942,8 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
                     expire_hours=24
                 )
             finally:
-                db_temp.close()
+                db.close()
+                db_gen.close()
         except Exception as meta_error:
             # 元数据记录失败不影响主流程
             logger.error(f"记录文件元数据失败: {meta_error}")
@@ -1023,10 +981,13 @@ def save_node(state: SaveInput, config: RunnableConfig, runtime: Runtime[Context
         # 记录文件元数据到数据库
         try:
             from storage.file_metadata_manager import FileMetadataManager
+            from storage.database.db import get_db
 
-            db_temp = get_session()
+            db_gen = get_db()
+            db = next(db_gen)
+
             try:
-                meta_manager = FileMetadataManager(db_temp)
+                meta_manager = FileMetadataManager(db)
 
                 # 提取文件类型（默认为image）
                 file_type = 'image'  # RunningHub 主要生成图片
@@ -1044,7 +1005,8 @@ def save_node(state: SaveInput, config: RunnableConfig, runtime: Runtime[Context
                     expire_hours=None
                 )
             finally:
-                db_temp.close()
+                db.close()
+                db_gen.close()
         except Exception as meta_error:
             # 元数据记录失败不影响主流程
             logger.error(f"记录文件元数据失败: {meta_error}")
@@ -1064,7 +1026,7 @@ def task_route_node(state: TaskRouteInput, config: RunnableConfig, runtime: Runt
     title: 任务路由
     desc: 用于任务管理的二级路由，传递 operation_type
     """
-    return TaskRouteOutput(operation_type=state.operation_type or "")
+    return TaskRouteOutput(operation_type=state.operation_type)
 
 
 def route_by_task_operation_type(state: TaskRouteInput) -> str:
@@ -1072,7 +1034,7 @@ def route_by_task_operation_type(state: TaskRouteInput) -> str:
     title: 任务管理二级路由
     desc: 根据操作类型分发到不同的节点
     """
-    operation_type = state.operation_type if state.operation_type else ""
+    operation_type = state.operation_type
 
     if operation_type == "create_task":
         return "创建任务"
@@ -1222,7 +1184,7 @@ def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Ru
 def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runtime[Context]) -> ListTasksOutput:
     """
     title: 查询任务列表
-    desc: 根据用户ID查询任务列表，支持状态筛选和时间范围（仅限注册用户）
+    desc: 根据用户ID查询任务列表，支持状态筛选和分页（仅限注册用户）
     integrations: 数据库
     """
     ctx = runtime.context
@@ -1242,45 +1204,25 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
             if not has_permission:
                 return ListTasksOutput(result={"success": False, "message": error_msg})
 
-            # 计算时间范围
-            from datetime import datetime, timedelta
-
-            start_date = None
-            end_date = None
-
-            if state.start_date and state.end_date:
-                # 自定义时间范围
-                start_date = datetime.strptime(state.start_date, "%Y-%m-%d")
-                end_date = datetime.strptime(state.end_date, "%Y-%m-%d") + timedelta(days=1)  # 包含结束日期当天
-            else:
-                # 预设时间范围
-                now = datetime.utcnow()
-                if state.time_range == "last_7_days":
-                    start_date = now - timedelta(days=7)
-                elif state.time_range == "last_15_days":
-                    start_date = now - timedelta(days=15)
-                elif state.time_range == "last_30_days":
-                    start_date = now - timedelta(days=30)
-                elif state.time_range == "all_time":
-                    start_date = None
-                    end_date = None
-                else:
-                    start_date = now - timedelta(days=7)  # 默认最近7天
+            page = state.page or 1
+            limit = state.limit or 10
+            skip = (page - 1) * limit
 
             # 构建筛选条件
             filters = {}
             if state.team_id:
                 filters["team_id"] = state.team_id
 
-            # 使用时间范围查询任务
-            tasks = task_mgr.get_tasks_by_user_id_with_time_range(
+            tasks = task_mgr.get_tasks_by_user_id(
                 db,
                 user_id=state.user_id,
                 status=state.status,
-                start_date=start_date,
-                end_date=end_date,
+                skip=skip,
+                limit=limit,
                 **filters
             )
+
+            total = task_mgr.count_tasks_by_user_id(db, state.user_id, state.status)
 
             # 转换为可序列化的字典列表
             task_list = []
@@ -1306,18 +1248,13 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "is_deleted": task.is_deleted
                 })
 
-            # 格式化时间范围用于返回
-            time_range_display = state.time_range or "last_7_days"
-            start_date_display = start_date.strftime("%Y-%m-%d") if start_date else None
-            end_date_display = end_date.strftime("%Y-%m-%d") if end_date else None
-
             return ListTasksOutput(result={
                 "success": True,
                 "message": "查询成功",
                 "tasks": task_list,
-                "time_range": time_range_display,
-                "start_date": start_date_display,
-                "end_date": end_date_display
+                "total": total,
+                "page": page,
+                "limit": limit
             })
 
         finally:
