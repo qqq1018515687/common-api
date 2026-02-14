@@ -83,11 +83,45 @@ class S3SyncStorage:
             self._client = client
         return self._client
 
-    def _generate_object_key(self, *, original_name: str) -> str:
+    def _generate_object_key(self, *, original_name: str, prefix: Optional[str] = None) -> str:
+        """
+        生成对象存储的key
+
+        Args:
+            original_name: 原始文件名
+            prefix: 文件前缀（如 temp_、perm_、avatar_、task_）
+
+        Returns:
+            文件key，格式：{prefix}_{stem}_{uniq}{suffix}
+        """
         suffix = Path(original_name).suffix.lower()
         stem = Path(original_name).stem
         uniq = uuid4().hex[:8]
-        return f"{stem}_{uniq}{suffix}"
+
+        # 如果指定了前缀，使用前缀格式
+        if prefix:
+            return f"{prefix}{uniq}{suffix}"
+        else:
+            return f"{stem}_{uniq}{suffix}"
+
+    def _extract_prefix_from_key(self, file_key: str) -> Optional[str]:
+        """
+        从文件key中提取前缀
+
+        Args:
+            file_key: 文件key
+
+        Returns:
+            前缀（如 temp、perm、avatar、task），如果没有则返回 None
+        """
+        # 定义已知的前缀列表
+        known_prefixes = ['temp_', 'perm_', 'avatar_', 'task_']
+
+        for prefix in known_prefixes:
+            if file_key.startswith(prefix):
+                return prefix[:-1]  # 去掉下划线
+
+        return None
 
     def _extract_logid(self, e: Exception) -> Optional[str]:
         """从 ClientError 中提取 x-tt-logid"""
@@ -139,12 +173,35 @@ class S3SyncStorage:
             example = bad[0] if bad else "非法字符"
             raise ValueError(msg + f"（原因：包含非法字符，例如：{example}）")
 
-    def upload_file(self, *, file_content: bytes, file_name: str, content_type: str = "application/octet-stream", bucket: Optional[str] = None, acl: Optional[str] = None) -> str:
+    def upload_file(
+        self,
+        *,
+        file_content: bytes,
+        file_name: str,
+        content_type: str = "application/octet-stream",
+        bucket: Optional[str] = None,
+        acl: Optional[str] = None,
+        prefix: Optional[str] = None
+    ) -> str:
+        """
+        上传文件到对象存储
+
+        Args:
+            file_content: 文件内容（字节数组）
+            file_name: 原始文件名
+            content_type: MIME类型
+            bucket: 目标桶（可选）
+            acl: ACL策略（可选）
+            prefix: 文件前缀（可选，如 temp_、perm_、avatar_、task_）
+
+        Returns:
+            文件key
+        """
         # 先对输入文件名做规范校验，避免生成无效对象 key
         self._validate_file_name(file_name)
         try:
             client = self._get_client()
-            object_key = self._generate_object_key(original_name=file_name)
+            object_key = self._generate_object_key(original_name=file_name, prefix=prefix)
             target_bucket = self._resolve_bucket(bucket)
 
             # 构造 put_object 参数
@@ -312,6 +369,7 @@ class S3SyncStorage:
             multipart_threshold: int = 5 * 1024 * 1024,
             max_concurrency: int = 1,
             use_threads: bool = False,
+            prefix: Optional[str] = None,
     ) -> str:
         """流式上传（文件对象）
         - fileobj: 任何带有 read() 方法的文件对象（如 open(..., 'rb') 返回的对象、io.BytesIO 等）
@@ -322,12 +380,13 @@ class S3SyncStorage:
         - multipart_threshold: 触发分片上传的阈值（默认 5MB）
         - max_concurrency: 并发分片上传的并发数（默认 1，避免代理层节流影响）
         - use_threads: 是否启用线程并发（默认 False）
+        - prefix: 文件前缀（可选，如 temp_、perm_、avatar_、task_）
         返回：最终写入的对象 key
         """
         try:
             client = self._get_client()
             target_bucket = self._resolve_bucket(bucket)
-            key = self._generate_object_key(original_name=file_name)
+            key = self._generate_object_key(original_name=file_name, prefix=prefix)
 
             extra_args = {"ContentType": content_type} if content_type else {}
             # 使用 boto3 的高阶方法执行多段上传（传入 TransferConfig 控制分片大小）
@@ -350,11 +409,13 @@ class S3SyncStorage:
             url: str,
             bucket: Optional[str] = None,
             timeout: int = 30,
+            prefix: Optional[str] = None,
     ) -> str:
         """从 URL 流式下载并上传到 S3
         - url: 源文件 URL
         - bucket: 目标桶；为空时取环境变量或实例默认值
         - timeout: HTTP 请求超时时间（秒，默认 30）
+        - prefix: 文件前缀（可选，如 temp_、perm_、avatar_、task_）
         返回：最终写入的对象 key
         """
         import urllib.request as urllib_request
@@ -370,6 +431,7 @@ class S3SyncStorage:
                     file_name=file_name,
                     content_type=content_type,
                     bucket=bucket,
+                    prefix=prefix,
                 )
         except Exception as e:
             logger.error(self._error_msg("Error uploading from URL to S3", e))
@@ -435,3 +497,69 @@ class S3SyncStorage:
             except Exception as ae:
                 logger.error(self._error_msg("abort_multipart_upload failed", ae))
             raise e
+
+    def get_file_url(self, file_key: str, bucket: Optional[str] = None) -> str:
+        """
+        获取文件的公开URL
+
+        Args:
+            file_key: 文件key
+            bucket: 目标桶（可选）
+
+        Returns:
+            文件的公开URL
+        """
+        try:
+            endpoint = self.endpoint_url
+            if not endpoint:
+                endpoint = os.environ.get("COZE_BUCKET_ENDPOINT_URL")
+
+            if not endpoint:
+                raise ValueError("未配置存储端点")
+
+            target_bucket = self._resolve_bucket(bucket)
+            # 构造URL：{endpoint}/{bucket}/{key}
+            return f"{endpoint.rstrip('/')}/{target_bucket}/{file_key}"
+        except Exception as e:
+            logger.error(self._error_msg("Error getting file URL", e))
+            raise e
+
+    def extract_file_type(self, file_name: str, mime_type: Optional[str] = None) -> str:
+        """
+        根据文件名或MIME类型提取文件类型
+
+        Args:
+            file_name: 文件名
+            mime_type: MIME类型（可选）
+
+        Returns:
+            文件类型（image/video/audio/document/other）
+        """
+        # 如果提供了MIME类型，优先使用MIME类型判断
+        if mime_type:
+            mime_type = mime_type.lower()
+            if mime_type.startswith('image/'):
+                return 'image'
+            elif mime_type.startswith('video/'):
+                return 'video'
+            elif mime_type.startswith('audio/'):
+                return 'audio'
+
+        # 根据文件扩展名判断
+        ext = Path(file_name).suffix.lower()
+        image_exts = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'}
+        video_exts = {'.mp4', '.avi', '.mov', '.wmv', '.flv', '.mkv', '.webm'}
+        audio_exts = {'.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma'}
+        document_exts = {'.pdf', '.doc', '.docx', '.txt', '.md', '.xls', '.xlsx', '.ppt', '.pptx'}
+
+        if ext in image_exts:
+            return 'image'
+        elif ext in video_exts:
+            return 'video'
+        elif ext in audio_exts:
+            return 'audio'
+        elif ext in document_exts:
+            return 'document'
+        else:
+            return 'other'
+

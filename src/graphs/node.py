@@ -624,12 +624,13 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
             else:
                 filename = f"avatar.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
             
-            # 上传到对象存储，设置为公共可读
+            # 上传到对象存储，设置为公共可读，使用 avatar_ 前缀
             file_key = storage.upload_file(
                 file_content=file_content,
                 file_name=filename,
                 content_type=mime_type,
-                acl='public-read'
+                acl='public-read',
+                prefix='avatar_'
             )
             
             # 生成签名 URL（10年有效期）
@@ -637,6 +638,30 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
                 key=file_key,
                 expire_time=315360000  # 3650天 = 10年
             )
+
+            # 记录文件元数据到数据库
+            try:
+                from storage.file_metadata_manager import FileMetadataManager
+                
+                meta_manager = FileMetadataManager(db)
+                file_type = 'image'  # 头像都是图片
+
+                # 记录元数据（头像文件，永久保留）
+                meta_manager.record_file(
+                    file_key=file_key,
+                    file_prefix='avatar',
+                    file_type=file_type,
+                    file_size=len(file_content),
+                    mime_type=mime_type,
+                    source_type='avatar',
+                    source_id=state.user_id,
+                    retention_policy='permanent',
+                    expire_hours=None
+                )
+            except Exception as meta_error:
+                # 元数据记录失败不影响主流程
+                logger.error(f"记录头像元数据失败: {meta_error}")
+
         except Exception:
             # 处理失败，保持原样
             processed_avatar = state.avatar
@@ -821,14 +846,18 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
     if not state.file:
         return UploadOutput(result={"success": False, "message": "未提供文件"})
 
+    file_key = None
+    mime_type = "application/octet-stream"
+    file_size = None
+
     try:
         # 从 URL 读取文件内容
         file_url = state.file.url
 
         # 判断数据类型
         if file_url.startswith(("http://", "https://")):
-            # 远程 URL：使用 upload_from_url
-            file_key = storage.upload_from_url(url=file_url)
+            # 远程 URL：使用 upload_from_url，添加 temp_ 前缀
+            file_key = storage.upload_from_url(url=file_url, prefix="temp_")
 
         elif file_url.startswith("data:image") or (file_url.startswith("data:application") and ";base64," in file_url):
             # Base64 格式（Data URL 格式）
@@ -843,6 +872,7 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
             # 解码 Base64
             try:
                 file_content = base64.b64decode(base64_data)
+                file_size = len(file_content)
             except Exception as e:
                 return UploadOutput(result={"success": False, "message": f"Base64 解码失败: {str(e)}"})
 
@@ -858,11 +888,12 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
             else:
                 filename = f"file.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
 
-            # 上传到对象存储
+            # 上传到对象存储，使用 temp_ 前缀
             file_key = storage.upload_file(
                 file_content=file_content,
                 file_name=filename,
-                content_type=mime_type
+                content_type=mime_type,
+                prefix="temp_"
             )
 
         else:
@@ -871,16 +902,51 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
             clean_path = file_url.replace("file://", "")
             with open(clean_path, "rb") as f:
                 file_content = f.read()
+                file_size = len(file_content)
                 # 从 URL 提取文件名
                 filename = os.path.basename(clean_path)
                 file_key = storage.upload_file(
                     file_content=file_content,
                     file_name=filename,
-                    content_type="application/octet-stream"
+                    content_type="application/octet-stream",
+                    prefix="temp_"
                 )
 
         # 生成 24 小时（86400 秒）公开 URL
         public_url = storage.generate_presigned_url(key=file_key, expire_time=86400)
+
+        # 记录文件元数据到数据库
+        try:
+            from storage.file_metadata_manager import FileMetadataManager
+            from storage.database.db import get_db
+
+            db_gen = get_db()
+            db = next(db_gen)
+
+            try:
+                meta_manager = FileMetadataManager(db)
+
+                # 提取文件类型
+                file_type = storage.extract_file_type(filename, mime_type)
+
+                # 记录元数据（临时文件，24小时后过期）
+                meta_manager.record_file(
+                    file_key=file_key,
+                    file_prefix='temp',
+                    file_type=file_type,
+                    file_size=file_size,
+                    mime_type=mime_type,
+                    source_type='upload',
+                    source_id=None,
+                    retention_policy='24h',
+                    expire_hours=24
+                )
+            finally:
+                db.close()
+                db_gen.close()
+        except Exception as meta_error:
+            # 元数据记录失败不影响主流程
+            logger.error(f"记录文件元数据失败: {meta_error}")
 
         return UploadOutput(result={
             "success": True,
@@ -905,12 +971,45 @@ def save_node(state: SaveInput, config: RunnableConfig, runtime: Runtime[Context
         return SaveOutput(result={"success": False, "message": "缺少必要参数：user_id 或 runninghub_link"})
 
     try:
-        # 将 RunningHub 链接中的图片转存到对象存储（持久化）
-        file_key = storage.upload_from_url(url=state.runninghub_link)
+        # 将 RunningHub 链接中的图片转存到对象存储（持久化），使用 perm_ 前缀
+        file_key = storage.upload_from_url(url=state.runninghub_link, prefix="perm_")
 
         # 生成永久链接（不设置过期时间，或者设置很长的时间）
         # 这里使用 10 年有效期作为"永久"链接
         permanent_url = storage.generate_presigned_url(key=file_key, expire_time=315360000)
+
+        # 记录文件元数据到数据库
+        try:
+            from storage.file_metadata_manager import FileMetadataManager
+            from storage.database.db import get_db
+
+            db_gen = get_db()
+            db = next(db_gen)
+
+            try:
+                meta_manager = FileMetadataManager(db)
+
+                # 提取文件类型（默认为image）
+                file_type = 'image'  # RunningHub 主要生成图片
+
+                # 记录元数据（永久文件）
+                meta_manager.record_file(
+                    file_key=file_key,
+                    file_prefix='perm',
+                    file_type=file_type,
+                    file_size=None,  # 从URL上传，大小未知
+                    mime_type='image/jpeg',  # 默认MIME类型
+                    source_type='save',
+                    source_id=state.user_id,
+                    retention_policy='permanent',
+                    expire_hours=None
+                )
+            finally:
+                db.close()
+                db_gen.close()
+        except Exception as meta_error:
+            # 元数据记录失败不影响主流程
+            logger.error(f"记录文件元数据失败: {meta_error}")
 
         return SaveOutput(result={
             "success": True,

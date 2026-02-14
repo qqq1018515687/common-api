@@ -3,6 +3,7 @@ from coze_coding_dev_sdk.database import Base
 from sqlalchemy import BigInteger, Boolean, DateTime, Index, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text
 from typing import Optional
 import datetime
+import time
 
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -85,3 +86,35 @@ class Users(Base):
     tier: Mapped[Optional[str]] = mapped_column(String(20), server_default=text("'standard'::character varying"))
     account_status: Mapped[Optional[str]] = mapped_column(String(20), server_default=text("'active'::character varying"))
     updated_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime)
+
+
+class FileMetadata(Base):
+    """文件元数据表，用于追踪和管理对象存储中的文件"""
+    __tablename__ = 'file_metadata'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='file_metadata_pkey'),
+        Index('ix_file_metadata_file_key', 'file_key'),
+        Index('ix_file_metadata_source_type', 'source_type'),
+        Index('ix_file_metadata_source_id', 'source_id'),
+        Index('ix_file_metadata_status', 'status'),
+        Index('ix_file_metadata_expire_time', 'expire_time'),
+        Index('ix_file_metadata_file_prefix', 'file_prefix'),
+        {'comment': '文件元数据表，用于追踪和管理对象存储中的文件'}
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, comment='文件ID（UUID）')
+    file_key: Mapped[str] = mapped_column(String(512), nullable=False, comment='文件在对象存储中的key')
+    file_prefix: Mapped[str] = mapped_column(String(20), nullable=False, comment='文件前缀（temp/perm/avatar/task）')
+    file_type: Mapped[str] = mapped_column(String(50), nullable=False, comment='文件类型（image/video/audio/document）')
+    file_size: Mapped[Optional[int]] = mapped_column(BigInteger, comment='文件大小（字节）')
+    mime_type: Mapped[Optional[str]] = mapped_column(String(100), comment='MIME类型')
+    source_type: Mapped[str] = mapped_column(String(50), nullable=False, comment='来源类型（upload/save/avatar/task）')
+    source_id: Mapped[Optional[str]] = mapped_column(String(36), comment='来源ID（user_id/task_id）')
+    upload_time: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='上传时间')
+    access_time: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='最后访问时间')
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'active'::character varying"), comment='状态（active/deleted）')
+    retention_policy: Mapped[Optional[str]] = mapped_column(String(50), comment='保留策略（24h/7d/30d/permanent）')
+    expire_time: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='过期时间')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
+
