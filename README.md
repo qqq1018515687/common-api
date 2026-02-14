@@ -91,6 +91,17 @@ crontab -e
 - `last_30_days` - 最近30天
 - `all_time` - 全部时间
 
+### 按团队ID查询
+```json
+{
+  "input": {
+    "operator_role": "admin",
+    "team_id": "team_001",
+    "time_range": "last_30_days"
+  }
+}
+```
+
 ### 自定义时间范围
 ```json
 {
