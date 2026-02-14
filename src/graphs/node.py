@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from langchain_core.runnables import RunnableConfig
 from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
@@ -5,6 +8,8 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from coze_coding_dev_sdk import LLMClient
 from jinja2 import Template
 import json
+import os
+import sys
 from typing import Optional, List
 from datetime import datetime
 
@@ -49,13 +54,16 @@ import io
 import base64
 import re
 import uuid
-
 from storage.database.db import get_session
 
 # 延迟导入以避免潜在的模块加载问题
 def _get_user_manager():
     from storage.database.user_manager import UserManager, UserCreate, UserUpdate, RateLimitManager
     return UserManager, UserCreate, UserUpdate, RateLimitManager
+
+
+# 配置日志
+logger = logging.getLogger(__name__)
 
 
 def router_node(state: RouterInput, config: RunnableConfig, runtime: Runtime[Context]) -> RouterOutput:
@@ -638,30 +646,6 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
                 key=file_key,
                 expire_time=315360000  # 3650天 = 10年
             )
-
-            # 记录文件元数据到数据库
-            try:
-                from storage.file_metadata_manager import FileMetadataManager
-                
-                meta_manager = FileMetadataManager(db)
-                file_type = 'image'  # 头像都是图片
-
-                # 记录元数据（头像文件，永久保留）
-                meta_manager.record_file(
-                    file_key=file_key,
-                    file_prefix='avatar',
-                    file_type=file_type,
-                    file_size=len(file_content),
-                    mime_type=mime_type,
-                    source_type='avatar',
-                    source_id=state.user_id,
-                    retention_policy='permanent',
-                    expire_hours=None
-                )
-            except Exception as meta_error:
-                # 元数据记录失败不影响主流程
-                logger.error(f"记录头像元数据失败: {meta_error}")
-
         except Exception:
             # 处理失败，保持原样
             processed_avatar = state.avatar
@@ -716,6 +700,31 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
                 success=False,
                 error="用户不存在"
             )
+
+        # 如果上传了新头像，记录文件元数据
+        if base64_data and processed_avatar != state.avatar:
+            try:
+                from storage.file_metadata_manager import FileMetadataManager
+                
+                meta_manager = FileMetadataManager(db)
+                file_type = 'image'  # 头像都是图片
+
+                # 记录元数据（头像文件，永久保留）
+                meta_manager.record_file(
+                    file_key=file_key,
+                    file_prefix='avatar',
+                    file_type=file_type,
+                    file_size=len(file_content),
+                    mime_type=mime_type,
+                    source_type='avatar',
+                    source_id=state.user_id,
+                    retention_policy='permanent',
+                    expire_hours=None
+                )
+                logger.info(f"记录头像元数据成功: {file_key}")
+            except Exception as meta_error:
+                # 元数据记录失败不影响主流程
+                logger.error(f"记录头像元数据失败: {meta_error}")
 
         user_data = {
             "user_id": db_user.user_id,

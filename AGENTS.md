@@ -1,6 +1,19 @@
 ## 项目概述
 - **名称**: Coze Coding 工作流
-- **功能**: 基于 LangGraph 的工作流项目，包含用户管理、文件上传、历史保存、任务管理等功能
+- **功能**: 基于 LangGraph 的工作流项目，包含用户管理、文件上传、历史保存、任务管理等功能，并实现了对象存储文件自动清理机制
+
+### 对象存储文件自动清理机制
+- **文件命名规则**: 采用 `{prefix}_{uuid}.{extension}` 格式
+  - `temp_`: 临时文件，24小时后自动清理
+  - `perm_`: 永久文件，永久保留
+  - `avatar_`: 用户头像，永久保留（用户删除或更换头像后清理旧头像）
+  - `task_`: 任务相关文件，任务删除后保留7天再清理
+- **数据库追踪**: 新增 `file_metadata` 表记录文件元数据，实现精确的文件生命周期管理
+- **清理策略**:
+  - 临时文件：24小时后自动清理
+  - 孤立头像：用户删除或更换头像后清理
+  - 已删除任务文件：任务删除后保留7天再清理
+- **清理脚本**: 提供了 `scripts/cleanup_files.py` 脚本，支持 `--dry-run` 模式和自定义保留时间
 
 ### 任务管理功能说明
 - **创建任务**：注册用户可创建任务，支持存储 workflow_parameters 和 parameter_snapshot
@@ -32,8 +45,8 @@
 | update_user | node.py | task | 更新用户信息（支持Base64头像自动转换） | - | - |
 | delete_user | node.py | task | 删除用户 | - | - |
 | list_users | node.py | task | 用户列表 | - | - |
-| upload | node.py | task | 文件上传 | - | - |
-| save | node.py | task | 保存历史记录 | - | - |
+| upload | node.py | task | 文件上传（使用temp_前缀，24小时自动清理） | - | - |
+| save | node.py | task | 保存历史记录（使用perm_前缀，永久保留） | - | - |
 | create_task | node.py | task | 创建任务 | - | - |
 | update_task | node.py | task | 更新任务 | - | - |
 | delete_task | node.py | task | 删除任务 | - | - |
@@ -51,8 +64,18 @@
 ## 集成使用
 - 节点 `check_rate_limit`, `update_rate_limit`, `register_with_limit`, `get_user`, `update_user`, `delete_user`, `list_users`, `save`, `upload`, `create_task`, `update_task`, `delete_task`, `list_tasks` 使用数据库集成
 - 节点 `upload`, `save` 使用对象存储集成
+- 节点 `upload`, `save`, `update_user` 使用文件元数据管理器（FileMetadataManager）
 - 节点 `reverse_image`, `translate_doubao`, `prompt_enhance` 使用大语言模型集成
 - 节点 `upload` 使用内容处理集成
+
+## 新增文件和模块
+| 文件/模块 | 路径 | 说明 |
+|----------|------|------|
+| FileMetadata 表 | `src/storage/database/shared/model.py` | 数据库表，存储文件元数据 |
+| S3SyncStorage 修改 | `src/storage/s3/s3_storage.py` | 修改文件生成逻辑，支持自定义文件前缀 |
+| FileMetadataManager | `src/storage/file_metadata_manager.py` | 文件元数据管理器，提供增删改查功能 |
+| FileCleanupManager | `src/storage/cleanup.py` | 文件清理管理器，实现临时文件、孤立头像、已删除任务文件的清理逻辑 |
+| 清理脚本 | `scripts/cleanup_files.py` | 命令行工具，支持 `--dry-run` 模式和自定义保留时间 |
 
 ## 文档索引
 | 文档 | 路径 | 说明 |

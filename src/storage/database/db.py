@@ -86,9 +86,17 @@ def get_sessionmaker():
 def get_session():
     return get_sessionmaker()()
 
+def get_db():
+    """
+    获取数据库会话（别名）
+    Returns: 数据库会话对象
+    """
+    return get_session()
+
 __all__ = [
     "get_db_url",
     "get_engine",
     "get_sessionmaker",
     "get_session",
+    "get_db",
 ]
