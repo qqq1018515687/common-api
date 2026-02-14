@@ -609,7 +609,7 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
                         acl='public-read'
                     )
 
-                    # 生成永久公开 URL（使用正确的公开域名）
+                    # 生成永久公开 URL（使用 Coze 公开域名）
                     public_domain = "https://coze-coding-project.tos.coze.site"
                     processed_avatar = f"{public_domain}/{storage.bucket_name}/{file_key}"
         except Exception:
