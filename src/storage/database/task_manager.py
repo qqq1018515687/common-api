@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from sqlalchemy import cast, Integer
 
 from storage.database.shared.model import Tasks, Users
 import time
@@ -135,12 +136,14 @@ class TaskManager:
         if start_date:
             # 将 start_date 转换为毫秒时间戳
             start_timestamp = int(start_date.timestamp() * 1000)
-            query = query.filter(Tasks.updated_at >= start_timestamp)
+            # 将 updated_at 从字符串转换为整数后再比较
+            query = query.filter(cast(Tasks.updated_at, Integer) >= start_timestamp)
 
         if end_date:
             # 将 end_date 转换为毫秒时间戳
             end_timestamp = int(end_date.timestamp() * 1000)
-            query = query.filter(Tasks.updated_at < end_timestamp)
+            # 将 updated_at 从字符串转换为整数后再比较
+            query = query.filter(cast(Tasks.updated_at, Integer) < end_timestamp)
 
         for attr, value in filters.items():
             if hasattr(Tasks, attr):
