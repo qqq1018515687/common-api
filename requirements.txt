@@ -50,7 +50,6 @@ jiter==0.13.0
 jmespath==1.1.0
 jsonpatch==1.33
 jsonpointer==3.0.0
-langchain==1.0.3
 langchain-core==1.2.12
 langchain-openai==1.1.9
 langgraph==1.0.8
