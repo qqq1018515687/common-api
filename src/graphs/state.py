@@ -38,6 +38,7 @@ class InputData(BaseModel):
     task_id: Optional[str] = Field(default=None, description="任务ID（update_task/delete_task 使用）")
     task_data: Optional[dict] = Field(default=None, description="任务数据（create_task 使用）")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据（update_task 使用）")
+    status: Optional[str] = Field(default=None, description="任务状态筛选（list_tasks 使用）：pending/running/success/failed")
 
 
 class GlobalState(BaseModel):
@@ -78,6 +79,7 @@ class GlobalState(BaseModel):
     task_id: Optional[str] = Field(default=None, description="任务ID（update_task/delete_task 使用）")
     task_data: Optional[dict] = Field(default=None, description="任务数据（create_task 使用）")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据（update_task 使用）")
+    status: Optional[str] = Field(default=None, description="任务状态筛选（list_tasks 使用）：pending/running/success/failed")
 
 
 class GraphInput(BaseModel):
