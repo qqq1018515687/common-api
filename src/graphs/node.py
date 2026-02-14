@@ -609,8 +609,9 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
                         acl='public-read'
                     )
 
-                    # 生成永久公开 URL
-                    processed_avatar = f"{storage.endpoint_url}/{storage.bucket_name}/{file_key}"
+                    # 生成永久公开 URL（使用正确的公开域名）
+                    public_domain = "https://coze-coding-project.tos.coze.site"
+                    processed_avatar = f"{public_domain}/{storage.bucket_name}/{file_key}"
         except Exception:
             # 处理失败，保持原样
             processed_avatar = state.avatar
