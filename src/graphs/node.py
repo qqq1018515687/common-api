@@ -33,7 +33,6 @@ from graphs.state import (
     RegisterWithLimitInput, RegisterWithLimitOutput,
     GetUserInput, GetUserOutput,
     GetUserByIdInput, GetUserByIdOutput,
-    ProcessAvatarInput, ProcessAvatarOutput,
     UpdateUserInput, UpdateUserOutput,
     DeleteUserInput, DeleteUserOutput,
     ListUsersInput, ListUsersOutput,
@@ -564,32 +563,29 @@ def get_user_by_id_node(state: GetUserByIdInput, config: RunnableConfig, runtime
         db.close()
 
 
-def process_avatar_node(state: ProcessAvatarInput, config: RunnableConfig, runtime: Runtime[Context]) -> ProcessAvatarOutput:
+def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Runtime[Context]) -> UpdateUserOutput:
     """
-    title: 处理用户头像
-    desc: 如果头像为Base64格式，则上传到对象存储并转换为永久公开URL
-    integrations: 对象存储
+    title: 更新用户
+    desc: 更新用户信息（管理员可更新任何用户，普通用户只能更新自己）。支持Base64头像自动转换为永久公开URL
+    integrations: 数据库, 对象存储
     """
+    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
     ctx = runtime.context
 
+    # 处理头像：如果为Base64则转换为永久URL
     processed_avatar = state.avatar
-
-    # 检查 avatar 是否为 Base64 格式
     if state.avatar and state.avatar.startswith('data:image'):
         try:
             # 解析 Data URL 格式：data:image/png;base64,xxx
             match = re.match(r"data:([^;]+);base64,(.+)", state.avatar)
-            if not match:
-                # 格式错误，保持原样
-                processed_avatar = state.avatar
-            else:
+            if match:
                 mime_type = match.group(1)  # 例如：image/png
                 base64_data = match.group(2)
 
                 # 解码 Base64
                 try:
                     file_content = base64.b64decode(base64_data)
-                except Exception as e:
+                except Exception:
                     # 解码失败，保持原样
                     processed_avatar = state.avatar
                 else:
@@ -610,41 +606,14 @@ def process_avatar_node(state: ProcessAvatarInput, config: RunnableConfig, runti
                         file_content=file_content,
                         file_name=filename,
                         content_type=mime_type,
-                        acl='public-read'  # 设置为公开可读
+                        acl='public-read'
                     )
 
-                    # 生成永久公开 URL（公共 URL，不是签名 URL）
-                    public_url = f"{storage.endpoint_url}/{storage.bucket_name}/{file_key}"
-                    processed_avatar = public_url
-
-        except Exception as e:
+                    # 生成永久公开 URL
+                    processed_avatar = f"{storage.endpoint_url}/{storage.bucket_name}/{file_key}"
+        except Exception:
             # 处理失败，保持原样
             processed_avatar = state.avatar
-
-    return ProcessAvatarOutput(
-        user_id=state.user_id,
-        operator_user_id=state.operator_user_id,
-        operator_role=state.operator_role,
-        phone=state.phone,
-        username=state.username,
-        avatar=processed_avatar,
-        team_id=state.team_id,
-        gold_credits=state.gold_credits,
-        silver_credits=state.silver_credits,
-        role=state.role,
-        tier=state.tier,
-        account_status=state.account_status
-    )
-
-
-def update_user_node(state: ProcessAvatarInput, config: RunnableConfig, runtime: Runtime[Context]) -> UpdateUserOutput:
-    """
-    title: 更新用户
-    desc: 更新用户信息（管理员可更新任何用户，普通用户只能更新自己）。avatar字段如果是Base64会被process_avatar_node转换为永久URL
-    integrations: 数据库
-    """
-    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
-    ctx = runtime.context
 
     db = get_session()
     try:
@@ -665,7 +634,7 @@ def update_user_node(state: ProcessAvatarInput, config: RunnableConfig, runtime:
         if state.username is not None:
             updates['username'] = state.username
         if state.avatar is not None:
-            updates['avatar'] = state.avatar
+            updates['avatar'] = processed_avatar  # 使用处理后的头像
         if state.team_id is not None:
             updates['team_id'] = state.team_id
         if state.gold_credits is not None:
@@ -686,31 +655,6 @@ def update_user_node(state: ProcessAvatarInput, config: RunnableConfig, runtime:
                 success=False,
                 error="未提供任何更新字段"
             )
-
-        # 构造更新字典
-        updates = {}
-        if state.phone is not None:
-            updates['phone'] = state.phone
-        if state.username is not None:
-            updates['username'] = state.username
-        if state.avatar is not None:
-            updates['avatar'] = state.avatar
-        if state.team_id is not None:
-            updates['team_id'] = state.team_id
-        if state.gold_credits is not None:
-            updates['gold_credits'] = state.gold_credits
-        if state.silver_credits is not None:
-            updates['silver_credits'] = state.silver_credits
-        if state.role is not None:
-            updates['role'] = state.role
-        if state.tier is not None:
-            updates['tier'] = state.tier
-        if state.account_status is not None:
-            updates['account_status'] = state.account_status
-
-        # 如果没有提供任何更新字段，返回错误
-        if not updates:
-            return UpdateUserOutput(success=False, error="未提供任何更新字段")
 
         user_in = UserUpdate(**updates)
         db_user = user_mgr.update_user(db, state.user_id, user_in)

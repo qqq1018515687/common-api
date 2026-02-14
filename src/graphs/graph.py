@@ -33,7 +33,6 @@ from graphs.node import (
     register_with_limit_node,
     get_user_node,
     get_user_by_id_node,
-    process_avatar_node,
     update_user_node,
     delete_user_node,
     list_users_node,
@@ -98,7 +97,6 @@ builder.add_node("update_rate_limit", update_rate_limit_node)
 builder.add_node("register_with_limit", register_with_limit_node)
 builder.add_node("get_user", get_user_node)
 builder.add_node("get_user_by_id", get_user_by_id_node)
-builder.add_node("process_avatar", process_avatar_node)
 builder.add_node("update_user", update_user_node)
 builder.add_node("delete_user", delete_user_node)
 builder.add_node("list_users", list_users_node)
@@ -155,7 +153,7 @@ builder.add_conditional_edges(
         "用户注册": "register_with_limit",
         "用户登录": "get_user",
         "查询单个用户": "get_user_by_id",
-        "更新用户": "process_avatar",
+        "更新用户": "update_user",
         "删除用户": "delete_user",
         "用户列表": "list_users"
     }
@@ -179,7 +177,6 @@ builder.add_edge("update_rate_limit", "format_response")
 builder.add_edge("register_with_limit", "format_response")
 builder.add_edge("get_user", "format_response")
 builder.add_edge("get_user_by_id", "format_response")
-builder.add_edge("process_avatar", "update_user")
 builder.add_edge("update_user", "format_response")
 builder.add_edge("delete_user", "format_response")
 builder.add_edge("list_users", "format_response")
