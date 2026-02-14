@@ -139,14 +139,27 @@ class S3SyncStorage:
             example = bad[0] if bad else "非法字符"
             raise ValueError(msg + f"（原因：包含非法字符，例如：{example}）")
 
-    def upload_file(self, *, file_content: bytes, file_name: str, content_type: str = "application/octet-stream", bucket: Optional[str] = None) -> str:
+    def upload_file(self, *, file_content: bytes, file_name: str, content_type: str = "application/octet-stream", bucket: Optional[str] = None, acl: Optional[str] = None) -> str:
         # 先对输入文件名做规范校验，避免生成无效对象 key
         self._validate_file_name(file_name)
         try:
             client = self._get_client()
             object_key = self._generate_object_key(original_name=file_name)
             target_bucket = self._resolve_bucket(bucket)
-            client.put_object(Bucket=target_bucket, Key=object_key, Body=file_content, ContentType=content_type)
+
+            # 构造 put_object 参数
+            put_object_kwargs = {
+                "Bucket": target_bucket,
+                "Key": object_key,
+                "Body": file_content,
+                "ContentType": content_type
+            }
+
+            # 如果指定了 ACL，添加到参数中
+            if acl:
+                put_object_kwargs["ACL"] = acl
+
+            client.put_object(**put_object_kwargs)
             return object_key
         except Exception as e:
             logger.error(self._error_msg("Error uploading file to S3", e))

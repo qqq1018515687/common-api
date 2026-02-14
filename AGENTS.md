@@ -29,6 +29,7 @@
 | register_with_limit | node.py | task | 用户注册（带限流检查） | - | - |
 | get_user | node.py | task | 获取用户信息（登录） | - | - |
 | get_user_by_id | node.py | task | 根据用户ID查询单个用户 | - | - |
+| process_avatar | node.py | task | 处理用户头像（Base64转永久URL） | - | - |
 | update_user | node.py | task | 更新用户信息 | - | - |
 | delete_user | node.py | task | 删除用户 | - | - |
 | list_users | node.py | task | 用户列表 | - | - |

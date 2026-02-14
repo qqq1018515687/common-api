@@ -191,6 +191,39 @@ class GetUserByIdOutput(BaseModel):
     error: Optional[str] = Field(default=None, description="错误信息")
 
 
+# 处理用户头像节点
+class ProcessAvatarInput(BaseModel):
+    """处理用户头像节点的输入"""
+    user_id: str = Field(..., description="用户ID（要被更新的用户）")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色（admin 或 user）")
+    phone: Optional[str] = Field(default=None, description="手机号")
+    username: Optional[str] = Field(default=None, description="用户名")
+    avatar: Optional[str] = Field(default=None, description="头像URL或Base64")
+    team_id: Optional[str] = Field(default=None, description="团队ID")
+    gold_credits: Optional[int] = Field(default=None, description="金豆余额")
+    silver_credits: Optional[int] = Field(default=None, description="银豆余额")
+    role: Optional[str] = Field(default=None, description="用户角色")
+    tier: Optional[str] = Field(default=None, description="用户等级")
+    account_status: Optional[str] = Field(default=None, description="账号状态")
+
+
+class ProcessAvatarOutput(BaseModel):
+    """处理用户头像节点的输出"""
+    user_id: str = Field(..., description="用户ID（要被更新的用户）")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色（admin 或 user）")
+    phone: Optional[str] = Field(default=None, description="手机号")
+    username: Optional[str] = Field(default=None, description="用户名")
+    avatar: Optional[str] = Field(default=None, description="处理后的头像URL（Base64已转为永久URL）")
+    team_id: Optional[str] = Field(default=None, description="团队ID")
+    gold_credits: Optional[int] = Field(default=None, description="金豆余额")
+    silver_credits: Optional[int] = Field(default=None, description="银豆余额")
+    role: Optional[str] = Field(default=None, description="用户角色")
+    tier: Optional[str] = Field(default=None, description="用户等级")
+    account_status: Optional[str] = Field(default=None, description="账号状态")
+
+
 # 更新用户节点
 class UpdateUserInput(BaseModel):
     """更新用户节点的输入"""
