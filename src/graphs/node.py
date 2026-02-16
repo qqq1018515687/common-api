@@ -91,6 +91,8 @@ def route_by_operation_type(state: OperationRouteInput) -> str:
         return "用户登录"
     elif operation_type == "get_user_by_id":
         return "查询单个用户"
+    elif operation_type == "get_user":
+        return "查询单个用户"
     elif operation_type == "update_user":
         return "更新用户"
     elif operation_type == "delete_user":
