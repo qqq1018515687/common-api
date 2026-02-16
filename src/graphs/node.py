@@ -143,7 +143,7 @@ def parse_file_type(file_type: Optional[str]) -> str:
 def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, runtime: Runtime[Context]) -> UnpackInputDataOutput:
     """
     title: 数据解包
-    desc: 将 input 对象中的业务字段解包到全局状态中，支持 MIME 类型的 file_type
+    desc: 将 input 对象中的业务字段解包到全局状态中，支持 MIME 类型的 file_type 和密码自动哈希
     """
     ctx = runtime.context
 
@@ -166,6 +166,15 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
             processed_file = file_item.model_copy(update={"file_type": parsed_type})
             processed_file_list.append(processed_file)
 
+    # 处理密码哈希转换（如果是注册操作且提供了明文密码）
+    password_hash = None
+    if input_data:
+        password_hash = input_data.password_hash
+        if not password_hash and input_data.password and input_data.operation_type == "register":
+            # 注册操作：如果提供了 password 但没有 password_hash，则自动转换
+            from storage.database.user_manager import hash_password
+            password_hash = hash_password(input_data.password)
+
     return UnpackInputDataOutput(
         call_type=state.call_type,
         tool_type=state.tool_type,
@@ -180,7 +189,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         # 用户管理相关字段
         phone=input_data.phone if input_data else None,
         ip=input_data.ip if input_data else None,
-        password_hash=input_data.password_hash if input_data else None,
+        password_hash=password_hash,
         avatar=input_data.avatar if input_data else None,
         team_id=input_data.team_id if input_data else None,
         gold_credits=input_data.gold_credits if input_data else None,
@@ -416,9 +425,9 @@ def register_with_limit_node(state: RegisterWithLimitInput, config: RunnableConf
     # 验证必填字段
     if not state.phone or not state.ip or not state.password_hash or not state.username:
         return RegisterWithLimitOutput(
-            result={"success": False, "error": "缺少必要参数"},
+            result={"success": False, "error": "缺少必要参数：phone、ip、password_hash、username"},
             success=False,
-            error="缺少必要参数"
+            error="缺少必要参数：phone、ip、password_hash、username"
         )
 
     # 1. 检查限流

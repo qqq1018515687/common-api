@@ -62,7 +62,7 @@ class TaskManager:
 
     def create_task(self, db: Session, task_in: TaskCreate) -> Tasks:
         """创建任务"""
-        current_time = int(time.time() * 1000)
+        current_time = str(int(time.time() * 1000))
         task_data = task_in.model_dump()
         task_data['status'] = 'running'
         task_data['created_at'] = current_time
@@ -114,11 +114,11 @@ class TaskManager:
             Tasks.is_deleted == False
         )
 
-        # 时间范围筛选
+        # 时间范围筛选（将时间戳转换为字符串比较）
         if start_time is not None:
-            query = query.filter(Tasks.created_at >= start_time)
+            query = query.filter(Tasks.created_at >= str(start_time))
         if end_time is not None:
-            query = query.filter(Tasks.created_at <= end_time)
+            query = query.filter(Tasks.created_at <= str(end_time))
 
         # 状态筛选
         if status:
@@ -156,7 +156,7 @@ class TaskManager:
             return None
 
         update_data = task_in.model_dump(exclude_unset=True)
-        update_data['updated_at'] = int(time.time() * 1000)
+        update_data['updated_at'] = str(int(time.time() * 1000))
 
         for field, value in update_data.items():
             if hasattr(db_task, field):
@@ -247,11 +247,11 @@ class TaskManager:
             Tasks.is_deleted == False
         )
 
-        # 时间范围筛选
+        # 时间范围筛选（将时间戳转换为字符串比较）
         if start_time is not None:
-            query = query.filter(Tasks.created_at >= start_time)
+            query = query.filter(Tasks.created_at >= str(start_time))
         if end_time is not None:
-            query = query.filter(Tasks.created_at <= end_time)
+            query = query.filter(Tasks.created_at <= str(end_time))
 
         # 状态筛选
         if status:
