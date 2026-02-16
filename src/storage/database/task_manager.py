@@ -87,21 +87,50 @@ class TaskManager:
         db: Session,
         user_id: str,
         status: Optional[str] = None,
-        skip: int = 0,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
         limit: int = 100,
         **filters
     ) -> List[Tasks]:
-        """根据用户ID获取任务列表（自动过滤已删除的任务）"""
-        query = db.query(Tasks).filter(Tasks.user_id == user_id, Tasks.is_deleted == False)
+        """根据用户ID获取任务列表（使用时间范围筛选，自动过滤已删除的任务）
 
+        Args:
+            db: 数据库会话
+            user_id: 用户ID
+            status: 任务状态筛选（可选）
+            start_time: 查询开始时间戳（毫秒，可选）
+            end_time: 查询结束时间戳（毫秒，可选）
+            limit: 最大返回数量（默认100，最大500）
+            **filters: 其他筛选条件（如 team_id）
+
+        Returns:
+            任务列表（按 created_at DESC 排序）
+        """
+        # 限制最大返回数量
+        limit = min(limit, 500)
+
+        query = db.query(Tasks).filter(
+            Tasks.user_id == user_id,
+            Tasks.is_deleted == False
+        )
+
+        # 时间范围筛选
+        if start_time is not None:
+            query = query.filter(Tasks.created_at >= start_time)
+        if end_time is not None:
+            query = query.filter(Tasks.created_at <= end_time)
+
+        # 状态筛选
         if status:
             query = query.filter(Tasks.status == status)
 
+        # 其他筛选条件
         for attr, value in filters.items():
             if hasattr(Tasks, attr):
                 query = query.filter(getattr(Tasks, attr) == value)
 
-        return query.order_by(Tasks.updated_at.desc()).offset(skip).limit(limit).all()
+        # 按 created_at 降序排列，限制返回数量
+        return query.order_by(Tasks.created_at.desc()).limit(limit).all()
 
     def get_task_by_platform_task_id(
         self,
@@ -197,11 +226,34 @@ class TaskManager:
         self,
         db: Session,
         user_id: str,
-        status: Optional[str] = None
+        status: Optional[str] = None,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None
     ) -> int:
-        """统计用户任务数量（自动过滤已删除的任务）"""
-        query = db.query(Tasks).filter(Tasks.user_id == user_id, Tasks.is_deleted == False)
+        """统计用户任务数量（使用时间范围筛选，自动过滤已删除的任务）
 
+        Args:
+            db: 数据库会话
+            user_id: 用户ID
+            status: 任务状态筛选（可选）
+            start_time: 查询开始时间戳（毫秒，可选）
+            end_time: 查询结束时间戳（毫秒，可选）
+
+        Returns:
+            任务数量
+        """
+        query = db.query(Tasks).filter(
+            Tasks.user_id == user_id,
+            Tasks.is_deleted == False
+        )
+
+        # 时间范围筛选
+        if start_time is not None:
+            query = query.filter(Tasks.created_at >= start_time)
+        if end_time is not None:
+            query = query.filter(Tasks.created_at <= end_time)
+
+        # 状态筛选
         if status:
             query = query.filter(Tasks.status == status)
 

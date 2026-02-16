@@ -29,9 +29,12 @@ class InputData(BaseModel):
     updates: Optional[dict] = Field(default=None, description="更新字段")
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
-    page: Optional[int] = Field(default=None, description="页码")
     limit: Optional[int] = Field(default=None, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
+
+    # 任务时间范围查询字段
+    start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒，13位整数）")
+    end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒，13位整数）")
 
     # 任务管理相关字段
     task_id: Optional[str] = Field(default=None, description="任务ID（update_task/delete_task 使用）")
@@ -68,9 +71,12 @@ class GlobalState(BaseModel):
     updates: Optional[dict] = Field(default=None, description="更新字段")
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
-    page: Optional[int] = Field(default=None, description="页码")
     limit: Optional[int] = Field(default=None, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
+
+    # 任务时间范围查询字段
+    start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒，13位整数）")
+    end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒，13位整数）")
 
     # 任务管理相关字段
     task_id: Optional[str] = Field(default=None, description="任务ID（update_task/delete_task 使用）")
@@ -80,7 +86,7 @@ class GlobalState(BaseModel):
 
 class GraphInput(BaseModel):
     """工作流的输入"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool/task_management")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
 
@@ -147,11 +153,11 @@ class UpdateRateLimitOutput(BaseModel):
 # 注册组合节点
 class RegisterWithLimitInput(BaseModel):
     """注册组合节点的输入"""
-    phone: str = Field(..., description="手机号")
-    ip: str = Field(..., description="IP地址")
-    password_hash: str = Field(..., description="密码哈希")
-    username: str = Field(..., description="用户名")
-    avatar: str = Field(..., description="头像URL")
+    phone: Optional[str] = Field(default=None, description="手机号")
+    ip: Optional[str] = Field(default=None, description="IP地址")
+    password_hash: Optional[str] = Field(default=None, description="密码哈希")
+    username: Optional[str] = Field(default=None, description="用户名")
+    avatar: Optional[str] = Field(default=None, description="头像URL")
 
 
 class RegisterWithLimitOutput(BaseModel):
@@ -316,8 +322,9 @@ class ListTasksInput(BaseModel):
     user_id: str = Field(..., description="用户ID（必须是已注册的活跃用户）")
     team_id: Optional[str] = Field(default=None, description="团队ID筛选")
     status: Optional[str] = Field(default=None, description="任务状态筛选")
-    page: Optional[int] = Field(default=1, description="页码")
-    limit: Optional[int] = Field(default=10, description="每页数量")
+    start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒，13位整数）")
+    end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒，13位整数）")
+    limit: Optional[int] = Field(default=100, description="最大返回数量（默认100，最大不超过500）")
 
 
 class ListTasksOutput(BaseModel):
@@ -328,11 +335,35 @@ class ListTasksOutput(BaseModel):
 class TaskRouteInput(BaseModel):
     """任务路由节点的输入"""
     operation_type: str = Field(..., description="操作类型：create_task/update_task/delete_task/list_tasks")
+    # 任务管理相关字段
+    user_id: Optional[str] = Field(default=None, description="用户ID")
+    task_id: Optional[str] = Field(default=None, description="任务ID")
+    task_data: Optional[dict] = Field(default=None, description="任务数据")
+    task_updates: Optional[dict] = Field(default=None, description="任务更新数据")
+    # 时间范围查询字段
+    start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒）")
+    end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒）")
+    # 其他筛选字段
+    team_id: Optional[str] = Field(default=None, description="团队ID")
+    status: Optional[str] = Field(default=None, description="任务状态")
+    limit: Optional[int] = Field(default=None, description="最大返回数量")
 
 
 class TaskRouteOutput(BaseModel):
     """任务路由节点的输出"""
     operation_type: str = Field(..., description="操作类型")
+    # 任务管理相关字段
+    user_id: Optional[str] = Field(default=None, description="用户ID")
+    task_id: Optional[str] = Field(default=None, description="任务ID")
+    task_data: Optional[dict] = Field(default=None, description="任务数据")
+    task_updates: Optional[dict] = Field(default=None, description="任务更新数据")
+    # 时间范围查询字段
+    start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒）")
+    end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒）")
+    # 其他筛选字段
+    team_id: Optional[str] = Field(default=None, description="团队ID")
+    status: Optional[str] = Field(default=None, description="任务状态")
+    limit: Optional[int] = Field(default=None, description="最大返回数量")
 
 
 # 统一返回节点
@@ -404,6 +435,9 @@ class UnpackInputDataOutput(BaseModel):
     page: Optional[int] = Field(default=None, description="页码")
     limit: Optional[int] = Field(default=None, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
+    # 任务时间范围查询字段
+    start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒）")
+    end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒）")
     # 任务管理相关字段
     task_id: Optional[str] = Field(default=None, description="任务ID")
     task_data: Optional[dict] = Field(default=None, description="任务数据")

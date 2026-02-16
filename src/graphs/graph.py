@@ -58,7 +58,7 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "文件上传"
     elif call_type == "save":
         return "保存历史"
-    elif call_type == "user_task_management":
+    elif call_type == "task_management" or call_type == "user_task_management":
         return "任务管理"
     elif call_type == "tool":
         return "工具中心"

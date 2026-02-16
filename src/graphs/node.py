@@ -191,9 +191,11 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         updates=input_data.updates if input_data else None,
         operator_role=input_data.operator_role if input_data else None,
         operator_user_id=input_data.operator_user_id if input_data else None,
-        page=input_data.page if input_data else None,
         limit=input_data.limit if input_data else None,
         filter=input_data.filter if input_data else None,
+        # 任务时间范围查询字段
+        start_time=input_data.start_time if input_data else None,
+        end_time=input_data.end_time if input_data else None,
         # 任务管理相关字段
         task_id=input_data.task_id if input_data else None,
         task_data=input_data.task_data if input_data else None,
@@ -411,6 +413,14 @@ def register_with_limit_node(state: RegisterWithLimitInput, config: RunnableConf
     """
     ctx = runtime.context
 
+    # 验证必填字段
+    if not state.phone or not state.ip or not state.password_hash or not state.username:
+        return RegisterWithLimitOutput(
+            result={"success": False, "error": "缺少必要参数"},
+            success=False,
+            error="缺少必要参数"
+        )
+
     # 1. 检查限流
     check_result = check_rate_limit_node(
         CheckRateLimitInput(phone=state.phone, ip=state.ip),
@@ -431,7 +441,7 @@ def register_with_limit_node(state: RegisterWithLimitInput, config: RunnableConf
             phone=state.phone,
             password_hash=state.password_hash,
             username=state.username,
-            avatar=state.avatar
+            avatar=state.avatar or "https://example.com/default-avatar.png"
         ),
         config,
         runtime
@@ -927,9 +937,20 @@ def save_node(state: SaveInput, config: RunnableConfig, runtime: Runtime[Context
 def task_route_node(state: TaskRouteInput, config: RunnableConfig, runtime: Runtime[Context]) -> TaskRouteOutput:
     """
     title: 任务路由
-    desc: 用于任务管理的二级路由，传递 operation_type
+    desc: 用于任务管理的二级路由，传递 operation_type 和相关字段
     """
-    return TaskRouteOutput(operation_type=state.operation_type)
+    return TaskRouteOutput(
+        operation_type=state.operation_type,
+        user_id=state.user_id,
+        task_id=state.task_id,
+        task_data=state.task_data,
+        task_updates=state.task_updates,
+        start_time=state.start_time,
+        end_time=state.end_time,
+        team_id=state.team_id,
+        status=state.status,
+        limit=state.limit
+    )
 
 
 def route_by_task_operation_type(state: TaskRouteInput) -> str:
@@ -1087,13 +1108,21 @@ def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Ru
 def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runtime[Context]) -> ListTasksOutput:
     """
     title: 查询任务列表
-    desc: 根据用户ID查询任务列表，支持状态筛选和分页（仅限注册用户）
+    desc: 根据用户ID和时间范围查询任务列表，支持状态筛选（仅限注册用户）
     integrations: 数据库
     """
     ctx = runtime.context
 
     if not state.user_id:
         return ListTasksOutput(result={"success": False, "message": "缺少必要参数：user_id"})
+
+    # 验证时间参数
+    if not state.start_time or not state.end_time:
+        return ListTasksOutput(result={"success": False, "message": "缺少必要参数：start_time 或 end_time"})
+
+    # 验证时间范围
+    if state.start_time > state.end_time:
+        return ListTasksOutput(result={"success": False, "message": "start_time 不能大于 end_time"})
 
     try:
         from storage.database.task_manager import TaskManager
@@ -1107,9 +1136,7 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
             if not has_permission:
                 return ListTasksOutput(result={"success": False, "message": error_msg})
 
-            page = state.page or 1
-            limit = state.limit or 10
-            skip = (page - 1) * limit
+            limit = min(state.limit or 100, 500)  # 最大不超过500
 
             # 构建筛选条件
             filters = {}
@@ -1120,12 +1147,19 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 db,
                 user_id=state.user_id,
                 status=state.status,
-                skip=skip,
+                start_time=state.start_time,
+                end_time=state.end_time,
                 limit=limit,
                 **filters
             )
 
-            total = task_mgr.count_tasks_by_user_id(db, state.user_id, state.status)
+            total = task_mgr.count_tasks_by_user_id(
+                db,
+                state.user_id,
+                state.status,
+                start_time=state.start_time,
+                end_time=state.end_time
+            )
 
             # 转换为可序列化的字典列表
             task_list = []
@@ -1156,8 +1190,11 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 "message": "查询成功",
                 "tasks": task_list,
                 "total": total,
-                "page": page,
-                "limit": limit
+                "limit": limit,
+                "time_range": {
+                    "start_time": state.start_time,
+                    "end_time": state.end_time
+                }
             })
 
         finally:
