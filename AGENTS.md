@@ -61,8 +61,10 @@
   - `uploads/` - 用户上传文件（7天过期）
   - `temp/` - 临时文件（1天过期）
 - **清理工具**: `scripts/cleanup_storage.py` - 用于清理过期文件
+- **迁移工具**: `scripts/migrate_old_data.py` - 用于迁移旧数据到新方案
 - **使用文档**: `docs/STORAGE_GUIDE.md` - 详细使用指南
 - **总结文档**: `docs/STORAGE_SUMMARY.md` - 方案总结和常见问题
+- **对比文档**: `docs/OLD_VS_NEW_DATA.md` - 旧数据 vs 新数据对比
 
 ## 文档索引
 | 文档 | 路径 | 说明 |
