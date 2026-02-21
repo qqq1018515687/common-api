@@ -9,7 +9,10 @@ import re
 import logging
 from pathlib import Path
 
-sys.path.insert(0, '/app')
+# 添加项目根目录到 Python 路径
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 from src.storage.s3.s3_storage import S3SyncStorage
 
