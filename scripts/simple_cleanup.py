@@ -138,39 +138,58 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  # 1. 扫描旧数据
+  # 1. 扫描旧数据（开发环境）
   python scripts/simple_cleanup.py --analyze
 
-  # 2. 试运行（不实际删除）
-  python scripts/simple_cleanup.py --cleanup
+  # 2. 扫描旧数据（生产环境）
+  python scripts/simple_cleanup.py --analyze --endpoint-url https://xxx --bucket-name production-bucket
 
-  # 3. 确认后执行
-  python scripts/simple_cleanup.py --cleanup --force
+  # 3. 试运行（不实际删除）
+  python scripts/simple_cleanup.py --cleanup --endpoint-url https://xxx --bucket-name production-bucket
+
+  # 4. 确认后执行
+  python scripts/simple_cleanup.py --cleanup --force --endpoint-url https://xxx --bucket-name production-bucket
+
+  # 5. 使用环境变量
+  export COZE_BUCKET_ENDPOINT_URL=https://xxx
+  export COZE_BUCKET_NAME=production-bucket
+  python scripts/simple_cleanup.py --analyze
         """
     )
 
     parser.add_argument('--analyze', action='store_true', help='扫描旧数据')
     parser.add_argument('--cleanup', action='store_true', help='清理旧数据')
     parser.add_argument('--force', action='store_true', help='实际执行（需配合 --cleanup）')
+    parser.add_argument('--endpoint-url', help='对象存储端点 URL')
+    parser.add_argument('--bucket-name', help='Bucket 名称')
+    parser.add_argument('--access-key', help='访问密钥（可选）')
+    parser.add_argument('--secret-key', help='秘钥（可选）')
 
     args = parser.parse_args()
 
-    # 初始化存储
+    # 初始化存储（命令行参数优先级高于环境变量）
     storage = S3SyncStorage(
-        endpoint_url=os.getenv("COZE_BUCKET_ENDPOINT_URL"),
-        access_key=os.getenv("COZE_ACCESS_KEY", ""),
-        secret_key=os.getenv("COZE_SECRET_KEY", ""),
-        bucket_name=os.getenv("COZE_BUCKET_NAME"),
+        endpoint_url=args.endpoint_url or os.getenv("COZE_BUCKET_ENDPOINT_URL"),
+        access_key=args.access_key or os.getenv("COZE_ACCESS_KEY", ""),
+        secret_key=args.secret_key or os.getenv("COZE_SECRET_KEY", ""),
+        bucket_name=args.bucket_name or os.getenv("COZE_BUCKET_NAME"),
         region=os.getenv("COZE_BUCKET_REGION", "cn-beijing")
     )
 
     cleaner = SimpleOldDataCleaner(storage)
 
+    # 显示环境信息
+    logger.info("=" * 60)
+    logger.info(f"对象存储配置")
+    logger.info("=" * 60)
+    logger.info(f"  Endpoint: {storage.endpoint_url}")
+    logger.info(f"  Bucket: {storage.bucket_name}")
+    logger.info(f"  Region: {storage.region}")
+    logger.info("=" * 60)
+
     if args.analyze:
         # 扫描模式
-        logger.info("=" * 60)
-        logger.info("扫描旧数据")
-        logger.info("=" * 60)
+        logger.info("\n扫描旧数据\n")
 
         files_info = cleaner.identify_old_files()
 
