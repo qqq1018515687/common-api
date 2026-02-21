@@ -130,6 +130,28 @@ python scripts/migrate_old_data.py --migrate
 python scripts/migrate_old_data.py --migrate --force
 ```
 
+### 旧数据清理（推荐）
+
+如果不需要迁移，只想清理旧数据中的非头像文件，使用安全清理工具：
+
+```bash
+# 1. 分析旧数据
+python scripts/clean_old_data.py --analyze
+
+# 2. 试运行清理
+python scripts/clean_old_data.py --cleanup
+
+# 3. 确认后执行
+python scripts/clean_old_data.py --cleanup --force
+```
+
+**清理规则**：
+- ✅ 保留：文件名包含 `avatar` 的旧头像
+- ❌ 删除：其他旧文件（上传、临时等）
+- ✅ 不受影响：已有分类前缀的新文件
+
+详细指南：`docs/CLEAN_OLD_DATA_GUIDE.md`
+
 ### 渐进式迁移
 
 - ✅ 新上传的文件自动使用新方案

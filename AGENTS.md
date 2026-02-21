@@ -60,11 +60,15 @@
   - `avatars/` - 用户头像（永久存储，10年，public-read）
   - `uploads/` - 用户上传文件（7天过期）
   - `temp/` - 临时文件（1天过期）
-- **清理工具**: `scripts/cleanup_storage.py` - 用于清理过期文件
-- **迁移工具**: `scripts/migrate_old_data.py` - 用于迁移旧数据到新方案
-- **使用文档**: `docs/STORAGE_GUIDE.md` - 详细使用指南
-- **总结文档**: `docs/STORAGE_SUMMARY.md` - 方案总结和常见问题
-- **对比文档**: `docs/OLD_VS_NEW_DATA.md` - 旧数据 vs 新数据对比
+- **清理工具**: 
+  - `scripts/cleanup_storage.py` - 清理过期的新文件
+  - `scripts/clean_old_data.py` - 安全清理旧数据（只保留头像，删除其他）
+- **迁移工具**: `scripts/migrate_old_data.py` - 迁移旧数据到新方案
+- **使用文档**: 
+  - `docs/STORAGE_GUIDE.md` - 详细使用指南
+  - `docs/STORAGE_SUMMARY.md` - 方案总结和常见问题
+  - `docs/OLD_VS_NEW_DATA.md` - 旧数据 vs 新数据对比
+  - `docs/CLEAN_OLD_DATA_GUIDE.md` - 安全清理旧数据指南
 
 ## 文档索引
 | 文档 | 路径 | 说明 |
