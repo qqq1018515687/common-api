@@ -50,9 +50,19 @@
 
 ## 集成使用
 - 节点 `check_rate_limit`, `update_rate_limit`, `register_with_limit`, `get_user`, `update_user`, `delete_user`, `list_users`, `save`, `upload`, `create_task`, `update_task`, `delete_task`, `list_tasks` 使用数据库集成
-- 节点 `upload`, `save` 使用对象存储集成
+- 节点 `upload`, `save`, `update_user` 使用对象存储集成（使用 StorageManager 自动分类管理）
 - 节点 `reverse_image`, `translate_doubao`, `prompt_enhance` 使用大语言模型集成
 - 节点 `upload` 使用内容处理集成
+
+## 对象存储管理
+- **存储管理器**: `src/storage/storage_manager.py` - 提供分类存储、自动过期、清理功能
+- **文件分类**:
+  - `avatars/` - 用户头像（永久存储，10年，public-read）
+  - `uploads/` - 用户上传文件（7天过期）
+  - `temp/` - 临时文件（1天过期）
+- **清理工具**: `scripts/cleanup_storage.py` - 用于清理过期文件
+- **使用文档**: `docs/STORAGE_GUIDE.md` - 详细使用指南
+- **总结文档**: `docs/STORAGE_SUMMARY.md` - 方案总结和常见问题
 
 ## 文档索引
 | 文档 | 路径 | 说明 |

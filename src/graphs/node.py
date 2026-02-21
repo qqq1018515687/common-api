@@ -645,19 +645,20 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
             else:
                 filename = f"avatar.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
             
-            # 上传到对象存储，设置为公共可读
-            file_key = storage.upload_file(
+            # 使用存储管理器上传（自动分类为 avatar）
+            from storage.storage_manager import get_storage_manager, StorageCategory
+            storage_mgr = get_storage_manager()
+            
+            upload_result = storage_mgr.upload_with_category(
                 file_content=file_content,
                 file_name=filename,
+                category=StorageCategory.AVATAR,  # 头像归类为 avatar（永久）
                 content_type=mime_type,
                 acl='public-read'
             )
             
-            # 生成签名 URL（10年有效期）
-            processed_avatar = storage.generate_presigned_url(
-                key=file_key,
-                expire_time=315360000  # 3650天 = 10年
-            )
+            # 使用生成的 URL（永久有效）
+            processed_avatar = upload_result['url']
         except Exception:
             # 处理失败，保持原样
             processed_avatar = state.avatar
@@ -834,7 +835,7 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
 def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Context]) -> UploadOutput:
     """
     title: 文件上传
-    desc: 将上传的文件存入对象存储，并生成 24 小时公开 URL 返回。支持远程 URL、本地路径和 Base64 格式
+    desc: 将上传的文件存入对象存储，自动分类管理并生成访问 URL。支持远程 URL、本地路径和 Base64 格式
     integrations: 对象存储
     """
     ctx = runtime.context
@@ -846,19 +847,26 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
         # 从 URL 读取文件内容
         file_url = state.file.url
 
-        # 判断数据类型
+        # 判断数据类型并获取文件内容
         if file_url.startswith(("http://", "https://")):
             # 远程 URL：使用 upload_from_url
             file_key = storage.upload_from_url(url=file_url)
+            # 生成 URL
+            public_url = storage.generate_presigned_url(key=file_key, expire_time=86400)
+            return UploadOutput(result={
+                "success": True,
+                "message": "文件上传成功",
+                "public_url": public_url,
+                "file_key": file_key
+            })
 
         elif file_url.startswith("data:image") or (file_url.startswith("data:application") and ";base64," in file_url):
             # Base64 格式（Data URL 格式）
-            # 解析 Data URL 格式：data:image/png;base64,xxx
             match = re.match(r"data:([^;]+);base64,(.+)", file_url)
             if not match:
                 return UploadOutput(result={"success": False, "message": "无效的 Base64 格式"})
 
-            mime_type = match.group(1)  # 例如：image/png
+            mime_type = match.group(1)
             base64_data = match.group(2)
 
             # 解码 Base64
@@ -869,46 +877,64 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
 
             # 根据类型确定文件名
             if "png" in mime_type:
-                filename = "image.png"
+                filename = "upload.png"
             elif "jpeg" in mime_type or "jpg" in mime_type:
-                filename = "image.jpg"
+                filename = "upload.jpg"
             elif "gif" in mime_type:
-                filename = "image.gif"
+                filename = "upload.gif"
             elif "webp" in mime_type:
-                filename = "image.webp"
+                filename = "upload.webp"
             else:
-                filename = f"file.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
+                filename = f"upload.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
 
-            # 上传到对象存储
-            file_key = storage.upload_file(
+            # 使用存储管理器上传（自动分类）
+            from storage.storage_manager import get_storage_manager, StorageCategory
+            storage_mgr = get_storage_manager()
+
+            upload_result = storage_mgr.upload_with_category(
                 file_content=file_content,
                 file_name=filename,
-                content_type=mime_type
+                category=StorageCategory.UPLOAD,  # 用户上传归类为 upload
+                content_type=mime_type,
+                acl=None
             )
+
+            return UploadOutput(result={
+                "success": True,
+                "message": "文件上传成功",
+                "public_url": upload_result['url'],
+                "file_key": upload_result['file_key'],
+                "category": upload_result['category'],
+                "expires_at": upload_result.get('expires_at')
+            })
 
         else:
             # 本地路径：读取文件内容后上传
-            # 如果包含 file:// 前缀，去掉它
             clean_path = file_url.replace("file://", "")
             with open(clean_path, "rb") as f:
                 file_content = f.read()
-                # 从 URL 提取文件名
                 filename = os.path.basename(clean_path)
-                file_key = storage.upload_file(
+                
+                # 使用存储管理器上传
+                from storage.storage_manager import get_storage_manager, StorageCategory
+                storage_mgr = get_storage_manager()
+
+                upload_result = storage_mgr.upload_with_category(
                     file_content=file_content,
                     file_name=filename,
-                    content_type="application/octet-stream"
+                    category=StorageCategory.UPLOAD,
+                    content_type="application/octet-stream",
+                    acl=None
                 )
 
-        # 生成 24 小时（86400 秒）公开 URL
-        public_url = storage.generate_presigned_url(key=file_key, expire_time=86400)
-
-        return UploadOutput(result={
-            "success": True,
-            "message": "文件上传成功",
-            "public_url": public_url,
-            "file_key": file_key
-        })
+                return UploadOutput(result={
+                    "success": True,
+                    "message": "文件上传成功",
+                    "public_url": upload_result['url'],
+                    "file_key": upload_result['file_key'],
+                    "category": upload_result['category'],
+                    "expires_at": upload_result.get('expires_at')
+                })
 
     except Exception as e:
         return UploadOutput(result={"success": False, "message": f"文件上传失败: {str(e)}"})
