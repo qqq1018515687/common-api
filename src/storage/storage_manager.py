@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class StorageCategory:
     """文件分类定义"""
     AVATAR = 'avatar'      # 用户头像（永久）
-    UPLOAD = 'upload'      # 用户上传（7天）
+    UPLOAD = 'upload'      # 用户上传（30天）
     TEMP = 'temp'          # 临时文件（1天）
     
     @classmethod
@@ -37,10 +37,10 @@ class StorageCategory:
         """获取分类对应的保留天数"""
         mapping = {
             cls.AVATAR: 3650,    # 10年
-            cls.UPLOAD: 7,       # 7天
+            cls.UPLOAD: 30,      # 30天
             cls.TEMP: 1          # 1天
         }
-        return mapping.get(category, 7)
+        return mapping.get(category, 30)
     
     @classmethod
     def is_permanent(cls, category: str) -> bool:
