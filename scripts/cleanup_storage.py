@@ -10,9 +10,10 @@ import logging
 from pathlib import Path
 
 # 添加项目路径到 Python 路径
-sys.path.insert(0, str(Path(__file__).parent))
+project_root = str(Path(__file__).resolve().parent.parent)
+sys.path.insert(0, project_root)
 
-from storage.storage_manager import get_storage_manager
+from src.storage.storage_manager import get_storage_manager
 
 # 配置日志
 logging.basicConfig(

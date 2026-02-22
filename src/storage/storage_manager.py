@@ -367,7 +367,6 @@ def get_storage_manager() -> StorageManager:
     """获取全局存储管理器实例"""
     global _storage_manager
     if _storage_manager is None:
-        from storage.s3.s3_storage import S3SyncStorage
         storage = S3SyncStorage(
             endpoint_url=os.getenv("COZE_BUCKET_ENDPOINT_URL"),
             access_key=os.getenv("COZE_ACCESS_KEY", ""),
