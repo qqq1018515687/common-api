@@ -45,6 +45,7 @@ class InputData(BaseModel):
 class GlobalState(BaseModel):
     """全局状态定义"""
     call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management")
+    input: Optional[InputData] = Field(default=None, description="业务数据对象")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
