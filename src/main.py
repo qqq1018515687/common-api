@@ -581,7 +581,8 @@ def start_http_server(port):
         reload = True
 
     logger.info(f"Start HTTP Server, Port: {port}, Workers: {workers}")
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=reload, workers=workers)
+    # 使用 src.main:app 作为模块路径，因为代码是通过 python -m src.main 运行的
+    uvicorn.run("src.main:app", host="0.0.0.0", port=port, reload=reload, workers=workers)
 
 if __name__ == "__main__":
     args = parse_args()
