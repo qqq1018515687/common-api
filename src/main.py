@@ -16,11 +16,11 @@ from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
 
 from coze_coding_utils.runtime_ctx.context import new_context, Context
-from utils.helper import graph_helper
-from utils.log.node_log import LOG_FILE
-from utils.log.write_log import setup_logging, request_context
-from utils.log.config import LOG_LEVEL
-from utils.messages.server import (
+from src.utils.helper import graph_helper
+from src.utils.log.node_log import LOG_FILE
+from src.utils.log.write_log import setup_logging, request_context
+from src.utils.log.config import LOG_LEVEL
+from src.utils.messages.server import (
     create_message_end_dict,
     create_message_error_dict,
     MESSAGE_END_CODE_CANCELED,
@@ -38,14 +38,14 @@ setup_logging(
 )
 
 logger = logging.getLogger(__name__)
-from utils.helper.agent_helper import (
+from src.utils.helper.agent_helper import (
     to_stream_input,
     to_client_message,
     agent_iter_server_messages,
 )
-from utils.log.parser import LangGraphParser
-from utils.log.err_trace import extract_core_stack
-from utils.log.loop_trace import init_run_config, init_agent_config
+from src.utils.log.parser import LangGraphParser
+from src.utils.log.err_trace import extract_core_stack
+from src.utils.log.loop_trace import init_run_config, init_agent_config
 
 
 # 超时配置常量
@@ -54,15 +54,15 @@ TIMEOUT_SECONDS = 900  # 15分钟
 class GraphService:
     def __init__(self):
         if not graph_helper.is_agent_proj():
-            self.graph = graph_helper.get_graph_instance("graphs.graph")
+            self.graph = graph_helper.get_graph_instance("src.graphs.graph")
 
         # 用于跟踪正在运行的任务（使用asyncio.Task）
         self.running_tasks: Dict[str, asyncio.Task] = {}
-    
-    
+
+
     def _get_graph(self, ctx=Context):
         if graph_helper.is_agent_proj():
-            return graph_helper.get_agent_instance("agents.agent", ctx)
+            return graph_helper.get_agent_instance("src.agents.agent", ctx)
         else:
             return self.graph
     
@@ -309,7 +309,7 @@ service = GraphService()
 app = FastAPI()
 
 # 导入并注册任务管理 API 路由
-from api.tasks import router as tasks_router
+from src.api.tasks import router as tasks_router
 app.include_router(tasks_router)
 
 

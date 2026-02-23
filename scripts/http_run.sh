@@ -27,5 +27,11 @@ while getopts "p:h" opt; do
   esac
 done
 
+# 设置 PYTHONPATH，确保 Python 可以找到 src 模块
+export PYTHONPATH="${WORK_DIR}:${PYTHONPATH}"
 
-python ${WORK_DIR}/src/main.py -m http -p $PORT
+# 切换到工作目录
+cd "${WORK_DIR}"
+
+# 使用 -m 参数运行模块，确保 Python 能正确解析导入
+python -m src.main -m http -p $PORT

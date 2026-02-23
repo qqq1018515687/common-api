@@ -2,8 +2,8 @@ import time
 import logging
 from uuid import UUID
 from openai import BaseModel
-from utils.log.config import LOG_DIR
-from utils.log.common import get_execute_mode, is_prod
+from src.utils.log.config import LOG_DIR
+from src.utils.log.common import get_execute_mode, is_prod
 import uuid
 from langchain_core.callbacks import BaseCallbackHandler
 from coze_coding_utils.runtime_ctx.context import Context
@@ -12,7 +12,7 @@ import sys
 import json
 from typing import Dict, Optional, Any
 from pydantic import BaseModel
-from utils.log.parser import LangGraphParser
+from src.utils.log.parser import LangGraphParser
 import asyncio
 
 

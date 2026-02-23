@@ -3,9 +3,9 @@ import json
 import os
 from typing import Any, Dict, List, Tuple, Iterator
 import time
-from utils.file.file import File, FileOps, infer_file_category
+from src.utils.file.file import File, FileOps, infer_file_category
 
-from utils.messages.client import (
+from src.utils.messages.client import (
     ClientMessage,
     ClientMessageContent,
     QueryDetail,
@@ -13,7 +13,7 @@ from utils.messages.client import (
     PromptBlockContent,
     UploadFileBlockDetail,
 )
-from utils.messages.server import (
+from src.utils.messages.server import (
     ServerMessage,
     ServerMessageContent,
     ToolRequestDetail,
