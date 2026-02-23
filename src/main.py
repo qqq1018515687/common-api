@@ -25,7 +25,7 @@ from utils.messages.server import (
     create_message_error_dict,
     MESSAGE_END_CODE_CANCELED,
 )
-from storage.s3.s3_storage import S3SyncStorage
+from src.storage.s3.s3_storage import S3SyncStorage
 import os
 
 setup_logging(

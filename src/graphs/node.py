@@ -50,11 +50,11 @@ import base64
 import re
 import uuid
 
-from storage.database.db import get_session
+from src.storage.database.db import get_session
 
 # 延迟导入以避免潜在的模块加载问题
 def _get_user_manager():
-    from storage.database.user_manager import UserManager, UserCreate, UserUpdate, RateLimitManager
+    from src.storage.database.user_manager import UserManager, UserCreate, UserUpdate, RateLimitManager
     return UserManager, UserCreate, UserUpdate, RateLimitManager
 
 
@@ -172,7 +172,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         password_hash = input_data.password_hash
         if not password_hash and input_data.password and input_data.operation_type == "register":
             # 注册操作：如果提供了 password 但没有 password_hash，则自动转换
-            from storage.database.user_manager import hash_password
+            from src.storage.database.user_manager import hash_password
             password_hash = hash_password(input_data.password)
 
     return UnpackInputDataOutput(
@@ -211,7 +211,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         task_updates=input_data.task_updates if input_data else None
     )
 
-from storage.s3.s3_storage import S3SyncStorage
+from src.storage.s3.s3_storage import S3SyncStorage
 
 
 # 初始化对象存储客户端
@@ -484,7 +484,7 @@ def get_user_node(state: GetUserInput, config: RunnableConfig, runtime: Runtime[
     integrations: 数据库
     """
     UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
-    from storage.database.user_manager import verify_password
+    from src.storage.database.user_manager import verify_password
     ctx = runtime.context
 
     db = get_session()
@@ -646,7 +646,7 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
                 filename = f"avatar.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
             
             # 使用存储管理器上传（自动分类为 avatar）
-            from storage.storage_manager import get_storage_manager, StorageCategory
+            from src.storage.storage_manager import get_storage_manager, StorageCategory
             storage_mgr = get_storage_manager()
             
             upload_result = storage_mgr.upload_with_category(
@@ -888,7 +888,7 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
                 filename = f"upload.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
 
             # 使用存储管理器上传（自动分类）
-            from storage.storage_manager import get_storage_manager, StorageCategory
+            from src.storage.storage_manager import get_storage_manager, StorageCategory
             storage_mgr = get_storage_manager()
 
             upload_result = storage_mgr.upload_with_category(
@@ -916,7 +916,7 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
                 filename = os.path.basename(clean_path)
                 
                 # 使用存储管理器上传
-                from storage.storage_manager import get_storage_manager, StorageCategory
+                from src.storage.storage_manager import get_storage_manager, StorageCategory
                 storage_mgr = get_storage_manager()
 
                 upload_result = storage_mgr.upload_with_category(
@@ -1019,7 +1019,7 @@ def create_task_node(state: CreateTaskInput, config: RunnableConfig, runtime: Ru
         return CreateTaskOutput(result={"success": False, "message": "缺少必要参数：user_id 或 task_data"})
 
     try:
-        from storage.database.task_manager import TaskManager, TaskCreate
+        from src.storage.database.task_manager import TaskManager, TaskCreate
 
         db = get_session()
         try:
@@ -1071,7 +1071,7 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
         return UpdateTaskOutput(result={"success": False, "message": "缺少必要参数：task_id"})
 
     try:
-        from storage.database.task_manager import TaskManager, TaskUpdate
+        from src.storage.database.task_manager import TaskManager, TaskUpdate
 
         db = get_session()
         try:
@@ -1121,7 +1121,7 @@ def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Ru
         return DeleteTaskOutput(result={"success": False, "message": "缺少必要参数：task_id 或 user_id"})
 
     try:
-        from storage.database.task_manager import TaskManager
+        from src.storage.database.task_manager import TaskManager
 
         db = get_session()
         try:
@@ -1160,7 +1160,7 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
         return ListTasksOutput(result={"success": False, "message": "start_time 不能大于 end_time"})
 
     try:
-        from storage.database.task_manager import TaskManager
+        from src.storage.database.task_manager import TaskManager
 
         db = get_session()
         try:

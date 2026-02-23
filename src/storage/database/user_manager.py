@@ -7,7 +7,7 @@ import bcrypt
 import random
 from datetime import datetime, timedelta, timezone
 
-from storage.database.shared.model import Users, RateLimits
+from src.storage.database.shared.model import Users, RateLimits
 
 
 class UserCreate(BaseModel):

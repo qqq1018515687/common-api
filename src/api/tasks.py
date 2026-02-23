@@ -3,8 +3,8 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from storage.database.db import get_session
-from storage.database.task_manager import TaskManager, TaskCreate, TaskUpdate
+from src.storage.database.db import get_session
+from src.storage.database.task_manager import TaskManager, TaskCreate, TaskUpdate
 
 router = APIRouter(prefix="/api/coze", tags=["tasks"])
 
