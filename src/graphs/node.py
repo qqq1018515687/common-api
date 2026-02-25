@@ -1164,7 +1164,12 @@ def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Ru
 def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runtime[Context]) -> ListTasksOutput:
     """
     title: 查询任务列表
-    desc: 根据用户ID、团队ID或两者组合查询任务列表，支持状态筛选和时间范围（仅限注册用户）
+    desc: 根据用户ID、团队ID查询任务列表，支持状态筛选和时间范围（仅限注册用户）。
+          查询规则：
+          - 只提供 user_id：查询该用户的所有任务
+          - 同时提供 user_id 和 team_id：查询该团队的所有任务（包含团队所有成员的任务）
+          - 必须至少提供 user_id 或 team_id 其中之一
+          - 查询团队任务时需要同时提供 user_id 用于权限验证
     integrations: 数据库
     """
     ctx = runtime.context

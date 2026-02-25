@@ -155,6 +155,11 @@ class TaskManager:
 
         Returns:
             任务列表（按 created_at DESC 排序）
+
+        查询规则：
+            - 如果只提供 user_id（没有 team_id）：查询该用户的所有任务
+            - 如果提供 team_id（不管有没有 user_id）：查询该团队的所有任务（包含团队所有成员的任务）
+            - 如果既没有 user_id 也没有 team_id：返回错误
         """
         # 限制最大返回数量
         limit = min(limit, 500)
@@ -162,13 +167,20 @@ class TaskManager:
         # 基础查询条件：自动过滤已删除的任务
         query = db.query(Tasks).filter(Tasks.is_deleted == False)
 
-        # 用户ID筛选
-        if user_id:
-            query = query.filter(Tasks.user_id == user_id)
+        # 查询逻辑：
+        # - 如果提供了 team_id，查询整个团队的任务（不加 user_id 筛选）
+        # - 如果只提供 user_id（没有 team_id），查询该用户的任务
+        # - 如果两者都提供，查询团队任务（包含团队所有成员的任务）
 
-        # 团队ID筛选
         if team_id:
+            # 查询指定团队的所有任务（包含团队所有成员的任务）
             query = query.filter(Tasks.team_id == team_id)
+        elif user_id:
+            # 只查询该用户的任务
+            query = query.filter(Tasks.user_id == user_id)
+        else:
+            # 既没有 user_id 也没有 team_id，返回空列表
+            return []
 
         # 时间范围筛选
         if start_time is not None:
@@ -331,17 +343,29 @@ class TaskManager:
 
         Returns:
             任务数量
+
+        查询规则：
+            - 如果只提供 user_id（没有 team_id）：统计该用户的所有任务
+            - 如果提供 team_id（不管有没有 user_id）：统计该团队的所有任务（包含团队所有成员的任务）
+            - 如果既没有 user_id 也没有 team_id：返回 0
         """
         # 基础查询条件：自动过滤已删除的任务
         query = db.query(Tasks).filter(Tasks.is_deleted == False)
 
-        # 用户ID筛选
-        if user_id:
-            query = query.filter(Tasks.user_id == user_id)
+        # 查询逻辑：
+        # - 如果提供了 team_id，统计整个团队的任务（不加 user_id 筛选）
+        # - 如果只提供 user_id（没有 team_id），统计该用户的任务
+        # - 如果两者都提供，统计团队任务（包含团队所有成员的任务）
 
-        # 团队ID筛选
         if team_id:
+            # 统计指定团队的所有任务（包含团队所有成员的任务）
             query = query.filter(Tasks.team_id == team_id)
+        elif user_id:
+            # 只统计该用户的任务
+            query = query.filter(Tasks.user_id == user_id)
+        else:
+            # 既没有 user_id 也没有 team_id，返回 0
+            return 0
 
         # 时间范围筛选
         if start_time is not None:
