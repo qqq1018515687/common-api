@@ -319,9 +319,9 @@ class DeleteTaskOutput(BaseModel):
 
 
 class ListTasksInput(BaseModel):
-    """查询任务列表节点的输入（仅限注册用户）"""
-    user_id: str = Field(..., description="用户ID（必须是已注册的活跃用户）")
-    team_id: Optional[str] = Field(default=None, description="团队ID筛选")
+    """查询任务列表节点的输入（支持灵活查询）"""
+    user_id: Optional[str] = Field(default=None, description="用户ID（可选，至少提供 user_id 或 team_id 之一）")
+    team_id: Optional[str] = Field(default=None, description="团队ID筛选（可选，至少提供 user_id 或 team_id 之一）")
     status: Optional[str] = Field(default=None, description="任务状态筛选")
     start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒，13位整数）")
     end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒，13位整数）")

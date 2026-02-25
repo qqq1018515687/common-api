@@ -132,6 +132,57 @@ class TaskManager:
         # 按 created_at 降序排列，限制返回数量
         return query.order_by(Tasks.created_at.desc()).limit(limit).all()
 
+    def get_tasks_flexible(
+        self,
+        db: Session,
+        user_id: Optional[str] = None,
+        team_id: Optional[str] = None,
+        status: Optional[str] = None,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
+        limit: int = 100,
+    ) -> List[Tasks]:
+        """灵活查询任务列表（支持按用户ID、团队ID或两者查询）
+
+        Args:
+            db: 数据库会话
+            user_id: 用户ID（可选）
+            team_id: 团队ID（可选）
+            status: 任务状态筛选（可选）
+            start_time: 查询开始时间戳（毫秒，可选）
+            end_time: 查询结束时间戳（毫秒，可选）
+            limit: 最大返回数量（默认100，最大500）
+
+        Returns:
+            任务列表（按 created_at DESC 排序）
+        """
+        # 限制最大返回数量
+        limit = min(limit, 500)
+
+        # 基础查询条件：自动过滤已删除的任务
+        query = db.query(Tasks).filter(Tasks.is_deleted == False)
+
+        # 用户ID筛选
+        if user_id:
+            query = query.filter(Tasks.user_id == user_id)
+
+        # 团队ID筛选
+        if team_id:
+            query = query.filter(Tasks.team_id == team_id)
+
+        # 时间范围筛选
+        if start_time is not None:
+            query = query.filter(Tasks.created_at >= str(start_time))
+        if end_time is not None:
+            query = query.filter(Tasks.created_at <= str(end_time))
+
+        # 状态筛选
+        if status:
+            query = query.filter(Tasks.status == status)
+
+        # 按 created_at 降序排列，限制返回数量
+        return query.order_by(Tasks.created_at.desc()).limit(limit).all()
+
     def get_task_by_platform_task_id(
         self,
         db: Session,
@@ -248,6 +299,51 @@ class TaskManager:
         )
 
         # 时间范围筛选（将时间戳转换为字符串比较）
+        if start_time is not None:
+            query = query.filter(Tasks.created_at >= str(start_time))
+        if end_time is not None:
+            query = query.filter(Tasks.created_at <= str(end_time))
+
+        # 状态筛选
+        if status:
+            query = query.filter(Tasks.status == status)
+
+        return query.count()
+
+    def count_tasks_flexible(
+        self,
+        db: Session,
+        user_id: Optional[str] = None,
+        team_id: Optional[str] = None,
+        status: Optional[str] = None,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None
+    ) -> int:
+        """灵活统计任务数量（支持按用户ID、团队ID或两者统计）
+
+        Args:
+            db: 数据库会话
+            user_id: 用户ID（可选）
+            team_id: 团队ID（可选）
+            status: 任务状态筛选（可选）
+            start_time: 查询开始时间戳（毫秒，可选）
+            end_time: 查询结束时间戳（毫秒，可选）
+
+        Returns:
+            任务数量
+        """
+        # 基础查询条件：自动过滤已删除的任务
+        query = db.query(Tasks).filter(Tasks.is_deleted == False)
+
+        # 用户ID筛选
+        if user_id:
+            query = query.filter(Tasks.user_id == user_id)
+
+        # 团队ID筛选
+        if team_id:
+            query = query.filter(Tasks.team_id == team_id)
+
+        # 时间范围筛选
         if start_time is not None:
             query = query.filter(Tasks.created_at >= str(start_time))
         if end_time is not None:

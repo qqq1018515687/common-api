@@ -1164,13 +1164,33 @@ def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Ru
 def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runtime[Context]) -> ListTasksOutput:
     """
     title: 查询任务列表
-    desc: 根据用户ID和时间范围查询任务列表，支持状态筛选（仅限注册用户）
+    desc: 根据用户ID、团队ID或两者组合查询任务列表，支持状态筛选和时间范围（仅限注册用户）
     integrations: 数据库
     """
     ctx = runtime.context
 
-    if not state.user_id:
-        return ListTasksOutput(result={"success": False, "message": "缺少必要参数：user_id"})
+    # 至少需要 user_id 或 team_id 其中之一
+    if not state.user_id and not state.team_id:
+        return ListTasksOutput(result={"success": False, "message": "缺少必要参数：user_id 和 team_id 至少需要提供一个"})
+
+    # 如果提供了 team_id，必须提供用户 ID 进行权限验证
+    if state.team_id and not state.user_id:
+        return ListTasksOutput(result={"success": False, "message": "查询团队任务需要同时提供 user_id 用于权限验证"})
+
+    # 验证用户权限（仅当提供了 user_id 时）
+    if state.user_id:
+        try:
+            from storage.database.task_manager import TaskManager
+            db = get_session()
+            try:
+                task_mgr = TaskManager()
+                has_permission, error_msg = task_mgr.verify_user_permission(db, state.user_id)
+                if not has_permission:
+                    return ListTasksOutput(result={"success": False, "message": error_msg})
+            finally:
+                db.close()
+        except Exception as e:
+            return ListTasksOutput(result={"success": False, "message": f"权限验证失败: {str(e)}"})
 
     # 验证时间参数
     if not state.start_time or not state.end_time:
@@ -1187,32 +1207,24 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
         try:
             task_mgr = TaskManager()
 
-            # 验证用户权限
-            has_permission, error_msg = task_mgr.verify_user_permission(db, state.user_id)
-            if not has_permission:
-                return ListTasksOutput(result={"success": False, "message": error_msg})
-
             limit = min(state.limit or 100, 500)  # 最大不超过500
 
-            # 构建筛选条件
-            filters = {}
-            if state.team_id:
-                filters["team_id"] = state.team_id
-
-            tasks = task_mgr.get_tasks_by_user_id(
+            # 使用灵活查询方法
+            tasks = task_mgr.get_tasks_flexible(
                 db,
                 user_id=state.user_id,
+                team_id=state.team_id,
                 status=state.status,
                 start_time=state.start_time,
                 end_time=state.end_time,
-                limit=limit,
-                **filters
+                limit=limit
             )
 
-            total = task_mgr.count_tasks_by_user_id(
+            total = task_mgr.count_tasks_flexible(
                 db,
-                state.user_id,
-                state.status,
+                user_id=state.user_id,
+                team_id=state.team_id,
+                status=state.status,
                 start_time=state.start_time,
                 end_time=state.end_time
             )
