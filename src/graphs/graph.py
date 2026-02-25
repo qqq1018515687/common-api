@@ -1,5 +1,5 @@
 from langgraph.graph import StateGraph, END
-from src.graphs.state import (
+from graphs.state import (
     GlobalState,
     GraphInput,
     GraphOutput,
@@ -15,7 +15,7 @@ from src.graphs.state import (
     UnpackInputDataInput,
     UnpackInputDataOutput
 )
-from src.graphs.node import (
+from graphs.node import (
     upload_node,
     save_node,
     format_response_node,

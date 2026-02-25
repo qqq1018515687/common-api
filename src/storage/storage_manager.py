@@ -10,8 +10,8 @@ from typing import Optional, Dict, List, Any
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# 从 src.storage 导入
-from src.storage.s3.s3_storage import S3SyncStorage
+# 从 storage 导入
+from storage.s3.s3_storage import S3SyncStorage
 
 logger = logging.getLogger(__name__)
 

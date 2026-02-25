@@ -4,7 +4,7 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from src.storage.database.shared.model import Tasks, Users
+from storage.database.shared.model import Tasks, Users
 import time
 
 

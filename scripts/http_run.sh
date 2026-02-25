@@ -27,8 +27,9 @@ while getopts "p:h" opt; do
   esac
 done
 
-# 设置 PYTHONPATH，确保 Python 可以找到 src 模块
-export PYTHONPATH="${WORK_DIR}:${PYTHONPATH}"
+# 设置 PYTHONPATH，确保 Python 可以找到所有模块
+# 包含项目根目录和 src 目录
+export PYTHONPATH="${WORK_DIR}:${WORK_DIR}/src:${PYTHONPATH}"
 
 # 切换到工作目录
 cd "${WORK_DIR}"

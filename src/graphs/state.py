@@ -1,6 +1,6 @@
 from typing import Literal, Optional, List
 from pydantic import BaseModel, Field
-from src.utils.file.file import File
+from utils.file.file import File
 
 
 class InputData(BaseModel):

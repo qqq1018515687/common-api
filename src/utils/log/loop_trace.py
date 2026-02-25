@@ -2,8 +2,8 @@ import os
 import cozeloop
 from cozeloop.integration.langchain.trace_callback import LoopTracer
 from langchain_core.runnables import RunnableConfig
-from src.utils.log.common import get_execute_mode
-from src.utils.log.node_log import Logger
+from utils.log.common import get_execute_mode
+from utils.log.node_log import Logger
 
 space_id = os.getenv("COZE_PROJECT_SPACE_ID", "YOUR_SPACE_ID")
 api_token = os.getenv("COZE_LOOP_API_TOKEN", "YOUR_LOOP_API_TOKEN")
