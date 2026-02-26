@@ -581,8 +581,8 @@ def start_http_server(port):
         reload = True
 
     logger.info(f"Start HTTP Server, Port: {port}, Workers: {workers}")
-    # 使用 src.main:app 作为模块路径，匹配 http_run.sh 的启动方式
-    uvicorn.run("src.main:app", host="0.0.0.0", port=port, reload=reload, workers=workers)
+    # 使用 main:app 作为模块路径
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=reload, workers=workers)
 
 if __name__ == "__main__":
     args = parse_args()
