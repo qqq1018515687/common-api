@@ -1,3 +1,3 @@
 #!/bin/bash
  
-pip freeze > requirements.txt
+pip freeze --exclude watchdog > requirements.txt

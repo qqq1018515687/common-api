@@ -1236,10 +1236,11 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
 
             # 转换为可序列化的字典列表
             task_list = []
-            for task in tasks:
+            for task, username in tasks:
                 task_list.append({
                     "id": task.id,
                     "user_id": task.user_id,
+                    "username": username,
                     "team_id": task.team_id,
                     "platform": task.platform,
                     "platform_task_id": task.platform_task_id,

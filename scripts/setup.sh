@@ -8,6 +8,5 @@ fi
 # 安装Python三方包依赖
 pip install -r requirements.txt
 
-pip install -U "coze-coding-dev-sdk>=0.5.0,<1.0"
 
 # 安装系统依赖

@@ -141,7 +141,7 @@ class TaskManager:
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
         limit: int = 100,
-    ) -> List[Tasks]:
+    ) -> List[tuple]:
         """灵活查询任务列表（支持按用户ID、团队ID或两者查询）
 
         Args:
@@ -154,7 +154,7 @@ class TaskManager:
             limit: 最大返回数量（默认100，最大500）
 
         Returns:
-            任务列表（按 created_at DESC 排序）
+            任务列表（按 created_at DESC 排序），每个元素是 (Task, username) 元组
 
         查询规则：
             - 如果只提供 user_id（没有 team_id）：查询该用户的所有任务
@@ -164,8 +164,10 @@ class TaskManager:
         # 限制最大返回数量
         limit = min(limit, 500)
 
-        # 基础查询条件：自动过滤已删除的任务
-        query = db.query(Tasks).filter(Tasks.is_deleted == False)
+        # 基础查询：JOIN Users 表，获取 username
+        query = db.query(Tasks, Users.username).outerjoin(
+            Users, Tasks.user_id == Users.user_id
+        ).filter(Tasks.is_deleted == False)
 
         # 查询逻辑：
         # - 如果提供了 team_id，查询整个团队的任务（不加 user_id 筛选）
