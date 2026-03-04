@@ -85,3 +85,31 @@ class Users(Base):
     tier: Mapped[Optional[str]] = mapped_column(String(20), server_default=text("'standard'::character varying"))
     account_status: Mapped[Optional[str]] = mapped_column(String(20), server_default=text("'active'::character varying"))
     updated_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime)
+
+
+class SystemNotifications(Base):
+    __tablename__ = 'system_notifications'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='system_notifications_pkey'),
+        Index('ix_system_notifications_is_active', 'is_active'),
+        Index('ix_system_notifications_priority', 'priority'),
+        Index('ix_system_notifications_type', 'type'),
+        Index('ix_system_notifications_time_range', 'start_time', 'end_time'),
+        {'comment': '系统通知表，用于显示网站实时状态条内容'}
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, comment='主键，UUID格式')
+    type: Mapped[str] = mapped_column(String(20), nullable=False, comment='通知类型：info/warning/error/maintenance/update')
+    title: Mapped[str] = mapped_column(String(200), nullable=False, comment='通知标题（短文本）')
+    content: Mapped[str] = mapped_column(Text, nullable=False, comment='通知内容（支持HTML）')
+    priority: Mapped[str] = mapped_column(String(10), nullable=False, server_default=text("'medium'"), comment='优先级：low/medium/high/urgent')
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text('true'), comment='是否激活')
+    start_time: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='生效时间戳（毫秒）')
+    end_time: Mapped[Optional[int]] = mapped_column(BigInteger, comment='失效时间戳（毫秒，null表示永久）')
+    dismissible: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text('true'), comment='是否允许用户关闭')
+    link_url: Mapped[Optional[str]] = mapped_column(String(500), comment='点击跳转链接（可选）')
+    target_audience: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'all'"), comment='目标用户：all/logged_in/guest/admin')
+    created_at: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='创建时间（毫秒）')
+    updated_at: Mapped[Optional[int]] = mapped_column(BigInteger, comment='更新时间（毫秒）')
+    created_by: Mapped[str] = mapped_column(String(36), nullable=False, comment='创建者用户ID')
+

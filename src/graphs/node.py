@@ -229,7 +229,11 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         # 任务管理相关字段
         task_id=input_data.task_id if input_data else None,
         task_data=input_data.task_data if input_data else None,
-        task_updates=input_data.task_updates if input_data else None
+        task_updates=input_data.task_updates if input_data else None,
+        # 系统通知相关字段
+        notification_id=input_data.notification_id if input_data else None,
+        notification_data=input_data.notification_data if input_data else None,
+        current_time=input_data.current_time if input_data else None
     )
 
 from storage.s3.s3_storage import S3SyncStorage

@@ -13,7 +13,7 @@ class InputData(BaseModel):
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
-    operation_type: Optional[str] = Field(default=None, description="操作类型：check_rate_limit/register/login/update_user/delete_user/list_users/create_task/update_task/delete_task/list_tasks")
+    operation_type: Optional[str] = Field(default=None, description="操作类型：check_rate_limit/register/login/update_user/delete_user/list_users/create_task/update_task/delete_task/list_tasks/get_active/get_all/create/update/delete")
 
     # 用户管理相关字段
     phone: Optional[str] = Field(default=None, description="手机号")
@@ -41,10 +41,20 @@ class InputData(BaseModel):
     task_data: Optional[dict] = Field(default=None, description="任务数据（create_task 使用）")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据（update_task 使用）")
 
+    # 系统通知相关字段
+    notification_id: Optional[str] = Field(default=None, description="通知ID（update_notification/delete_notification 使用）")
+    notification_data: Optional[dict] = Field(default=None, description="通知数据（create_notification/update_notification 使用）")
+    current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效通知）")
+
+    # 系统通知相关字段
+    notification_id: Optional[str] = Field(default=None, description="通知ID（update_notification/delete_notification 使用）")
+    notification_data: Optional[dict] = Field(default=None, description="通知数据（create_notification/update_notification 使用）")
+    current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效通知）")
+
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management/notification_management")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
@@ -83,6 +93,11 @@ class GlobalState(BaseModel):
     task_id: Optional[str] = Field(default=None, description="任务ID（update_task/delete_task 使用）")
     task_data: Optional[dict] = Field(default=None, description="任务数据（create_task 使用）")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据（update_task 使用）")
+
+    # 系统通知相关字段
+    notification_id: Optional[str] = Field(default=None, description="通知ID（update_notification/delete_notification 使用）")
+    notification_data: Optional[dict] = Field(default=None, description="通知数据（create_notification/update_notification 使用）")
+    current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效通知）")
 
 
 class GraphInput(BaseModel):
@@ -443,6 +458,10 @@ class UnpackInputDataOutput(BaseModel):
     task_id: Optional[str] = Field(default=None, description="任务ID")
     task_data: Optional[dict] = Field(default=None, description="任务数据")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据")
+    # 系统通知相关字段
+    notification_id: Optional[str] = Field(default=None, description="通知ID")
+    notification_data: Optional[dict] = Field(default=None, description="通知数据")
+    current_time: Optional[int] = Field(default=None, description="当前时间戳")
 
 
 # 工具路由节点
@@ -490,4 +509,17 @@ class PromptEnhanceOutput(BaseModel):
     result: dict = Field(default={}, description="增强结果")
 
 
+# ============ 系统通知节点 ============
+
+class SystemNotificationInput(BaseModel):
+    """系统通知处理节点的输入"""
+    operation_type: str = Field(..., description="操作类型：get_active/get_all/create/update/delete")
+    notification_id: Optional[str] = Field(default=None, description="通知ID（update/delete 使用）")
+    notification_data: Optional[dict] = Field(default=None, description="通知数据（create/update 使用）")
+    current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效通知）")
+
+
+class SystemNotificationOutput(BaseModel):
+    """系统通知处理节点的输出"""
+    result: dict = Field(..., description="操作结果")
 

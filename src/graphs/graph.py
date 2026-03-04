@@ -13,7 +13,9 @@ from graphs.state import (
     ToolRouteInput,
     ToolRouteOutput,
     UnpackInputDataInput,
-    UnpackInputDataOutput
+    UnpackInputDataOutput,
+    SystemNotificationInput,
+    SystemNotificationOutput
 )
 from graphs.node import (
     upload_node,
@@ -43,6 +45,7 @@ from graphs.node import (
     delete_task_node,
     list_tasks_node
 )
+from graphs.nodes.system_notification_handler_node import system_notification_handler_node
 
 
 def route_by_call_type(state: RouterOutput) -> str:
@@ -62,6 +65,8 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "任务管理"
     elif call_type == "tool":
         return "工具中心"
+    elif call_type == "notification_management":
+        return "通知管理"
     else:
         return "账号管理"  # 默认
 
@@ -107,6 +112,7 @@ builder.add_node("create_task", create_task_node)
 builder.add_node("update_task", update_task_node)
 builder.add_node("delete_task", delete_task_node)
 builder.add_node("list_tasks", list_tasks_node)
+builder.add_node("system_notification_handler", system_notification_handler_node)
 builder.add_node("format_response", format_response_node)
 builder.add_node("tool_route", tool_route_node)
 builder.add_node("reverse_image", reverse_image_node, metadata={"type": "agent", "llm_cfg": "config/reverse_image_cfg.json"})
@@ -128,7 +134,8 @@ builder.add_conditional_edges(
         "文件上传": "upload",
         "保存历史": "save",
         "任务管理": "task_route",
-        "工具中心": "tool_route"
+        "工具中心": "tool_route",
+        "通知管理": "system_notification_handler"
     }
 )
 
@@ -186,6 +193,7 @@ builder.add_edge("create_task", "format_response")
 builder.add_edge("update_task", "format_response")
 builder.add_edge("delete_task", "format_response")
 builder.add_edge("list_tasks", "format_response")
+builder.add_edge("system_notification_handler", "format_response")
 builder.add_edge("reverse_image", "format_response")
 builder.add_edge("translate_doubao", "format_response")
 builder.add_edge("prompt_enhance", "format_response")

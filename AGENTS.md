@@ -20,7 +20,7 @@
 | 节点名 | 文件位置 | 类型 | 功能描述 | 分支逻辑 | 配置文件 |
 |-------|---------|------|---------|---------|---------|
 | unpack_input_data | node.py | task | 解包输入数据 | - | - |
-| call_type_router | node.py | condition | 根据调用类型路由 | 账号管理→operation_route, 文件上传→upload, 保存历史→save, 任务管理→task_route, 工具中心→tool_route | - |
+| call_type_router | node.py | condition | 根据调用类型路由 | 账号管理→operation_route, 文件上传→upload, 保存历史→save, 任务管理→task_route, 工具中心→tool_route, 通知管理→system_notification_handler | - |
 | operation_route | node.py | condition | 根据操作类型路由 | 限流检查→check_rate_limit, 更新限流→update_rate_limit, 用户注册→register_with_limit, 用户登录→get_user, 查询单个用户→get_user_by_id, 更新用户→update_user, 删除用户→delete_user, 用户列表→list_users | - |
 | tool_route | node.py | condition | 根据工具类型路由 | 反推图像→reverse_image, 翻译推荐→translate_doubao, 提示词增强→prompt_enhance | - |
 | task_route | node.py | condition | 根据任务操作类型路由 | 创建任务→create_task, 更新任务→update_task, 删除任务→delete_task, 查询任务列表→list_tasks | - |
@@ -38,6 +38,7 @@
 | update_task | node.py | task | 更新任务 | - | - |
 | delete_task | node.py | task | 删除任务 | - | - |
 | list_tasks | node.py | task | 查询任务列表 | - | - |
+| system_notification_handler | nodes/system_notification_handler_node.py | task | 系统通知处理（增删改查） | - | - |
 | reverse_image | node.py | agent | 反推图像提示词 | - | config/reverse_image_cfg.json |
 | translate_doubao | node.py | agent | 豆包翻译 | - | config/translate_doubao_cfg.json |
 | prompt_enhance | node.py | agent | 提示词增强 | - | config/prompt_enhance_cfg.json |
@@ -50,9 +51,20 @@
 
 ## 集成使用
 - 节点 `check_rate_limit`, `update_rate_limit`, `register_with_limit`, `get_user`, `update_user`, `delete_user`, `list_users`, `save`, `upload`, `create_task`, `update_task`, `delete_task`, `list_tasks` 使用数据库集成
+- 节点 `system_notification_handler` 使用数据库集成（系统通知表）
 - 节点 `upload`, `save`, `update_user` 使用对象存储集成（使用 StorageManager 自动分类管理）
 - 节点 `reverse_image`, `translate_doubao`, `prompt_enhance` 使用大语言模型集成
 - 节点 `upload` 使用内容处理集成
+
+### 系统通知功能说明
+- **获取有效通知**：查询当前有效的通知列表（支持时间范围筛选）
+- **获取所有通知**：查询所有通知（管理后台用）
+- **创建通知**：创建新的系统通知
+- **更新通知**：更新现有通知
+- **删除通知**：软删除通知（设置 is_active=false）
+- **通知类型**：info（信息）、warning（警告）、error（错误）、maintenance（维护）、update（更新）
+- **优先级**：low（低）、medium（中）、high（高）、urgent（紧急）
+- **目标受众**：all（所有用户）、logged_in（注册用户）、guest（访客）、admin（管理员）
 
 ## 对象存储管理
 - **存储管理器**: `src/storage/storage_manager.py` - 提供分类存储、自动过期、清理功能
