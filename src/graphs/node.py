@@ -305,19 +305,7 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
                 user_exists=False
             )
 
-        if limits["blocked_ip_10min"]:
-            return CheckRateLimitOutput(
-                result={"allowed": False, "reason": "当前网络请求过于频繁，请稍后再试"},
-                allowed=False,
-                reason="当前网络请求过于频繁，请稍后再试",
-                user_exists=False
-            )
-
-        if limits["blocked_ip_1hour"]:
-            return CheckRateLimitOutput(
-                result={"allowed": False, "reason": "当前网络请求已达上限，请1小时后再试"},
-                allowed=False,
-                reason="当前网络请求已达上限，请1小时后再试",
+        # IP限制已移除，仅保留手机号限流
                 user_exists=False
             )
 

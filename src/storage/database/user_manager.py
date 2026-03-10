@@ -227,7 +227,7 @@ class RateLimitManager:
             raise
 
     def check_limits(self, db: Session, phone: str, ip_address: str) -> dict:
-        """检查限流"""
+        """检查限流（仅限手机号维度，移除IP限制）"""
         now = datetime.now(timezone.utc)
         ten_minutes_ago = now - timedelta(minutes=10)
         one_hour_ago = now - timedelta(hours=1)
@@ -245,28 +245,12 @@ class RateLimitManager:
         ).all()
         count_phone_1hour = sum(r.request_count for r in phone_records_1h)
 
-        # 查询 IP 维度的请求
-        ip_records = db.query(RateLimits).filter(
-            RateLimits.ip_address == ip_address,
-            RateLimits.last_request_at > ten_minutes_ago
-        ).all()
-        count_ip_10min = sum(r.request_count for r in ip_records)
-
-        ip_records_1h = db.query(RateLimits).filter(
-            RateLimits.ip_address == ip_address,
-            RateLimits.last_request_at > one_hour_ago
-        ).all()
-        count_ip_1hour = sum(r.request_count for r in ip_records_1h)
-
+        # 仅返回手机号维度的限制，移除IP限制
         return {
             "phone_10min": count_phone_10min,
             "phone_1hour": count_phone_1hour,
-            "ip_10min": count_ip_10min,
-            "ip_1hour": count_ip_1hour,
             "blocked_phone_10min": count_phone_10min >= 3,
             "blocked_phone_1hour": count_phone_1hour >= 5,
-            "blocked_ip_10min": count_ip_10min >= 10,
-            "blocked_ip_1hour": count_ip_1hour >= 20,
         }
 
     def get_active_records(self, db: Session, phone: Optional[str] = None, ip_address: Optional[str] = None) -> List[RateLimits]:
@@ -281,13 +265,14 @@ class RateLimitManager:
         return query.all()
 
     def check_blocked_status(self, db: Session, phone: str, ip_address: str) -> Optional[dict]:
-        """检查封禁状态"""
+        """检查封禁状态（仅根据手机号查询，移除IP限制）"""
+        # 仅根据手机号查询封禁状态，移除IP限制
         record = db.query(RateLimits).filter(
             RateLimits.phone == phone,
-            RateLimits.ip_address == ip_address
+            RateLimits.is_blocked == True
         ).first()
 
-        if not record or not record.is_blocked:
+        if not record:
             return None
 
         now = datetime.now(timezone.utc)
