@@ -306,8 +306,6 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
             )
 
         # IP限制已移除，仅保留手机号限流
-                user_exists=False
-            )
 
         # 5. 所有检查通过
         return CheckRateLimitOutput(
