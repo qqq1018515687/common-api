@@ -176,28 +176,44 @@ class RateLimitManager:
         return f"limit_{uuid.uuid4()}"
 
     def get_or_create(self, db: Session, phone: str, ip_address: str) -> RateLimits:
-        """获取或创建限流记录"""
+        """获取或创建限流记录（增加容错：同一手机号返回最早记录）"""
+        # 优先查询完全匹配（phone + ip）
         record = db.query(RateLimits).filter(
             RateLimits.phone == phone,
             RateLimits.ip_address == ip_address
         ).first()
 
-        if not record:
-            record = RateLimits(
-                record_id=self._generate_record_id(),
-                phone=phone,
-                ip_address=ip_address,
-                request_count=1,
-                first_request_at=datetime.now(timezone.utc),
-                last_request_at=datetime.now(timezone.utc)
-            )
-            db.add(record)
-            try:
-                db.commit()
-                db.refresh(record)
-            except Exception:
-                db.rollback()
-                raise
+        if record:
+            # 找到完全匹配的记录，直接返回
+            return record
+
+        # 没找到完全匹配，查询同一手机号的其他记录
+        same_phone_record = db.query(RateLimits).filter(
+            RateLimits.phone == phone,
+            RateLimits.is_blocked == False  # 只查询未被封禁的记录
+        ).order_by(RateLimits.first_request_at).first()
+
+        if same_phone_record:
+            # 找到同一手机号的记录（可能IP不同），返回这条记录
+            # 这样可以避免IP变化导致的记录重复
+            return same_phone_record
+
+        # 没有任何记录，创建新记录
+        record = RateLimits(
+            record_id=self._generate_record_id(),
+            phone=phone,
+            ip_address=ip_address,
+            request_count=1,
+            first_request_at=datetime.now(timezone.utc),
+            last_request_at=datetime.now(timezone.utc)
+        )
+        db.add(record)
+        try:
+            db.commit()
+            db.refresh(record)
+        except Exception:
+            db.rollback()
+            raise
 
         return record
 
@@ -227,7 +243,7 @@ class RateLimitManager:
             raise
 
     def check_limits(self, db: Session, phone: str, ip_address: str) -> dict:
-        """检查限流（仅限手机号维度，移除IP限制）"""
+        """检查限流（仅限手机号维度，移除IP限制，增加容错机制）"""
         now = datetime.now(timezone.utc)
         ten_minutes_ago = now - timedelta(minutes=10)
         one_hour_ago = now - timedelta(hours=1)
@@ -245,12 +261,16 @@ class RateLimitManager:
         ).all()
         count_phone_1hour = sum(r.request_count for r in phone_records_1h)
 
-        # 仅返回手机号维度的限制，移除IP限制
+        # 容错限流阈值（放宽限制）
+        # 警告阈值：接近限制但不封禁
+        # 封禁阈值：真正超限才封禁
         return {
             "phone_10min": count_phone_10min,
             "phone_1hour": count_phone_1hour,
-            "blocked_phone_10min": count_phone_10min >= 3,
-            "blocked_phone_1hour": count_phone_1hour >= 5,
+            "warn_phone_10min": count_phone_10min >= 3,      # 警告：10分钟内3次
+            "warn_phone_1hour": count_phone_1hour >= 5,      # 警告：1小时内5次
+            "blocked_phone_10min": count_phone_10min >= 5,   # 封禁：10分钟内5次（从3次改为5次）
+            "blocked_phone_1hour": count_phone_1hour >= 10,  # 封禁：1小时内10次（从5次改为10次）
         }
 
     def get_active_records(self, db: Session, phone: Optional[str] = None, ip_address: Optional[str] = None) -> List[RateLimits]:

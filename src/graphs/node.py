@@ -288,7 +288,8 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
         # 3. 计算时间窗口内的请求次数
         limits = rate_mgr.check_limits(db, state.phone, state.ip)
 
-        # 4. 判断是否超过限制
+        # 4. 判断是否超过限制（增加容错机制）
+        # 检查封禁阈值（真正超限才封禁）
         if limits["blocked_phone_10min"]:
             # 触发封禁：设置封禁状态
             record = rate_mgr.get_or_create(db, state.phone, state.ip)
