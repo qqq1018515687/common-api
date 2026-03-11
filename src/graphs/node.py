@@ -290,6 +290,9 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
 
         # 4. 判断是否超过限制
         if limits["blocked_phone_10min"]:
+            # 触发封禁：设置封禁状态
+            record = rate_mgr.get_or_create(db, state.phone, state.ip)
+            rate_mgr.block(db, record, block_duration_hours=10/60)  # 10分钟
             return CheckRateLimitOutput(
                 result={"allowed": False, "reason": "该手机号发送验证码过于频繁，请10分钟后再试"},
                 allowed=False,
@@ -298,6 +301,9 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
             )
 
         if limits["blocked_phone_1hour"]:
+            # 触发封禁：设置封禁状态
+            record = rate_mgr.get_or_create(db, state.phone, state.ip)
+            rate_mgr.block(db, record, block_duration_hours=1)  # 1小时
             return CheckRateLimitOutput(
                 result={"allowed": False, "reason": "该手机号今日发送次数已达上限，请1小时后再试"},
                 allowed=False,

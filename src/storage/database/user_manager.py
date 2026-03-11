@@ -266,25 +266,31 @@ class RateLimitManager:
 
     def check_blocked_status(self, db: Session, phone: str, ip_address: str) -> Optional[dict]:
         """检查封禁状态（仅根据手机号查询，移除IP限制）"""
-        # 仅根据手机号查询封禁状态，移除IP限制
-        record = db.query(RateLimits).filter(
+        # 查询该手机号所有被封禁的记录
+        now = datetime.now(timezone.utc)
+        blocked_records = db.query(RateLimits).filter(
             RateLimits.phone == phone,
             RateLimits.is_blocked == True
-        ).first()
+        ).all()
 
-        if not record:
-            return None
+        # 检查是否有未过期的封禁
+        active_block = None
+        for record in blocked_records:
+            if record.blocked_until and record.blocked_until > now:
+                # 找到未过期的封禁
+                if not active_block or record.blocked_until > active_block.get("blocked_until", 0):
+                    active_block = {"blocked": True, "blocked_until": record.blocked_until.timestamp()}
+            else:
+                # 封禁已过期，解除封禁
+                record.is_blocked = False
+                record.blocked_until = None
+                db.add(record)
 
-        now = datetime.now(timezone.utc)
-        if record.blocked_until and record.blocked_until > now:
-            return {"blocked": True, "blocked_until": record.blocked_until.timestamp()}
-        else:
-            # 封禁已过期，解除封禁
-            record.is_blocked = False
-            record.blocked_until = None
-            db.add(record)
+        # 提交所有解除封禁的操作
+        if blocked_records:
             try:
                 db.commit()
             except Exception:
                 db.rollback()
-            return None
+
+        return active_block
