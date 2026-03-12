@@ -215,6 +215,7 @@ builder.add_edge("list_users", "format_response")
 builder.add_edge("upload", "format_response")
 builder.add_edge("save", "format_response")
 builder.add_edge("create_task", "format_response")
+builder.add_edge("update_task", "format_response")  # 暂时禁用图像自动打标，直接返回
 builder.add_edge("delete_task", "format_response")
 builder.add_edge("list_tasks", "format_response")
 builder.add_edge("system_notification_handler", "format_response")
@@ -223,18 +224,20 @@ builder.add_edge("translate_doubao", "format_response")
 builder.add_edge("prompt_enhance", "format_response")
 builder.add_edge("init_team_balance", "format_response")
 
-# 添加图像标签生成流程的边
-builder.add_edge("update_task", "check_need_tags")
-builder.add_conditional_edges(
-    source="check_need_tags",
-    path=route_by_need_tags,
-    path_map={
-        "生成标签": "image_tagging",
-        "直接返回": "format_response"
-    }
-)
-builder.add_edge("image_tagging", "save_image_tags")
-builder.add_edge("save_image_tags", "format_response")
+# ============ 图像标签生成流程（暂时禁用）============
+# 启用图像自动打标时，取消下面的注释，并注释掉上面的 `builder.add_edge("update_task", "format_response")`
+# 
+# builder.add_edge("update_task", "check_need_tags")
+# builder.add_conditional_edges(
+#     source="check_need_tags",
+#     path=route_by_need_tags,
+#     path_map={
+#         "生成标签": "image_tagging",
+#         "直接返回": "format_response"
+#     }
+# )
+# builder.add_edge("image_tagging", "save_image_tags")
+# builder.add_edge("save_image_tags", "format_response")
 
 # 统一返回节点到结束
 builder.add_edge("format_response", END)
