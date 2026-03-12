@@ -328,6 +328,10 @@ app.include_router(team_balance_router)
 from api.team_transactions import router as team_transactions_router
 app.include_router(team_transactions_router)
 
+# 导入并注册系统初始化 API 路由
+from api.system_init import router as system_init_router
+app.include_router(system_init_router)
+
 
 @app.post("/run")
 async def http_run(request: Request) -> Dict[str, Any]:
