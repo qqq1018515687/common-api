@@ -44,6 +44,31 @@
   - **API接口**：`/admin/tags/*` 系列接口
   - **无需前端**：开发者模式即可完成所有操作
 
+### 团队余额管理功能说明
+- **团队管理**：
+  - 创建团队、添加/移除成员
+  - 查询团队信息、成员列表
+  - 支持角色管理（admin/member）
+  - 一个用户只能属于一个团队
+- **余额管理**：
+  - 团队充值：管理员为团队充值金豆
+  - 余额查询：查看团队余额、总消费、近24小时消费
+  - 扣减余额：任务执行时从团队余额扣费
+  - 退款处理：任务失败时自动退款
+- **消费记录**：
+  - 记录每一笔消费（金额、时间、用户、说明）
+  - 支持按用户、操作类型、时间范围筛选
+  - 查询近一个月消费记录
+  - 成员消费统计（总消费、消费次数、平均消费）
+  - 团队消费排行
+- **数据结构**：
+  - `teams` 表：团队基本信息和余额
+  - `team_members` 表：团队成员关系
+  - `team_consumption_records` 表：消费记录明细
+- **使用方式**：
+  - **API接口**：`/api/teams/*` 系列接口
+  - **权限控制**：管理员可充值和查看所有记录，成员只能查看自己的消费
+
 ### 节点清单
 | 节点名 | 文件位置 | 类型 | 功能描述 | 分支逻辑 | 配置文件 |
 |-------|---------|------|---------|---------|---------|
@@ -134,12 +159,33 @@
 |---------|------|---------|
 | GET /api/batch-retag/preview | 预览待打标任务 | src/api/batch_retag.py |
 | POST /api/batch-retag/execute | 执行批量打标 | src/api/batch_retag.py |
+| POST /api/teams | 创建团队 | src/api/team.py |
+| GET /api/teams | 查询团队列表 | src/api/team.py |
+| GET /api/teams/{team_id} | 查询团队信息 | src/api/team.py |
+| POST /api/teams/{team_id}/members | 添加团队成员 | src/api/team.py |
+| DELETE /api/teams/{team_id}/members/{user_id} | 移除团队成员 | src/api/team.py |
+| GET /api/teams/{team_id}/members | 查询团队成员列表 | src/api/team.py |
+| GET /api/teams/user/{user_id}/team | 查询用户所属团队 | src/api/team.py |
+| GET /api/teams/{team_id}/balance | 查询团队余额 | src/api/team_balance.py |
+| POST /api/teams/{team_id}/recharge | 团队充值 | src/api/team_balance.py |
+| POST /api/teams/{team_id}/deduct | 扣减团队余额 | src/api/team_balance.py |
+| POST /api/teams/{team_id}/refund | 团队退款 | src/api/team_balance.py |
+| GET /api/teams/{team_id}/transactions | 查询消费记录 | src/api/team_transactions.py |
+| GET /api/teams/{team_id}/transactions/recent | 查询近N天消费记录 | src/api/team_transactions.py |
+| GET /api/teams/{team_id}/members/{user_id}/stats | 查询成员消费统计 | src/api/team_transactions.py |
+| GET /api/teams/{team_id}/stats | 查询团队统计信息 | src/api/team_transactions.py |
 
 **批量打标 API 使用说明**：
 - 支持通过 API 触发批量打标，无需直接运行脚本
 - 支持预览模式（dry_run）和模拟数据（use_mock_data）
 - 支持限制处理数量（limit），分批执行
 - 详细使用文档见：`API_USAGE.md`
+
+**团队余额 API 使用说明**：
+- 攢队管理：创建团队、添加/移除成员
+- 余额管理：充值、扣费、退款
+- 消费记录：查询、统计、分析
+- 权限控制：管理员可充值和查看所有记录，成员只能查看自己的消费
 
 ## 文档索引
 | 文档 | 路径 | 说明 |

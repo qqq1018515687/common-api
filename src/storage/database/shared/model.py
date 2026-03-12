@@ -196,3 +196,66 @@ class RetagFailures(Base):
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='重试次数')
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
 
+
+class Teams(Base):
+    __tablename__ = 'teams'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='teams_pkey'),
+        Index('ix_teams_status', 'status'),
+        {'comment': '团队基本信息表，存储团队的金豆余额和基本信息'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='团队ID')
+    name: Mapped[str] = mapped_column(String(100), nullable=False, comment='团队名称')
+    description: Mapped[Optional[str]] = mapped_column(String(255), comment='团队描述')
+    balance: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='团队金豆余额')
+    total_consumed: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='团队总消费金额')
+    member_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='成员数量')
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'active'"), comment='状态：active/disabled')
+    settings: Mapped[Optional[dict]] = mapped_column(JSON, comment='团队配置（限额、预警等）')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
+
+
+class TeamMembers(Base):
+    __tablename__ = 'team_members'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='team_members_pkey'),
+        UniqueConstraint('team_id', 'user_id', name='team_members_team_user_key'),
+        Index('ix_team_members_team', 'team_id'),
+        Index('ix_team_members_user', 'user_id'),
+        Index('ix_team_members_role', 'team_id', 'role'),
+        {'comment': '团队成员关系表，记录用户与团队的关联关系'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='主键')
+    team_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='团队ID')
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='用户ID')
+    role: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'member'"), comment='角色：admin/member')
+    total_consumed: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='该成员在团队中的总消费')
+    joined_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='加入时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
+
+
+class TeamConsumptionRecords(Base):
+    __tablename__ = 'team_consumption_records'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='team_consumption_records_pkey'),
+        Index('ix_team_records_team_time', 'team_id', 'created_at'),
+        Index('ix_team_records_user_time', 'user_id', 'created_at'),
+        Index('ix_team_records_type', 'team_id', 'operation_type'),
+        {'comment': '团队消费记录表，记录团队内每笔消费的详细信息'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='主键')
+    team_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='团队ID')
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='消费的用户ID')
+    amount: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='消费金额（正数表示消费，负数表示退款/充值）')
+    balance_before: Mapped[Optional[int]] = mapped_column(BigInteger, comment='变动前余额')
+    balance_after: Mapped[Optional[int]] = mapped_column(BigInteger, comment='变动后余额')
+    operation_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='操作类型：consumption/refund/recharge')
+    related_id: Mapped[Optional[str]] = mapped_column(String(64), comment='关联ID（任务ID/订单ID）')
+    description: Mapped[Optional[str]] = mapped_column(String(255), comment='描述说明')
+    metadata: Mapped[Optional[dict]] = mapped_column(JSON, comment='扩展信息（任务类型、产品信息等）')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+
