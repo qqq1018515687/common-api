@@ -99,6 +99,7 @@
 | translate_doubao | node.py | agent | 豆包翻译 | - | config/translate_doubao_cfg.json |
 | prompt_enhance | node.py | agent | 提示词增强 | - | config/prompt_enhance_cfg.json |
 | format_response | node.py | task | 格式化响应 | - | - |
+| init_team_balance | node.py | task | 团队余额系统初始化 | - | - |
 
 **类型说明**: task(task节点) / agent(大模型) / condition(条件分支)
 

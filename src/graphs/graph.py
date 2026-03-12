@@ -16,7 +16,9 @@ from graphs.state import (
     UnpackInputDataOutput,
     SystemNotificationInput,
     SystemNotificationOutput,
-    CheckNeedTagsOutput
+    CheckNeedTagsOutput,
+    InitTeamBalanceInput,
+    InitTeamBalanceOutput
 )
 from graphs.node import (
     upload_node,
@@ -44,7 +46,8 @@ from graphs.node import (
     create_task_node,
     update_task_node,
     delete_task_node,
-    list_tasks_node
+    list_tasks_node,
+    init_team_balance_node
 )
 from graphs.nodes.system_notification_handler_node import system_notification_handler_node
 from graphs.nodes.image_tagging_node import image_tagging_node
@@ -71,6 +74,8 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "工具中心"
     elif call_type == "notification_management":
         return "通知管理"
+    elif call_type == "system_init":
+        return "系统初始化"
     else:
         return "账号管理"  # 默认
 
@@ -136,6 +141,7 @@ builder.add_node("tool_route", tool_route_node)
 builder.add_node("reverse_image", reverse_image_node, metadata={"type": "agent", "llm_cfg": "config/reverse_image_cfg.json"})
 builder.add_node("translate_doubao", translate_doubao_node, metadata={"type": "agent", "llm_cfg": "config/translate_doubao_cfg.json"})
 builder.add_node("prompt_enhance", prompt_enhance_node, metadata={"type": "agent", "llm_cfg": "config/prompt_enhance_cfg.json"})
+builder.add_node("init_team_balance", init_team_balance_node)
 
 # 设置入口点（先解包数据）
 builder.set_entry_point("unpack_input_data")
@@ -153,7 +159,8 @@ builder.add_conditional_edges(
         "保存历史": "save",
         "任务管理": "task_route",
         "工具中心": "tool_route",
-        "通知管理": "system_notification_handler"
+        "通知管理": "system_notification_handler",
+        "系统初始化": "init_team_balance"
     }
 )
 
@@ -214,6 +221,7 @@ builder.add_edge("system_notification_handler", "format_response")
 builder.add_edge("reverse_image", "format_response")
 builder.add_edge("translate_doubao", "format_response")
 builder.add_edge("prompt_enhance", "format_response")
+builder.add_edge("init_team_balance", "format_response")
 
 # 添加图像标签生成流程的边
 builder.add_edge("update_task", "check_need_tags")

@@ -578,3 +578,15 @@ class SystemNotificationOutput(BaseModel):
     """系统通知处理节点的输出"""
     result: dict = Field(..., description="操作结果")
 
+
+# ============ 团队余额初始化节点 ============
+
+class InitTeamBalanceInput(BaseModel):
+    """初始化团队余额系统的输入"""
+    action: str = Field(..., description="操作类型：init/check")
+
+
+class InitTeamBalanceOutput(BaseModel):
+    """初始化团队余额系统的输出"""
+    result: dict = Field(..., description="操作结果")
+
