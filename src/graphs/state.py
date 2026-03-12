@@ -46,10 +46,29 @@ class InputData(BaseModel):
     notification_data: Optional[dict] = Field(default=None, description="通知数据（create_notification/update_notification 使用）")
     current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效通知）")
 
-    # 系统通知相关字段
-    notification_id: Optional[str] = Field(default=None, description="通知ID（update_notification/delete_notification 使用）")
-    notification_data: Optional[dict] = Field(default=None, description="通知数据（create_notification/update_notification 使用）")
-    current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效通知）")
+    # 团队余额相关字段
+    amount: Optional[int] = Field(default=None, description="金额（充值/扣费使用）")
+    description: Optional[str] = Field(default=None, description="操作描述")
+    days: Optional[int] = Field(default=None, description="查询天数")
+    target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
+    target_username: Optional[str] = Field(default=None, description="目标用户名")
+    target_role: Optional[str] = Field(default=None, description="目标角色")
+
+    # 团队余额相关字段
+    amount: Optional[int] = Field(default=None, description="金额（充值/扣费使用）")
+    description: Optional[str] = Field(default=None, description="操作描述")
+    days: Optional[int] = Field(default=None, description="查询天数")
+    target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
+    target_username: Optional[str] = Field(default=None, description="目标用户名")
+    target_role: Optional[str] = Field(default=None, description="目标角色")
+
+    # 团队余额相关字段
+    amount: Optional[int] = Field(default=None, description="金额（充值/扣费使用）")
+    description: Optional[str] = Field(default=None, description="操作描述")
+    days: Optional[int] = Field(default=None, description="查询天数")
+    target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
+    target_username: Optional[str] = Field(default=None, description="目标用户名")
+    target_role: Optional[str] = Field(default=None, description="目标角色")
 
 
 class GlobalState(BaseModel):
@@ -100,12 +119,20 @@ class GlobalState(BaseModel):
     notification_data: Optional[dict] = Field(default=None, description="通知数据（create_notification/update_notification 使用）")
     current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效通知）")
 
+    # 团队余额相关字段（用于团队余额操作）
+    amount: Optional[int] = Field(default=None, description="金额（充值/扣费使用）")
+    description: Optional[str] = Field(default=None, description="操作描述")
+    days: Optional[int] = Field(default=None, description="查询天数")
+    target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
+    target_username: Optional[str] = Field(default=None, description="目标用户名")
+    target_role: Optional[str] = Field(default=None, description="目标角色")
+
 
 class GraphInput(BaseModel):
     """工作流的输入"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool/task_management/system_init")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool/task_management/notification_management/team_balance")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
-    action: Optional[str] = Field(default=None, description="操作类型：init/check（系统初始化使用）")
+    action: Optional[str] = Field(default=None, description="操作类型：init/check/create_team/get_team/add_member/list_members/recharge/deduct/get_records/get_stats（团队余额使用）")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
 
 

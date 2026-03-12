@@ -11,7 +11,7 @@ from storage.database.db import get_session
 def save_image_tags_node(state: SaveImageTagsInput, config: RunnableConfig, runtime: Runtime[Context]) -> SaveImageTagsOutput:
     """
     title: 保存图像标签
-    desc: 将生成的场景标签和产品标签保存到任务记录中
+    desc: 将生成的场景标签和产品标签保存到任务记录中（暂时存储在 result 字段中）
     integrations: 数据库
     """
     ctx = runtime.context
@@ -36,9 +36,13 @@ def save_image_tags_node(state: SaveImageTagsInput, config: RunnableConfig, runt
                     error="任务不存在"
                 )
             
-            # 保存标签
-            db_task.scene_tags = state.scene_tags
-            db_task.product_tags = state.product_tags
+            # 将标签保存到 result 字段中（临时方案，等待后续表结构调整）
+            if db_task.result is None:
+                db_task.result = {}
+            
+            # 更新 result 中的标签信息
+            db_task.result["scene_tags"] = state.scene_tags
+            db_task.result["product_tags"] = state.product_tags
             
             db.add(db_task)
             db.commit()
@@ -46,8 +50,8 @@ def save_image_tags_node(state: SaveImageTagsInput, config: RunnableConfig, runt
             
             return SaveImageTagsOutput(
                 success=True,
-                scene_tags=db_task.scene_tags,
-                product_tags=db_task.product_tags
+                scene_tags=state.scene_tags,
+                product_tags=state.product_tags
             )
             
         finally:

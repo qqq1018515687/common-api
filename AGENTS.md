@@ -1,6 +1,6 @@
 ## 项目概述
 - **名称**: Coze Coding 工作流
-- **功能**: 基于 LangGraph 的工作流项目，包含用户管理、文件上传、历史保存、任务管理、图像自动打标、标签池管理等功能
+- **功能**: 基于 LangGraph 的工作流项目，包含用户管理、文件上传、历史保存、任务管理、图像自动打标、标签池管理、团队余额管理等功能
 
 ### 任务管理功能说明
 - **创建任务**：注册用户可创建任务，支持存储 workflow_parameters 和 parameter_snapshot
@@ -41,7 +41,6 @@
   - 失败任务记录，支持重试
 - **使用方式**：
   - **命令行**：`python scripts/analyze_tags_enhanced.py`
-  - **API接口**：`/admin/tags/*` 系列接口
   - **无需前端**：开发者模式即可完成所有操作
 
 ### 团队余额管理功能说明
@@ -49,34 +48,36 @@
   - 创建团队、添加/移除成员
   - 查询团队信息、成员列表
   - 支持角色管理（admin/member）
-  - 一个用户只能属于一个团队
 - **余额管理**：
   - 团队充值：管理员为团队充值金豆
-  - 余额查询：查看团队余额、总消费、近24小时消费
+  - 余额查询：查看团队余额、总消费
   - 扣减余额：任务执行时从团队余额扣费
-  - 退款处理：任务失败时自动退款
 - **消费记录**：
   - 记录每一笔消费（金额、时间、用户、说明）
-  - 支持按用户、操作类型、时间范围筛选
-  - 查询近一个月消费记录
-  - 成员消费统计（总消费、消费次数、平均消费）
-  - 团队消费排行
+  - 支持按时间段查询（7天、30天等）
+  - 成员消费统计（总消费、消费排行）
+  - 团队消费统计
 - **数据结构**：
   - `teams` 表：团队基本信息和余额
   - `team_members` 表：团队成员关系
   - `team_consumption_records` 表：消费记录明细
 - **使用方式**：
-  - **API接口**：`/api/teams/*` 系列接口
-  - **权限控制**：管理员可充值和查看所有记录，成员只能查看自己的消费
+  - **工作流节点**：通过 `call_type=team_balance` + `action` 调用不同节点
+  - **节点列表**：team_init（初始化）、team_manage（团队管理）、team_recharge（充值）、team_deduct（扣费）、team_records（消费记录）
 
 ### 节点清单
 | 节点名 | 文件位置 | 类型 | 功能描述 | 分支逻辑 | 配置文件 |
 |-------|---------|------|---------|---------|---------|
 | unpack_input_data | node.py | task | 解包输入数据 | - | - |
-| call_type_router | node.py | condition | 根据调用类型路由 | 账号管理→operation_route, 文件上传→upload, 保存历史→save, 任务管理→task_route, 工具中心→tool_route, 通知管理→system_notification_handler | - |
+| call_type_router | node.py | condition | 根据调用类型路由 | 账号管理→operation_route, 文件上传→upload, 保存历史→save, 任务管理→task_route, 工具中心→tool_route, 通知管理→system_notification_handler, 团队余额→team_init | - |
 | operation_route | node.py | condition | 根据操作类型路由 | 限流检查→check_rate_limit, 更新限流→update_rate_limit, 用户注册→register_with_limit, 用户登录→get_user, 查询单个用户→get_user_by_id, 更新用户→update_user, 删除用户→delete_user, 用户列表→list_users | - |
 | tool_route | node.py | condition | 根据工具类型路由 | 反推图像→reverse_image, 翻译推荐→translate_doubao, 提示词增强→prompt_enhance | - |
 | task_route | node.py | condition | 根据任务操作类型路由 | 创建任务→create_task, 更新任务→update_task, 删除任务→delete_task, 查询任务列表→list_tasks | - |
+| team_init | nodes/team_init_node.py | task | 团队系统初始化（创建表/检查表） | init/check→team_init, 其他操作路由到对应节点 | - |
+| team_manage | nodes/team_manage_node.py | task | 团队管理（创建团队/查询/添加成员/成员列表） | - | - |
+| team_recharge | nodes/team_recharge_node.py | task | 团队充值 | - | - |
+| team_deduct | nodes/team_deduct_node.py | task | 团队扣费（任务消费） | - | - |
+| team_records | nodes/team_records_node.py | task | 团队消费记录查询（记录/统计/成员统计） | - | - |
 | check_rate_limit | node.py | task | 检查限流 | - | - |
 | update_rate_limit | node.py | task | 更新限流 | - | - |
 | register_with_limit | node.py | task | 用户注册（带限流检查） | - | - |
@@ -98,9 +99,7 @@
 | reverse_image | node.py | agent | 反推图像提示词 | - | config/reverse_image_cfg.json |
 | translate_doubao | node.py | agent | 豆包翻译 | - | config/translate_doubao_cfg.json |
 | prompt_enhance | node.py | agent | 提示词增强 | - | config/prompt_enhance_cfg.json |
-| init_team_balance | nodes/init_team_balance_node.py | task | 初始化团队余额数据库表 | - | - |
 | format_response | node.py | task | 格式化响应 | - | - |
-| init_team_balance | node.py | task | 团队余额系统初始化 | - | - |
 
 **类型说明**: task(task节点) / agent(大模型) / condition(条件分支)
 
@@ -110,9 +109,32 @@
 ## 集成使用
 - 节点 `check_rate_limit`, `update_rate_limit`, `register_with_limit`, `get_user`, `update_user`, `delete_user`, `list_users`, `save`, `upload`, `create_task`, `update_task`, `delete_task`, `list_tasks` 使用数据库集成
 - 节点 `system_notification_handler` 使用数据库集成（系统通知表）
+- 节点 `team_init`, `team_manage`, `team_recharge`, `team_deduct`, `team_records` 使用数据库集成（团队余额表）
 - 节点 `upload`, `save`, `update_user` 使用对象存储集成（使用 StorageManager 自动分类管理）
 - 节点 `reverse_image`, `translate_doubao`, `prompt_enhance` 使用大语言模型集成
 - 节点 `upload` 使用内容处理集成
+
+### 团队余额调用方式
+通过工作流调用，参数示例：
+```json
+{
+  "call_type": "team_balance",
+  "action": "create_team",
+  "input": {
+    "team_id": "mars",
+    "name": "火星团队",
+    "user_id": "1001",
+    "username": "张三"
+  }
+}
+```
+
+支持的 action：
+- `init` / `check` → team_init 节点（初始化/检查表）
+- `create_team` / `get_team` / `add_member` / `list_members` → team_manage 节点
+- `recharge` → team_recharge 节点
+- `deduct` → team_deduct 节点
+- `get_records` / `get_stats` / `get_member_stats` → team_records 节点
 
 ### 系统通知功能说明
 - **获取有效通知**：查询当前有效的通知列表（支持时间范围筛选）
@@ -156,43 +178,9 @@
   - `docs/OLD_VS_NEW_DATA.md` - 旧数据 vs 新数据对比
   - `docs/CLEAN_OLD_DATA_GUIDE.md` - 安全清理旧数据指南
 
-## API 接口清单
-| API 路径 | 功能 | 文件位置 |
-|---------|------|---------|
-| GET /api/batch-retag/preview | 预览待打标任务 | src/api/batch_retag.py |
-| POST /api/batch-retag/execute | 执行批量打标 | src/api/batch_retag.py |
-| POST /api/teams | 创建团队 | src/api/team.py |
-| GET /api/teams | 查询团队列表 | src/api/team.py |
-| GET /api/teams/{team_id} | 查询团队信息 | src/api/team.py |
-| POST /api/teams/{team_id}/members | 添加团队成员 | src/api/team.py |
-| DELETE /api/teams/{team_id}/members/{user_id} | 移除团队成员 | src/api/team.py |
-| GET /api/teams/{team_id}/members | 查询团队成员列表 | src/api/team.py |
-| GET /api/teams/user/{user_id}/team | 查询用户所属团队 | src/api/team.py |
-| GET /api/teams/{team_id}/balance | 查询团队余额 | src/api/team_balance.py |
-| POST /api/teams/{team_id}/recharge | 团队充值 | src/api/team_balance.py |
-| POST /api/teams/{team_id}/deduct | 扣减团队余额 | src/api/team_balance.py |
-| POST /api/teams/{team_id}/refund | 团队退款 | src/api/team_balance.py |
-| GET /api/teams/{team_id}/transactions | 查询消费记录 | src/api/team_transactions.py |
-| GET /api/teams/{team_id}/transactions/recent | 查询近N天消费记录 | src/api/team_transactions.py |
-| GET /api/teams/{team_id}/members/{user_id}/stats | 查询成员消费统计 | src/api/team_transactions.py |
-| GET /api/teams/{team_id}/stats | 查询团队统计信息 | src/api/team_transactions.py |
-
-**批量打标 API 使用说明**：
-- 支持通过 API 触发批量打标，无需直接运行脚本
-- 支持预览模式（dry_run）和模拟数据（use_mock_data）
-- 支持限制处理数量（limit），分批执行
-- 详细使用文档见：`API_USAGE.md`
-
-**团队余额 API 使用说明**：
-- 攢队管理：创建团队、添加/移除成员
-- 余额管理：充值、扣费、退款
-- 消费记录：查询、统计、分析
-- 权限控制：管理员可充值和查看所有记录，成员只能查看自己的消费
-
 ## 文档索引
 | 文档 | 路径 | 说明 |
 |------|------|------|
 | 数据库迁移指南 | `docs/ALEMBIC_GUIDE.md` | Alembic 迁移工具使用指南 |
 | RunningHub 响应转换 | `docs/RunningHub_RESPONSE_CONVERSION.md` | RunningHub API 响应转换工具与示例 |
 | 扣费结果字段说明 | `docs/DEDUCTION_RESULT_FIELD.md` | Tasks 表 deduction_result 字段结构和使用指南 |
-| 批量打标 API 使用 | `API_USAGE.md` | 批量打标 API 接口详细使用指南 |
