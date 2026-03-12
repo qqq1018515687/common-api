@@ -67,6 +67,7 @@ from graphs.nodes.team_manage_node import team_manage_node
 from graphs.nodes.team_recharge_node import team_recharge_node
 from graphs.nodes.team_deduct_node import team_deduct_node
 from graphs.nodes.team_records_node import team_records_node
+from graphs.nodes.team_refund_node import team_refund_node
 
 
 # ============ 团队余额路由类型定义 ============
@@ -161,6 +162,8 @@ def route_by_team_action(state: TeamRouteOutput) -> str:
         return "团队充值"
     elif action == "deduct":
         return "团队扣费"
+    elif action == "refund":
+        return "团队退款"
     elif action == "get_records" or action == "get_stats" or action == "get_member_stats":
         return "消费记录"
     else:
@@ -205,6 +208,7 @@ builder.add_node("team_init", team_init_node)
 builder.add_node("team_manage", team_manage_node)
 builder.add_node("team_recharge", team_recharge_node)
 builder.add_node("team_deduct", team_deduct_node)
+builder.add_node("team_refund", team_refund_node)
 builder.add_node("team_records", team_records_node)
 
 # 设置入口点（先解包数据）
@@ -237,6 +241,7 @@ builder.add_conditional_edges(
         "团队管理": "team_manage",
         "团队充值": "team_recharge",
         "团队扣费": "team_deduct",
+        "团队退款": "team_refund",
         "消费记录": "team_records"
     }
 )
@@ -305,6 +310,7 @@ builder.add_edge("team_init", "format_response")
 builder.add_edge("team_manage", "format_response")
 builder.add_edge("team_recharge", "format_response")
 builder.add_edge("team_deduct", "format_response")
+builder.add_edge("team_refund", "format_response")
 builder.add_edge("team_records", "format_response")
 
 # ============ 图像标签生成流程（暂时禁用）============

@@ -61,16 +61,24 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
 def _get_records(state: TeamRecordsInput) -> dict:
     """获取消费记录列表"""
     team_id = state.team_id
+    user_id = state.user_id  # 可选：筛选特定用户
     days = state.days or 30
     limit = state.limit or 50
 
     with get_session() as session:
         start_date = datetime.now() - timedelta(days=days)
 
-        records = session.query(TeamConsumptionRecords).filter(
+        # 构建查询
+        query = session.query(TeamConsumptionRecords).filter(
             TeamConsumptionRecords.team_id == team_id,
             TeamConsumptionRecords.created_at >= start_date
-        ).order_by(
+        )
+
+        # 如果指定了 user_id，则筛选该用户的记录
+        if user_id:
+            query = query.filter(TeamConsumptionRecords.user_id == user_id)
+
+        records = query.order_by(
             TeamConsumptionRecords.created_at.desc()
         ).limit(limit).all()
 
@@ -80,7 +88,7 @@ def _get_records(state: TeamRecordsInput) -> dict:
                 "user_id": r.user_id,
                 "username": r.username,
                 "amount": r.amount,
-                "operation_type": r.operation_type,  # consumption/recharge
+                "operation_type": r.operation_type,  # consumption/recharge/refund
                 "description": r.description,
                 "created_at": r.created_at.isoformat() if r.created_at else None
             }
@@ -92,6 +100,7 @@ def _get_records(state: TeamRecordsInput) -> dict:
             "message": f"共 {len(record_list)} 条记录",
             "data": {
                 "team_id": team_id,
+                "user_id": user_id,
                 "days": days,
                 "records": record_list
             }

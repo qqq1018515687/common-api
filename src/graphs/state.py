@@ -47,28 +47,14 @@ class InputData(BaseModel):
     current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效通知）")
 
     # 团队余额相关字段
-    amount: Optional[int] = Field(default=None, description="金额（充值/扣费使用）")
+    amount: Optional[int] = Field(default=None, description="金额（充值/扣费/退款使用）")
     description: Optional[str] = Field(default=None, description="操作描述")
     days: Optional[int] = Field(default=None, description="查询天数")
     target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
     target_username: Optional[str] = Field(default=None, description="目标用户名")
     target_role: Optional[str] = Field(default=None, description="目标角色")
-
-    # 团队余额相关字段
-    amount: Optional[int] = Field(default=None, description="金额（充值/扣费使用）")
-    description: Optional[str] = Field(default=None, description="操作描述")
-    days: Optional[int] = Field(default=None, description="查询天数")
-    target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
-    target_username: Optional[str] = Field(default=None, description="目标用户名")
-    target_role: Optional[str] = Field(default=None, description="目标角色")
-
-    # 团队余额相关字段
-    amount: Optional[int] = Field(default=None, description="金额（充值/扣费使用）")
-    description: Optional[str] = Field(default=None, description="操作描述")
-    days: Optional[int] = Field(default=None, description="查询天数")
-    target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
-    target_username: Optional[str] = Field(default=None, description="目标用户名")
-    target_role: Optional[str] = Field(default=None, description="目标角色")
+    original_record_id: Optional[str] = Field(default=None, description="原消费记录ID（退款用）")
+    reason: Optional[str] = Field(default=None, description="退款原因")
 
 
 class GlobalState(BaseModel):
@@ -120,12 +106,14 @@ class GlobalState(BaseModel):
     current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效通知）")
 
     # 团队余额相关字段（用于团队余额操作）
-    amount: Optional[int] = Field(default=None, description="金额（充值/扣费使用）")
+    amount: Optional[int] = Field(default=None, description="金额（充值/扣费/退款使用）")
     description: Optional[str] = Field(default=None, description="操作描述")
     days: Optional[int] = Field(default=None, description="查询天数")
     target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
     target_username: Optional[str] = Field(default=None, description="目标用户名")
     target_role: Optional[str] = Field(default=None, description="目标角色")
+    original_record_id: Optional[str] = Field(default=None, description="原消费记录ID（退款用）")
+    reason: Optional[str] = Field(default=None, description="退款原因")
 
 
 class GraphInput(BaseModel):
@@ -471,6 +459,7 @@ class FormatResponseInput(BaseModel):
     """统一返回节点的输入"""
     call_type: str = Field(..., description="调用类型")
     result: dict = Field(default={}, description="各节点的结果")
+    response_data: Optional[dict] = Field(default=None, description="直接返回的响应数据（团队余额等节点使用）")
 
 
 class FormatResponseOutput(BaseModel):
@@ -546,6 +535,15 @@ class UnpackInputDataOutput(BaseModel):
     notification_id: Optional[str] = Field(default=None, description="通知ID")
     notification_data: Optional[dict] = Field(default=None, description="通知数据")
     current_time: Optional[int] = Field(default=None, description="当前时间戳")
+    # 团队余额相关字段
+    amount: Optional[int] = Field(default=None, description="金额（充值/扣费/退款使用）")
+    description: Optional[str] = Field(default=None, description="操作描述")
+    days: Optional[int] = Field(default=None, description="查询天数")
+    target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
+    target_username: Optional[str] = Field(default=None, description="目标用户名")
+    target_role: Optional[str] = Field(default=None, description="目标角色")
+    original_record_id: Optional[str] = Field(default=None, description="原消费记录ID（退款用）")
+    reason: Optional[str] = Field(default=None, description="退款原因")
 
 
 # 工具路由节点

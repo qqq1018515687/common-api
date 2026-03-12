@@ -233,7 +233,16 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         # 系统通知相关字段
         notification_id=input_data.notification_id if input_data else None,
         notification_data=input_data.notification_data if input_data else None,
-        current_time=input_data.current_time if input_data else None
+        current_time=input_data.current_time if input_data else None,
+        # 团队余额相关字段
+        amount=input_data.amount if input_data else None,
+        description=input_data.description if input_data else None,
+        days=input_data.days if input_data else None,
+        target_user_id=input_data.target_user_id if input_data else None,
+        target_username=input_data.target_username if input_data else None,
+        target_role=input_data.target_role if input_data else None,
+        original_record_id=input_data.original_record_id if input_data else None,
+        reason=input_data.reason if input_data else None
     )
 
 from storage.s3.s3_storage import S3SyncStorage
@@ -1288,6 +1297,10 @@ def format_response_node(state: FormatResponseInput, config: RunnableConfig, run
     ctx = runtime.context
 
     try:
+        # 优先检查 response_data（团队余额等节点直接返回的数据）
+        if state.response_data is not None:
+            return FormatResponseOutput(response_data=state.response_data)
+
         result = state.result if state.result is not None else {}
 
         # 处理空结果或 None

@@ -52,9 +52,15 @@
   - 团队充值：管理员为团队充值金豆
   - 余额查询：查看团队余额、总消费
   - 扣减余额：任务执行时从团队余额扣费
+- **退款功能**：
+  - 任务失败时可将金额退还到团队账户
+  - 支持全额/部分退款
+  - 需关联原消费记录ID
+  - 更新成员累计消费统计
 - **消费记录**：
   - 记录每一笔消费（金额、时间、用户、说明）
   - 支持按时间段查询（7天、30天等）
+  - 支持按用户ID筛选记录（不传则返回全部）
   - 成员消费统计（总消费、消费排行）
   - 团队消费统计
 - **数据结构**：
@@ -77,7 +83,8 @@
 | team_manage | nodes/team_manage_node.py | task | 团队管理（创建团队/查询/添加成员/成员列表） | - | - |
 | team_recharge | nodes/team_recharge_node.py | task | 团队充值 | - | - |
 | team_deduct | nodes/team_deduct_node.py | task | 团队扣费（任务消费） | - | - |
-| team_records | nodes/team_records_node.py | task | 团队消费记录查询（记录/统计/成员统计） | - | - |
+| team_refund | nodes/team_refund_node.py | task | 团队退款（任务失败时） | - | - |
+| team_records | nodes/team_records_node.py | task | 团队消费记录查询（支持user_id筛选） | - | - |
 | check_rate_limit | node.py | task | 检查限流 | - | - |
 | update_rate_limit | node.py | task | 更新限流 | - | - |
 | register_with_limit | node.py | task | 用户注册（带限流检查） | - | - |
@@ -109,7 +116,7 @@
 ## 集成使用
 - 节点 `check_rate_limit`, `update_rate_limit`, `register_with_limit`, `get_user`, `update_user`, `delete_user`, `list_users`, `save`, `upload`, `create_task`, `update_task`, `delete_task`, `list_tasks` 使用数据库集成
 - 节点 `system_notification_handler` 使用数据库集成（系统通知表）
-- 节点 `team_init`, `team_manage`, `team_recharge`, `team_deduct`, `team_records` 使用数据库集成（团队余额表）
+- 节点 `team_init`, `team_manage`, `team_recharge`, `team_deduct`, `team_refund`, `team_records` 使用数据库集成（团队余额表）
 - 节点 `upload`, `save`, `update_user` 使用对象存储集成（使用 StorageManager 自动分类管理）
 - 节点 `reverse_image`, `translate_doubao`, `prompt_enhance` 使用大语言模型集成
 - 节点 `upload` 使用内容处理集成
@@ -134,6 +141,7 @@
 - `create_team` / `get_team` / `add_member` / `list_members` → team_manage 节点
 - `recharge` → team_recharge 节点
 - `deduct` → team_deduct 节点
+- `refund` → team_refund 节点
 - `get_records` / `get_stats` / `get_member_stats` → team_records 节点
 
 ### 系统通知功能说明
