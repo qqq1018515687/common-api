@@ -258,6 +258,7 @@ async def add_team_member(
             id=f"tm_{uuid.uuid4().hex[:8]}",
             team_id=team_id,
             user_id=request.user_id,
+            username=user.username,  # 冗余字段
             role=request.role,
             total_consumed=0
         )
