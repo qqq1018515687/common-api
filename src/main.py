@@ -312,22 +312,6 @@ app = FastAPI()
 from api.tasks import router as tasks_router
 app.include_router(tasks_router)
 
-# 导入并注册批量打标 API 路由
-from api.batch_retag import router as batch_retag_router
-app.include_router(batch_retag_router)
-
-# 导入并注册团队管理 API 路由
-from api.team import router as team_router
-app.include_router(team_router)
-
-# 导入并注册团队余额管理 API 路由
-from api.team_balance import router as team_balance_router
-app.include_router(team_balance_router)
-
-# 导入并注册团队消费记录 API 路由
-from api.team_transactions import router as team_transactions_router
-app.include_router(team_transactions_router)
-
 
 @app.post("/run")
 async def http_run(request: Request) -> Dict[str, Any]:
