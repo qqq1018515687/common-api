@@ -61,7 +61,8 @@ from graphs.state import (
     UpdateTaskInput, UpdateTaskOutput,
     DeleteTaskInput, DeleteTaskOutput,
     ListTasksInput, ListTasksOutput,
-    TaskRouteInput, TaskRouteOutput
+    TaskRouteInput, TaskRouteOutput,
+    InitTeamBalanceInput, InitTeamBalanceOutput
 )
 import os
 import requests

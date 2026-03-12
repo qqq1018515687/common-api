@@ -14,8 +14,8 @@ from storage.database.shared.model import (
     Teams,
     TeamMembers,
     TeamConsumptionRecords,
-    engine
 )
+from storage.database.db import get_session
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/api/teams", tags=["团队余额管理"])
 
 def get_db():
     """获取数据库会话"""
-    db = Session(engine)
+    db = get_session()
     try:
         yield db
     finally:

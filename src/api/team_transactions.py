@@ -14,8 +14,8 @@ from storage.database.shared.model import (
     TeamMembers,
     Users,
     Teams,
-    engine
 )
+from storage.database.db import get_session
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, desc, and_
 
@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api/teams", tags=["团队消费记录"])
 
 def get_db():
     """获取数据库会话"""
-    db = Session(engine)
+    db = get_session()
     try:
         yield db
     finally:

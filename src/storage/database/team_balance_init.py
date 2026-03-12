@@ -4,7 +4,7 @@
 """
 
 import logging
-from storage.database.shared.model import engine
+from storage.database.db import get_engine
 from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,7 @@ def create_team_balance_tables():
         CREATE INDEX IF NOT EXISTS ix_team_records_type ON team_consumption_records(team_id, operation_type);
         """
 
-        with engine.connect() as conn:
+        with get_engine().connect() as conn:
             # 创建 teams 表
             conn.execute(text(create_teams_sql))
             logger.info("✅ teams 表创建成功")
@@ -112,7 +112,7 @@ def check_tables_exist():
         tables_to_check = ["teams", "team_members", "team_consumption_records"]
         result = {}
 
-        with engine.connect() as conn:
+        with get_engine().connect() as conn:
             for table in tables_to_check:
                 check_sql = f"""
                 SELECT EXISTS (
