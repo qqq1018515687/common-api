@@ -115,3 +115,84 @@ class SystemNotifications(Base):
     updated_at: Mapped[Optional[int]] = mapped_column(BigInteger, comment='更新时间（毫秒）')
     created_by: Mapped[str] = mapped_column(String(36), nullable=False, comment='创建者用户ID')
 
+
+class TagPoolVersions(Base):
+    __tablename__ = 'tag_pool_versions'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='tag_pool_versions_pkey'),
+        UniqueConstraint('pool_type', 'version', name='tag_pool_versions_type_version_key'),
+        Index('ix_tag_pool_versions_type_version', 'pool_type', 'version'),
+        Index('ix_tag_pool_versions_is_active', 'is_active'),
+        {'comment': '标签池版本表，用于管理标签池的版本历史'}
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, comment='主键，UUID格式')
+    pool_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='标签池类型：scene/product')
+    version: Mapped[int] = mapped_column(Integer, nullable=False, comment='版本号')
+    tags: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, comment='标签列表')
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text('false'), comment='是否激活')
+    created_by: Mapped[Optional[str]] = mapped_column(String(36), comment='创建者用户ID')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    activated_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='激活时间')
+    activated_by: Mapped[Optional[str]] = mapped_column(String(36), comment='激活者用户ID')
+
+
+class TagChangeHistory(Base):
+    __tablename__ = 'tag_change_history'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='tag_change_history_pkey'),
+        Index('ix_tag_change_history_version', 'from_version', 'to_version'),
+        {'comment': '标签变更历史表，记录标签池的所有变更记录'}
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, comment='主键，UUID格式')
+    from_version: Mapped[Optional[int]] = mapped_column(Integer, comment='变更前版本')
+    to_version: Mapped[int] = mapped_column(Integer, nullable=False, comment='变更后版本')
+    pool_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='标签池类型：scene/product')
+    change_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='变更类型：new_tag/remove_tag/merge_tags/activate_version/rollback')
+    tag_name: Mapped[Optional[str]] = mapped_column(String(50), comment='标签名称')
+    change_details: Mapped[Optional[dict]] = mapped_column(JSON, comment='变更详情')
+    reason: Mapped[Optional[str]] = mapped_column(Text, comment='变更原因')
+    created_by: Mapped[Optional[str]] = mapped_column(String(36), comment='创建者用户ID')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+
+
+class BatchRetagTasks(Base):
+    __tablename__ = 'batch_retag_tasks'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='batch_retag_tasks_pkey'),
+        Index('ix_batch_retag_tasks_status', 'status'),
+        {'comment': '批量重打标任务表，记录批量重打标的执行状态'}
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, comment='主键，UUID格式')
+    tag_pool_version: Mapped[int] = mapped_column(Integer, nullable=False, comment='目标标签池版本')
+    pool_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='标签池类型：scene/product')
+    total_tasks: Mapped[int] = mapped_column(Integer, nullable=False, comment='总任务数')
+    completed_tasks: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='已完成任务数')
+    failed_tasks: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"), comment='失败任务数')
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'pending'"), comment='状态：pending/running/completed/failed/cancelled')
+    started_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='开始时间')
+    completed_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='完成时间')
+    error_message: Mapped[Optional[str]] = mapped_column(Text, comment='错误消息')
+    created_by: Mapped[Optional[str]] = mapped_column(String(36), comment='创建者用户ID')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()"), comment='创建时间')
+
+
+class RetagFailures(Base):
+    __tablename__ = 'retag_failures'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='retag_failures_pkey'),
+        Index('ix_retag_failures_batch', 'batch_id'),
+        Index('ix_retag_failures_task', 'task_id'),
+        {'comment': '重打标失败记录表，记录重打标失败的详细信息'}
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, comment='主键，UUID格式')
+    batch_id: Mapped[Optional[str]] = mapped_column(String(36), comment='批量任务ID')
+    task_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='任务ID')
+    error_type: Mapped[Optional[str]] = mapped_column(String(50), comment='错误类型：url_expired/ai_error/db_error/other')
+    error_message: Mapped[Optional[str]] = mapped_column(Text, comment='错误消息')
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='重试次数')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+
