@@ -10,7 +10,8 @@ from datetime import datetime
 import uuid
 import logging
 
-from storage.database.shared.model import Teams, TeamMembers, Users, engine
+from storage.database.shared.model import Teams, TeamMembers, Users
+from storage.database.db import get_session
 from sqlalchemy.orm import Session
 from sqlalchemy import select, delete, update, func
 
@@ -21,13 +22,7 @@ router = APIRouter(prefix="/api/teams", tags=["团队管理"])
 
 def get_db():
     """获取数据库会话"""
-    db = Session(engine)
-    try:
-        yield db
-    finally:
-        db.close()
-
-
+    db = get_session()
 # ==================== 请求/响应模型 ====================
 
 class CreateTeamRequest(BaseModel):

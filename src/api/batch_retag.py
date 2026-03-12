@@ -12,7 +12,8 @@ import time
 from datetime import datetime
 
 # 导入项目相关模块
-from storage.database.shared.model import Task, engine
+from storage.database.shared.model import Tasks
+from storage.database.db import get_session
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
@@ -23,7 +24,7 @@ router = APIRouter(prefix="/api/batch-retag", tags=["批量打标"])
 
 def get_db():
     """获取数据库会话"""
-    db = Session(engine)
+    db = get_session()
     try:
         yield db
     finally:
