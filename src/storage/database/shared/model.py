@@ -176,7 +176,7 @@ class BatchRetagTasks(Base):
     completed_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='完成时间')
     error_message: Mapped[Optional[str]] = mapped_column(Text, comment='错误消息')
     created_by: Mapped[Optional[str]] = mapped_column(String(36), comment='创建者用户ID')
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()"), comment='创建时间')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
 
 
 class RetagFailures(Base):
@@ -256,6 +256,6 @@ class TeamConsumptionRecords(Base):
     operation_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='操作类型：consumption/refund/recharge')
     related_id: Mapped[Optional[str]] = mapped_column(String(64), comment='关联ID（任务ID/订单ID）')
     description: Mapped[Optional[str]] = mapped_column(String(255), comment='描述说明')
-    metadata: Mapped[Optional[dict]] = mapped_column(JSON, comment='扩展信息（任务类型、产品信息等）')
+    extra_data: Mapped[Optional[dict]] = mapped_column('metadata', JSON, comment='扩展信息（任务类型、产品信息等）')
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
 
