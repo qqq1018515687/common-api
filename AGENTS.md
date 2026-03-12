@@ -98,6 +98,7 @@
 | reverse_image | node.py | agent | 反推图像提示词 | - | config/reverse_image_cfg.json |
 | translate_doubao | node.py | agent | 豆包翻译 | - | config/translate_doubao_cfg.json |
 | prompt_enhance | node.py | agent | 提示词增强 | - | config/prompt_enhance_cfg.json |
+| init_team_balance | nodes/init_team_balance_node.py | task | 初始化团队余额数据库表 | - | - |
 | format_response | node.py | task | 格式化响应 | - | - |
 | init_team_balance | node.py | task | 团队余额系统初始化 | - | - |
 

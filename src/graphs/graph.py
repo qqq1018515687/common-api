@@ -16,10 +16,9 @@ from graphs.state import (
     UnpackInputDataOutput,
     SystemNotificationInput,
     SystemNotificationOutput,
-    CheckNeedTagsOutput,
-    InitTeamBalanceInput,
-    InitTeamBalanceOutput
+    CheckNeedTagsOutput
 )
+from graphs.team_balance_state import InitTeamBalanceInput, InitTeamBalanceOutput
 from graphs.node import (
     upload_node,
     save_node,
@@ -46,13 +45,13 @@ from graphs.node import (
     create_task_node,
     update_task_node,
     delete_task_node,
-    list_tasks_node,
-    init_team_balance_node
+    list_tasks_node
 )
 from graphs.nodes.system_notification_handler_node import system_notification_handler_node
 from graphs.nodes.image_tagging_node import image_tagging_node
 from graphs.nodes.save_image_tags_node import save_image_tags_node
 from graphs.nodes.check_need_tags_node import check_need_tags_node
+from graphs.nodes.init_team_balance_node import init_team_balance_node
 
 
 def route_by_call_type(state: RouterOutput) -> str:

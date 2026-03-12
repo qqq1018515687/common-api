@@ -54,7 +54,7 @@ class InputData(BaseModel):
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management/notification_management")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management/notification_management/system_init")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
@@ -64,6 +64,7 @@ class GlobalState(BaseModel):
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     operation_type: Optional[str] = Field(default=None, description="操作类型：check_rate_limit/register/login/update_user/delete_user/list_users/create_task/update_task/delete_task/list_tasks")
+    action: Optional[str] = Field(default=None, description="操作类型：init/check（系统初始化使用）")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
     result: dict = Field(default={}, description="各节点的结果")
     response_data: Optional[dict] = Field(default=None, description="统一响应数据")
@@ -102,8 +103,9 @@ class GlobalState(BaseModel):
 
 class GraphInput(BaseModel):
     """工作流的输入"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool/task_management")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool/task_management/system_init")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
+    action: Optional[str] = Field(default=None, description="操作类型：init/check（系统初始化使用）")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
 
 
@@ -578,15 +580,4 @@ class SystemNotificationOutput(BaseModel):
     """系统通知处理节点的输出"""
     result: dict = Field(..., description="操作结果")
 
-
-# ============ 团队余额初始化节点 ============
-
-class InitTeamBalanceInput(BaseModel):
-    """初始化团队余额系统的输入"""
-    action: str = Field(..., description="操作类型：init/check")
-
-
-class InitTeamBalanceOutput(BaseModel):
-    """初始化团队余额系统的输出"""
-    result: dict = Field(..., description="操作结果")
 
