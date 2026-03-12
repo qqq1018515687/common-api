@@ -165,7 +165,6 @@ async def recharge_team_balance(
             id=f"tcr_{uuid.uuid4().hex[:8]}",
             team_id=team_id,
             user_id="",  # 充值操作没有具体用户
-            username=None,  # 充值操作没有具体用户
             amount=-amount,  # 负数表示充值
             balance_before=balance_before,
             balance_after=team.balance,
@@ -248,7 +247,6 @@ async def deduct_team_balance(
             id=f"tcr_{uuid.uuid4().hex[:8]}",
             team_id=team_id,
             user_id=request.user_id,
-            username=member.username,  # 从成员信息获取
             amount=request.amount,  # 正数表示消费
             balance_before=balance_before,
             balance_after=team.balance,
@@ -328,7 +326,6 @@ async def refund_team_balance(
             id=f"tcr_{uuid.uuid4().hex[:8]}",
             team_id=team_id,
             user_id=request.user_id,
-            username=member.username,  # 从成员信息获取
             amount=-request.amount,  # 负数表示退款
             balance_before=balance_before,
             balance_after=team.balance,
