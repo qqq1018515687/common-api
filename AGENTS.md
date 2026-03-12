@@ -129,9 +129,22 @@
   - `docs/OLD_VS_NEW_DATA.md` - 旧数据 vs 新数据对比
   - `docs/CLEAN_OLD_DATA_GUIDE.md` - 安全清理旧数据指南
 
+## API 接口清单
+| API 路径 | 功能 | 文件位置 |
+|---------|------|---------|
+| GET /api/batch-retag/preview | 预览待打标任务 | src/api/batch_retag.py |
+| POST /api/batch-retag/execute | 执行批量打标 | src/api/batch_retag.py |
+
+**批量打标 API 使用说明**：
+- 支持通过 API 触发批量打标，无需直接运行脚本
+- 支持预览模式（dry_run）和模拟数据（use_mock_data）
+- 支持限制处理数量（limit），分批执行
+- 详细使用文档见：`API_USAGE.md`
+
 ## 文档索引
 | 文档 | 路径 | 说明 |
 |------|------|------|
 | 数据库迁移指南 | `docs/ALEMBIC_GUIDE.md` | Alembic 迁移工具使用指南 |
 | RunningHub 响应转换 | `docs/RunningHub_RESPONSE_CONVERSION.md` | RunningHub API 响应转换工具与示例 |
 | 扣费结果字段说明 | `docs/DEDUCTION_RESULT_FIELD.md` | Tasks 表 deduction_result 字段结构和使用指南 |
+| 批量打标 API 使用 | `API_USAGE.md` | 批量打标 API 接口详细使用指南 |

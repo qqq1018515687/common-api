@@ -312,6 +312,10 @@ app = FastAPI()
 from api.tasks import router as tasks_router
 app.include_router(tasks_router)
 
+# 导入并注册批量打标 API 路由
+from api.batch_retag import router as batch_retag_router
+app.include_router(batch_retag_router)
+
 
 @app.post("/run")
 async def http_run(request: Request) -> Dict[str, Any]:
