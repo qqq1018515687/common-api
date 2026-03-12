@@ -15,7 +15,8 @@ from graphs.state import (
     UnpackInputDataInput,
     UnpackInputDataOutput,
     SystemNotificationInput,
-    SystemNotificationOutput
+    SystemNotificationOutput,
+    CheckNeedTagsOutput
 )
 from graphs.node import (
     upload_node,
@@ -46,6 +47,9 @@ from graphs.node import (
     list_tasks_node
 )
 from graphs.nodes.system_notification_handler_node import system_notification_handler_node
+from graphs.nodes.image_tagging_node import image_tagging_node
+from graphs.nodes.save_image_tags_node import save_image_tags_node
+from graphs.nodes.check_need_tags_node import check_need_tags_node
 
 
 def route_by_call_type(state: RouterOutput) -> str:
@@ -90,6 +94,17 @@ def route_by_tool_type(state: ToolRouteOutput) -> str:
         return "反推图像"
 
 
+def route_by_need_tags(state: CheckNeedTagsOutput) -> str:
+    """
+    title: 是否需要生成标签
+    desc: 根据任务状态和结果判断是否需要生成图像标签
+    """
+    if state.need_tags:
+        return "生成标签"
+    else:
+        return "直接返回"
+
+
 # 创建状态图，指定图的入参和出参
 builder = StateGraph(GlobalState, input_schema=GraphInput, output_schema=GraphOutput)
 
@@ -114,6 +129,9 @@ builder.add_node("delete_task", delete_task_node)
 builder.add_node("list_tasks", list_tasks_node)
 builder.add_node("system_notification_handler", system_notification_handler_node)
 builder.add_node("format_response", format_response_node)
+builder.add_node("check_need_tags", check_need_tags_node)
+builder.add_node("image_tagging", image_tagging_node, metadata={"type": "agent", "llm_cfg": "config/image_tagging_cfg.json"})
+builder.add_node("save_image_tags", save_image_tags_node)
 builder.add_node("tool_route", tool_route_node)
 builder.add_node("reverse_image", reverse_image_node, metadata={"type": "agent", "llm_cfg": "config/reverse_image_cfg.json"})
 builder.add_node("translate_doubao", translate_doubao_node, metadata={"type": "agent", "llm_cfg": "config/translate_doubao_cfg.json"})
@@ -190,13 +208,25 @@ builder.add_edge("list_users", "format_response")
 builder.add_edge("upload", "format_response")
 builder.add_edge("save", "format_response")
 builder.add_edge("create_task", "format_response")
-builder.add_edge("update_task", "format_response")
 builder.add_edge("delete_task", "format_response")
 builder.add_edge("list_tasks", "format_response")
 builder.add_edge("system_notification_handler", "format_response")
 builder.add_edge("reverse_image", "format_response")
 builder.add_edge("translate_doubao", "format_response")
 builder.add_edge("prompt_enhance", "format_response")
+
+# 添加图像标签生成流程的边
+builder.add_edge("update_task", "check_need_tags")
+builder.add_conditional_edges(
+    source="check_need_tags",
+    path=route_by_need_tags,
+    path_map={
+        "生成标签": "image_tagging",
+        "直接返回": "format_response"
+    }
+)
+builder.add_edge("image_tagging", "save_image_tags")
+builder.add_edge("save_image_tags", "format_response")
 
 # 统一返回节点到结束
 builder.add_edge("format_response", END)

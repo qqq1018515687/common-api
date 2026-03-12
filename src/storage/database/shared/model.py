@@ -55,6 +55,8 @@ class Tasks(Base):
     connection_mode: Mapped[Optional[str]] = mapped_column(String(10), server_default=text("'sse'::character varying"))
     team_id: Mapped[Optional[str]] = mapped_column(String(64))
     is_deleted: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text("false"), comment="是否已删除（软删除标记）")
+    scene_tags: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, comment='场景标签（数组）')
+    product_tags: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, comment='产品标签（数组）')
 
 
 class Users(Base):

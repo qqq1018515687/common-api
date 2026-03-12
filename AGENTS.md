@@ -8,13 +8,19 @@
   - 注册用户可更新任务状态、结果、错误信息、完成时间和扣费结果
   - 支持扣费结果记录（deduction_result），包含扣费模式、预扣金额、最终金额和结算时间
   - 已适配 RunningHub 响应结构
+  - **自动图像标签生成**：任务完成且有图像URL时，自动生成场景标签和产品标签
 - **删除任务**：
   - 注册用户可软删除任务（is_deleted=true）
   - **管理员**（role='admin'）可删除任何任务
   - **普通用户**（role='user'）只能删除自己的任务
-- **查询任务**：注册用户可查询自己的任务列表（自动过滤已删除任务），包含扣费结果信息
+- **查询任务**：注册用户可查询自己的任务列表（自动过滤已删除任务），包含扣费结果信息、场景标签和产品标签
 - **权限控制**：所有任务操作仅限已注册的活跃用户（user_id 存在且 account_status=active）
 - **RunningHub 集成**：提供工具函数将 RunningHub 响应转换为任务更新格式（详见 `docs/RunningHub_RESPONSE_CONVERSION.md`）
+- **图像标签功能**：
+  - **场景标签**：座椅场景、睡眠场景、躺卧场景、驾驶场景、办公场景、客厅场景、装饰场景、户外场景
+  - **产品标签**：腰靠、腿枕、融蜡灯、脚垫、枕头、坐垫
+  - **触发条件**：任务状态为 `completed` 且结果包含图像URL
+  - **存储方式**：存储在 tasks 表的 `scene_tags` 和 `product_tags` 字段（JSON数组格式）
 
 ### 节点清单
 | 节点名 | 文件位置 | 类型 | 功能描述 | 分支逻辑 | 配置文件 |
@@ -38,6 +44,9 @@
 | update_task | node.py | task | 更新任务 | - | - |
 | delete_task | node.py | task | 删除任务 | - | - |
 | list_tasks | node.py | task | 查询任务列表 | - | - |
+| check_need_tags | nodes/check_need_tags_node.py | task | 检查是否需要生成标签 | 需要标签→image_tagging, 不需要→format_response | - |
+| image_tagging | nodes/image_tagging_node.py | agent | 图像标签生成（场景标签+产品标签） | - | config/image_tagging_cfg.json |
+| save_image_tags | nodes/save_image_tags_node.py | task | 保存图像标签到数据库 | - | - |
 | system_notification_handler | nodes/system_notification_handler_node.py | task | 系统通知处理（增删改查） | - | - |
 | reverse_image | node.py | agent | 反推图像提示词 | - | config/reverse_image_cfg.json |
 | translate_doubao | node.py | agent | 豆包翻译 | - | config/translate_doubao_cfg.json |

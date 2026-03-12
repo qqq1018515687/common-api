@@ -1113,12 +1113,17 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
             if not db_task:
                 return UpdateTaskOutput(result={"success": False, "message": "任务不存在"})
 
-            return UpdateTaskOutput(result={
-                "success": True,
-                "message": "任务更新成功",
-                "task_id": db_task.id,
-                "status": db_task.status
-            })
+            return UpdateTaskOutput(
+                result={
+                    "success": True,
+                    "message": "任务更新成功",
+                    "task_id": db_task.id,
+                    "status": db_task.status
+                },
+                task_id=db_task.id,
+                status=db_task.status,
+                task_result=db_task.result
+            )
 
         finally:
             db.close()

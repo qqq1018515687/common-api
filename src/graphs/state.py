@@ -199,6 +199,58 @@ class GetUserOutput(BaseModel):
     error: Optional[str] = Field(default=None, description="错误信息")
 
 
+# ============ 图像标签生成节点 ============
+
+class ImageTaggingInput(BaseModel):
+    """图像标签生成节点的输入"""
+    image_url: str = Field(..., description="图像URL")
+    task_id: str = Field(..., description="任务ID")
+
+
+class ImageTaggingOutput(BaseModel):
+    """图像标签生成节点的输出"""
+    scene_tags: list = Field(default=[], description="场景标签")
+    product_tags: list = Field(default=[], description="产品标签")
+    success: bool = Field(default=True, description="是否成功")
+    error: Optional[str] = Field(default=None, description="错误信息")
+    task_id: Optional[str] = Field(default=None, description="任务ID")
+
+
+# ============ 保存图像标签节点 ============
+
+class SaveImageTagsInput(BaseModel):
+    """保存图像标签节点的输入"""
+    task_id: str = Field(..., description="任务ID")
+    scene_tags: list = Field(default=[], description="场景标签")
+    product_tags: list = Field(default=[], description="产品标签")
+
+
+class SaveImageTagsOutput(BaseModel):
+    """保存图像标签节点的输出"""
+    success: bool = Field(default=True, description="是否成功")
+    scene_tags: list = Field(default=[], description="场景标签")
+    product_tags: list = Field(default=[], description="产品标签")
+    error: Optional[str] = Field(default=None, description="错误信息")
+
+
+# ============ 检查是否需要生成标签节点 ============
+
+class CheckNeedTagsInput(BaseModel):
+    """检查是否需要生成标签节点的输入"""
+    task_id: str = Field(..., description="任务ID")
+    status: str = Field(..., description="任务状态")
+    task_result: Optional[dict] = Field(default=None, description="任务结果")
+
+
+class CheckNeedTagsOutput(BaseModel):
+    """检查是否需要生成标签节点的输出"""
+    task_id: str = Field(..., description="任务ID")
+    status: str = Field(..., description="任务状态")
+    task_result: Optional[dict] = Field(default=None, description="任务结果")
+    need_tags: bool = Field(default=False, description="是否需要生成标签")
+    image_url: Optional[str] = Field(default=None, description="图像URL（需要生成标签时）")
+
+
 # 查询单个用户节点（通过 user_id）
 class GetUserByIdInput(BaseModel):
     """查询单个用户节点的输入"""
@@ -320,6 +372,9 @@ class UpdateTaskInput(BaseModel):
 class UpdateTaskOutput(BaseModel):
     """更新任务节点的输出"""
     result: dict = Field(..., description="更新结果")
+    task_id: Optional[str] = Field(default=None, description="任务ID")
+    status: Optional[str] = Field(default=None, description="任务状态")
+    task_result: Optional[dict] = Field(default=None, description="任务结果")
 
 
 class DeleteTaskInput(BaseModel):
