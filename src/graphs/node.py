@@ -198,6 +198,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
 
     return UnpackInputDataOutput(
         call_type=state.call_type,
+        action=state.action,
         tool_type=state.tool_type,
         operation_type=input_data.operation_type if input_data else None,
         username=input_data.username if input_data else None,

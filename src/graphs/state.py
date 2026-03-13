@@ -5,6 +5,7 @@ from utils.file.file import File
 
 class InputData(BaseModel):
     """输入数据对象，包含所有业务字段"""
+    action: Optional[str] = Field(default=None, description="操作类型：init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats（团队余额等使用）")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
@@ -491,6 +492,7 @@ class OperationRouteOutput(BaseModel):
 class UnpackInputDataInput(BaseModel):
     """数据解包节点的输入"""
     call_type: str = Field(..., description="调用类型")
+    action: Optional[str] = Field(default=None, description="操作类型（团队余额等使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
 
@@ -498,6 +500,7 @@ class UnpackInputDataInput(BaseModel):
 class UnpackInputDataOutput(BaseModel):
     """数据解包节点的输出"""
     call_type: str = Field(..., description="调用类型")
+    action: Optional[str] = Field(default=None, description="操作类型（团队余额等使用）")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
     file: Optional[File] = Field(default=None, description="上传的文件")
