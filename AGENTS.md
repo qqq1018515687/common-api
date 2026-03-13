@@ -75,11 +75,12 @@
 | 节点名 | 文件位置 | 类型 | 功能描述 | 分支逻辑 | 配置文件 |
 |-------|---------|------|---------|---------|---------|
 | unpack_input_data | node.py | task | 解包输入数据 | - | - |
-| call_type_router | node.py | condition | 根据调用类型路由 | 账号管理→operation_route, 文件上传→upload, 保存历史→save, 任务管理→task_route, 工具中心→tool_route, 通知管理→system_notification_handler, 团队余额→team_init | - |
+| call_type_router | node.py | condition | 根据调用类型路由 | 账号管理→operation_route, 文件上传→upload, 保存历史→save, 任务管理→task_route, 工具中心→tool_route, 通知管理→system_notification_handler, 团队余额→team_route | - |
 | operation_route | node.py | condition | 根据操作类型路由 | 限流检查→check_rate_limit, 更新限流→update_rate_limit, 用户注册→register_with_limit, 用户登录→get_user, 查询单个用户→get_user_by_id, 更新用户→update_user, 删除用户→delete_user, 用户列表→list_users | - |
 | tool_route | node.py | condition | 根据工具类型路由 | 反推图像→reverse_image, 翻译推荐→translate_doubao, 提示词增强→prompt_enhance | - |
 | task_route | node.py | condition | 根据任务操作类型路由 | 创建任务→create_task, 更新任务→update_task, 删除任务→delete_task, 查询任务列表→list_tasks | - |
-| team_init | nodes/team_init_node.py | task | 团队系统初始化（创建表/检查表） | init/check→team_init, 其他操作路由到对应节点 | - |
+| team_route | nodes/team_route_node.py | condition | 根据团队操作类型路由 | 初始化团队→team_init, 团队管理→team_manage, 团队充值→team_recharge, 团队扣费→team_deduct, 团队退款→team_refund, 消费记录→team_records | - |
+| team_init | nodes/team_init_node.py | task | 团队系统初始化（创建表/检查表） | - | - |
 | team_manage | nodes/team_manage_node.py | task | 团队管理（创建团队/查询/添加成员/成员列表） | - | - |
 | team_recharge | nodes/team_recharge_node.py | task | 团队充值 | - | - |
 | team_deduct | nodes/team_deduct_node.py | task | 团队扣费（任务消费） | - | - |
@@ -126,8 +127,8 @@
 ```json
 {
   "call_type": "team_balance",
-  "action": "create_team",
   "input": {
+    "operation_type": "create_team",
     "team_id": "mars",
     "name": "火星团队",
     "user_id": "1001",
@@ -136,13 +137,13 @@
 }
 ```
 
-支持的 action：
-- `init` / `check` → team_init 节点（初始化/检查表）
+支持的 operation_type：
+- `init` → team_init 节点（初始化表）
 - `create_team` / `get_team` / `add_member` / `list_members` → team_manage 节点
 - `recharge` → team_recharge 节点
 - `deduct` → team_deduct 节点
 - `refund` → team_refund 节点
-- `get_records` / `get_stats` / `get_member_stats` → team_records 节点
+- `get_records` / `get_stats` → team_records 节点
 
 ### 系统通知功能说明
 - **获取有效通知**：查询当前有效的通知列表（支持时间范围筛选）

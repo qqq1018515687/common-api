@@ -5,7 +5,6 @@ from utils.file.file import File
 
 class InputData(BaseModel):
     """输入数据对象，包含所有业务字段"""
-    action: Optional[str] = Field(default=None, description="操作类型：init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats（团队余额等使用）")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
@@ -14,7 +13,7 @@ class InputData(BaseModel):
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
-    operation_type: Optional[str] = Field(default=None, description="操作类型：check_rate_limit/register/login/update_user/delete_user/list_users/create_task/update_task/delete_task/list_tasks/get_active/get_all/create/update/delete")
+    operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/register/login/update_user/delete_user/list_users)、任务管理(create_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)")
 
     # 用户管理相关字段
     phone: Optional[str] = Field(default=None, description="手机号")
@@ -61,7 +60,7 @@ class InputData(BaseModel):
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management/notification_management/system_init")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management/notification_management/team_balance")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
@@ -70,8 +69,7 @@ class GlobalState(BaseModel):
     user_id: Optional[str] = Field(default=None, description="用户 ID（save/update_user/delete_user/create_task/list_tasks 使用）")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
-    operation_type: Optional[str] = Field(default=None, description="操作类型：check_rate_limit/register/login/update_user/delete_user/list_users/create_task/update_task/delete_task/list_tasks")
-    action: Optional[str] = Field(default=None, description="操作类型：init/check（系统初始化使用）")
+    operation_type: Optional[str] = Field(default=None, description="操作类型")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
     result: dict = Field(default={}, description="各节点的结果")
     response_data: Optional[dict] = Field(default=None, description="统一响应数据")
@@ -123,7 +121,6 @@ class GraphInput(BaseModel):
     """工作流的输入"""
     call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool/task_management/notification_management/team_balance")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
-    action: Optional[str] = Field(default=None, description="操作类型：init/check/create_team/get_team/add_member/list_members/recharge/deduct/get_records/get_stats（团队余额使用）")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
 
 
@@ -473,18 +470,16 @@ class FormatResponseOutput(BaseModel):
 class RouterOutput(BaseModel):
     """路由节点的输出"""
     call_type: str = Field(..., description="调用类型")
-    action: Optional[str] = Field(default=None, description="操作类型（团队余额等使用）")
 
 
 class RouterInput(BaseModel):
     """路由节点的输入"""
     call_type: str = Field(..., description="调用类型")
-    action: Optional[str] = Field(default=None, description="操作类型（团队余额等使用）")
 
 
 class OperationRouteInput(BaseModel):
     """操作路由节点的输入"""
-    operation_type: str = Field(..., description="操作类型：check_rate_limit/register/login/update_user/delete_user/list_users")
+    operation_type: str = Field(..., description="操作类型")
 
 
 class OperationRouteOutput(BaseModel):
@@ -496,7 +491,6 @@ class OperationRouteOutput(BaseModel):
 class UnpackInputDataInput(BaseModel):
     """数据解包节点的输入"""
     call_type: str = Field(..., description="调用类型")
-    action: Optional[str] = Field(default=None, description="操作类型（团队余额等使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
 
@@ -504,7 +498,6 @@ class UnpackInputDataInput(BaseModel):
 class UnpackInputDataOutput(BaseModel):
     """数据解包节点的输出"""
     call_type: str = Field(..., description="调用类型")
-    action: Optional[str] = Field(default=None, description="操作类型（团队余额等使用）")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
     file: Optional[File] = Field(default=None, description="上传的文件")

@@ -59,7 +59,13 @@ from graphs.nodes.system_notification_handler_node import system_notification_ha
 from graphs.nodes.image_tagging_node import image_tagging_node
 from graphs.nodes.save_image_tags_node import save_image_tags_node
 from graphs.nodes.check_need_tags_node import check_need_tags_node
-from graphs.nodes.team_balance_node import team_balance_node
+from graphs.nodes.team_route_node import team_route_node, route_by_team_operation_type
+from graphs.nodes.team_init_node import team_init_node
+from graphs.nodes.team_manage_node import team_manage_node
+from graphs.nodes.team_recharge_node import team_recharge_node
+from graphs.nodes.team_deduct_node import team_deduct_node
+from graphs.nodes.team_refund_node import team_refund_node
+from graphs.nodes.team_records_node import team_records_node
 
 
 def route_by_call_type(state: RouterOutput) -> str:
@@ -150,7 +156,13 @@ builder.add_node("tool_route", tool_route_node)
 builder.add_node("reverse_image", reverse_image_node, metadata={"type": "agent", "llm_cfg": "config/reverse_image_cfg.json"})
 builder.add_node("translate_doubao", translate_doubao_node, metadata={"type": "agent", "llm_cfg": "config/translate_doubao_cfg.json"})
 builder.add_node("prompt_enhance", prompt_enhance_node, metadata={"type": "agent", "llm_cfg": "config/prompt_enhance_cfg.json"})
-builder.add_node("team_balance", team_balance_node)  # 团队余额节点
+builder.add_node("team_route", team_route_node)
+builder.add_node("team_init", team_init_node)
+builder.add_node("team_manage", team_manage_node)
+builder.add_node("team_recharge", team_recharge_node)
+builder.add_node("team_deduct", team_deduct_node)
+builder.add_node("team_refund", team_refund_node)
+builder.add_node("team_records", team_records_node)
 
 # 设置入口点（先解包数据）
 builder.set_entry_point("unpack_input_data")
@@ -169,7 +181,7 @@ builder.add_conditional_edges(
         "任务管理": "task_route",
         "工具中心": "tool_route",
         "通知管理": "system_notification_handler",
-        "团队余额": "team_balance"  # 直接路由到团队余额节点
+        "团队余额": "team_route"  # 路由到团队余额路由节点
     }
 )
 
@@ -212,6 +224,20 @@ builder.add_conditional_edges(
     }
 )
 
+# 添加团队余额二级条件分支
+builder.add_conditional_edges(
+    source="team_route",
+    path=route_by_team_operation_type,
+    path_map={
+        "初始化团队": "team_init",
+        "团队管理": "team_manage",
+        "团队充值": "team_recharge",
+        "团队扣费": "team_deduct",
+        "团队退款": "team_refund",
+        "消费记录": "team_records"
+    }
+)
+
 # 各业务分支汇聚到统一返回节点
 builder.add_edge("check_rate_limit", "format_response")
 builder.add_edge("update_rate_limit", "format_response")
@@ -231,7 +257,12 @@ builder.add_edge("system_notification_handler", "format_response")
 builder.add_edge("reverse_image", "format_response")
 builder.add_edge("translate_doubao", "format_response")
 builder.add_edge("prompt_enhance", "format_response")
-builder.add_edge("team_balance", "format_response")  # 团队余额节点直接返回
+builder.add_edge("team_init", "format_response")
+builder.add_edge("team_manage", "format_response")
+builder.add_edge("team_recharge", "format_response")
+builder.add_edge("team_deduct", "format_response")
+builder.add_edge("team_refund", "format_response")
+builder.add_edge("team_records", "format_response")
 
 # ============ 图像标签生成流程（暂时禁用）============
 # 启用图像自动打标时，取消下面的注释，并注释掉上面的 `builder.add_edge("update_task", "format_response")`
