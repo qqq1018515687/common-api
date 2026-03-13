@@ -215,27 +215,6 @@ class Teams(Base):
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
 
 
-class TeamMembers(Base):
-    __tablename__ = 'team_members'
-    __table_args__ = (
-        PrimaryKeyConstraint('id', name='team_members_pkey'),
-        UniqueConstraint('team_id', 'user_id', name='team_members_team_user_key'),
-        Index('ix_team_members_team', 'team_id'),
-        Index('ix_team_members_user', 'user_id'),
-        Index('ix_team_members_role', 'team_id', 'role'),
-        {'comment': '团队成员关系表，记录用户与团队的关联关系'}
-    )
-
-    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='主键')
-    team_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='团队ID')
-    user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='用户ID')
-    role: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'member'"), comment='角色：admin/member')
-    username: Mapped[Optional[str]] = mapped_column(String(50), comment='用户名（冗余字段）')
-    total_consumed: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='该成员在团队中的总消费')
-    joined_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='加入时间')
-    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
-
-
 class TeamConsumptionRecords(Base):
     __tablename__ = 'team_consumption_records'
     __table_args__ = (

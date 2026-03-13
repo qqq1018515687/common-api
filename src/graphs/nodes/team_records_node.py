@@ -18,6 +18,7 @@ class TeamRecordsInput(BaseModel):
     """消费记录查询节点的输入"""
     operation_type: Optional[str] = Field(default=None, description="操作类型")
     user_id: Optional[str] = Field(default=None, description="用户ID")
+    filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（可选）")
     days: Optional[int] = Field(default=None, description="查询天数")
 
 
@@ -36,6 +37,9 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
     
     operation_type = state.operation_type
     db = get_session()
+    
+    # 调试日志
+    logger.info(f"team_records_node - user_id: {state.user_id}, filter_user_id: {state.filter_user_id}, days: {state.days}")
     
     try:
         if not state.user_id:
@@ -60,10 +64,47 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
             days = state.days or 30  # 默认查询近30天
             start_time = datetime.utcnow() - timedelta(days=days)
             
-            records = db.query(TeamConsumptionRecords).filter(
-                TeamConsumptionRecords.team_id == user.team_id,
-                TeamConsumptionRecords.created_at >= start_time
-            ).order_by(TeamConsumptionRecords.created_at.desc()).all()
+            # 权限判断
+            is_admin = (user.role == "admin")
+            filter_user_id = state.filter_user_id
+            
+            # 不传 filter_user_id：只有管理员能查整个团队
+            if not filter_user_id:
+                if not is_admin:
+                    return TeamRecordsOutput(
+                        response_data={"code": 403, "msg": "只有管理员可以查询整个团队的消费记录", "data": None}
+                    )
+                # 管理员查整个团队
+                records = db.query(TeamConsumptionRecords).filter(
+                    TeamConsumptionRecords.team_id == user.team_id,
+                    TeamConsumptionRecords.created_at >= start_time
+                ).order_by(TeamConsumptionRecords.created_at.desc()).all()
+            
+            # 传了 filter_user_id
+            else:
+                # 查自己：所有人都可以
+                if filter_user_id == state.user_id:
+                    records = db.query(TeamConsumptionRecords).filter(
+                        TeamConsumptionRecords.user_id == filter_user_id,
+                        TeamConsumptionRecords.created_at >= start_time
+                    ).order_by(TeamConsumptionRecords.created_at.desc()).all()
+                
+                # 查别人：只有管理员可以
+                else:
+                    if not is_admin:
+                        return TeamRecordsOutput(
+                            response_data={"code": 403, "msg": "只有管理员可以查询其他成员的消费记录", "data": None}
+                        )
+                    # 验证被查询用户是否在同一团队
+                    target_user = db.query(Users).filter(Users.user_id == filter_user_id).first()
+                    if not target_user or target_user.team_id != user.team_id:
+                        return TeamRecordsOutput(
+                            response_data={"code": 404, "msg": "该用户不在您的团队中", "data": None}
+                        )
+                    records = db.query(TeamConsumptionRecords).filter(
+                        TeamConsumptionRecords.user_id == filter_user_id,
+                        TeamConsumptionRecords.created_at >= start_time
+                    ).order_by(TeamConsumptionRecords.created_at.desc()).all()
             
             record_list = [
                 {

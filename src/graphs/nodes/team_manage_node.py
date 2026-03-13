@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from storage.database.db import get_session
-from storage.database.shared.model import Teams, TeamMembers, Users
+from storage.database.shared.model import Teams, Users
 
 logger = logging.getLogger(__name__)
 

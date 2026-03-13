@@ -13,11 +13,25 @@ logger = logging.getLogger(__name__)
 class TeamRouteInput(BaseModel):
     """团队路由节点的输入"""
     operation_type: Optional[str] = Field(default=None, description="操作类型")
+    user_id: Optional[str] = Field(default=None, description="用户ID")
+    filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID")
+    days: Optional[int] = Field(default=None, description="查询天数")
+    amount: Optional[int] = Field(default=None, description="金额")
+    description: Optional[str] = Field(default=None, description="描述")
+    original_record_id: Optional[str] = Field(default=None, description="原消费记录ID")
+    reason: Optional[str] = Field(default=None, description="退款原因")
 
 
 class TeamRouteOutput(BaseModel):
     """团队路由节点的输出"""
     operation_type: str = Field(..., description="操作类型")
+    user_id: Optional[str] = Field(default=None, description="用户ID")
+    filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID")
+    days: Optional[int] = Field(default=None, description="查询天数")
+    amount: Optional[int] = Field(default=None, description="金额")
+    description: Optional[str] = Field(default=None, description="描述")
+    original_record_id: Optional[str] = Field(default=None, description="原消费记录ID")
+    reason: Optional[str] = Field(default=None, description="退款原因")
 
 
 def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runtime[Context]) -> TeamRouteOutput:
@@ -32,9 +46,27 @@ def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runt
     
     if not operation_type:
         # 默认返回初始化
-        return TeamRouteOutput(operation_type="init")
+        return TeamRouteOutput(
+            operation_type="init",
+            user_id=state.user_id,
+            filter_user_id=state.filter_user_id,
+            days=state.days,
+            amount=state.amount,
+            description=state.description,
+            original_record_id=state.original_record_id,
+            reason=state.reason
+        )
     
-    return TeamRouteOutput(operation_type=operation_type)
+    return TeamRouteOutput(
+        operation_type=operation_type,
+        user_id=state.user_id,
+        filter_user_id=state.filter_user_id,
+        days=state.days,
+        amount=state.amount,
+        description=state.description,
+        original_record_id=state.original_record_id,
+        reason=state.reason
+    )
 
 
 def route_by_team_operation_type(state: TeamRouteOutput) -> str:

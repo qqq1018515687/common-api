@@ -56,6 +56,8 @@ class InputData(BaseModel):
     target_role: Optional[str] = Field(default=None, description="目标角色")
     original_record_id: Optional[str] = Field(default=None, description="原消费记录ID（退款用）")
     reason: Optional[str] = Field(default=None, description="退款原因")
+    filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（消费记录查询使用）")
+    filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（消费记录查询使用）")
 
 
 class GlobalState(BaseModel):
@@ -115,6 +117,7 @@ class GlobalState(BaseModel):
     target_role: Optional[str] = Field(default=None, description="目标角色")
     original_record_id: Optional[str] = Field(default=None, description="原消费记录ID（退款用）")
     reason: Optional[str] = Field(default=None, description="退款原因")
+    filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（消费记录查询使用）")
 
 
 class GraphInput(BaseModel):
@@ -545,6 +548,7 @@ class UnpackInputDataOutput(BaseModel):
     target_role: Optional[str] = Field(default=None, description="目标角色")
     original_record_id: Optional[str] = Field(default=None, description="原消费记录ID（退款用）")
     reason: Optional[str] = Field(default=None, description="退款原因")
+    filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（查询消费记录用）")
 
 
 # 工具路由节点
