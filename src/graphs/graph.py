@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
 from graphs.state import (
     GlobalState,
     GraphInput,
@@ -26,13 +27,7 @@ from graphs.state import (
     SystemNotificationOutput,
     CheckNeedTagsOutput
 )
-from graphs.team_balance_state import (
-    TeamInitInput, TeamInitOutput,
-    TeamManageInput, TeamManageOutput,
-    TeamRechargeInput, TeamRechargeOutput,
-    TeamDeductInput, TeamDeductOutput,
-    TeamRecordsInput, TeamRecordsOutput
-)
+from graphs.team_balance_state import TeamManageInput, TeamManageOutput
 from graphs.node import (
     upload_node,
     save_node,
@@ -65,39 +60,7 @@ from graphs.nodes.system_notification_handler_node import system_notification_ha
 from graphs.nodes.image_tagging_node import image_tagging_node
 from graphs.nodes.save_image_tags_node import save_image_tags_node
 from graphs.nodes.check_need_tags_node import check_need_tags_node
-from graphs.nodes.team_init_node import team_init_node
-from graphs.nodes.team_manage_node import team_manage_node
-from graphs.nodes.team_recharge_node import team_recharge_node
-from graphs.nodes.team_deduct_node import team_deduct_node
-from graphs.nodes.team_records_node import team_records_node
-from graphs.nodes.team_refund_node import team_refund_node
-from graphs.team_balance_state import TeamRouteInput, TeamRouteOutput
-
-
-# 团队余额路由节点，透传所有字段到后续条件分支
-def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runtime[Context]) -> TeamRouteOutput:
-    """
-    title: 团队余额路由
-    desc: 团队余额操作的路由入口，透传所有字段到后续条件分支
-    integrations: 
-    """
-    return TeamRouteOutput(
-        action=state.action,
-        team_id=state.team_id,
-        user_id=state.user_id,
-        username=state.username,
-        name=state.name,
-        amount=state.amount,
-        description=state.description,
-        days=state.days,
-        target_user_id=state.target_user_id,
-        target_username=state.target_username,
-        target_role=state.target_role,
-        original_record_id=state.original_record_id,
-        reason=state.reason,
-        task_id=state.task_id,
-        operator_user_id=state.operator_user_id
-    )
+from graphs.nodes.team_balance_node import team_balance_node
 
 
 def route_by_call_type(state: RouterOutput) -> str:
@@ -155,27 +118,6 @@ def route_by_need_tags(state: CheckNeedTagsOutput) -> str:
         return "直接返回"
 
 
-def route_by_team_action(state: TeamRouteOutput) -> str:
-    """
-    title: 团队余额操作路由
-    desc: 根据 action 参数将团队余额请求路由到具体的处理节点
-    """
-    action = state.action
-
-    if action == "init" or action == "check":
-        return "初始化系统"
-    elif action == "create_team" or action == "get_team" or action == "add_member" or action == "list_members":
-        return "团队管理"
-    elif action == "recharge":
-        return "团队充值"
-    elif action == "deduct":
-        return "团队扣费"
-    elif action == "refund":
-        return "团队退款"
-    elif action == "get_records" or action == "get_stats" or action == "get_member_stats":
-        return "消费记录"
-    else:
-        return "团队管理"  # 默认
 
 
 # 创建状态图，指定图的入参和出参
@@ -209,15 +151,7 @@ builder.add_node("tool_route", tool_route_node)
 builder.add_node("reverse_image", reverse_image_node, metadata={"type": "agent", "llm_cfg": "config/reverse_image_cfg.json"})
 builder.add_node("translate_doubao", translate_doubao_node, metadata={"type": "agent", "llm_cfg": "config/translate_doubao_cfg.json"})
 builder.add_node("prompt_enhance", prompt_enhance_node, metadata={"type": "agent", "llm_cfg": "config/prompt_enhance_cfg.json"})
-
-# 添加团队余额相关节点
-builder.add_node("team_route", team_route_node)  # 路由入口
-builder.add_node("team_init", team_init_node)
-builder.add_node("team_manage", team_manage_node)
-builder.add_node("team_recharge", team_recharge_node)
-builder.add_node("team_deduct", team_deduct_node)
-builder.add_node("team_refund", team_refund_node)
-builder.add_node("team_records", team_records_node)
+builder.add_node("team_balance", team_balance_node)  # 团队余额节点
 
 # 设置入口点（先解包数据）
 builder.set_entry_point("unpack_input_data")
@@ -236,21 +170,7 @@ builder.add_conditional_edges(
         "任务管理": "task_route",
         "工具中心": "tool_route",
         "通知管理": "system_notification_handler",
-        "团队余额": "team_route"  # 进入团队余额路由
-    }
-)
-
-# 添加团队余额二级条件分支（根据 action）
-builder.add_conditional_edges(
-    source="team_route",
-    path=route_by_team_action,
-    path_map={
-        "初始化系统": "team_init",
-        "团队管理": "team_manage",
-        "团队充值": "team_recharge",
-        "团队扣费": "team_deduct",
-        "团队退款": "team_refund",
-        "消费记录": "team_records"
+        "团队余额": "team_balance"  # 直接路由到团队余额节点
     }
 )
 
@@ -312,14 +232,7 @@ builder.add_edge("system_notification_handler", "format_response")
 builder.add_edge("reverse_image", "format_response")
 builder.add_edge("translate_doubao", "format_response")
 builder.add_edge("prompt_enhance", "format_response")
-
-# 团队余额各操作汇聚到 format_response
-builder.add_edge("team_init", "format_response")
-builder.add_edge("team_manage", "format_response")
-builder.add_edge("team_recharge", "format_response")
-builder.add_edge("team_deduct", "format_response")
-builder.add_edge("team_refund", "format_response")
-builder.add_edge("team_records", "format_response")
+builder.add_edge("team_balance", "format_response")  # 团队余额节点直接返回
 
 # ============ 图像标签生成流程（暂时禁用）============
 # 启用图像自动打标时，取消下面的注释，并注释掉上面的 `builder.add_edge("update_task", "format_response")`
