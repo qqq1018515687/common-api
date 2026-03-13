@@ -1113,13 +1113,16 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
             if not has_permission:
                 return UpdateTaskOutput(result={"success": False, "message": error_msg})
 
-            task_in = TaskUpdate(
-                status=state.task_updates.get("status"),
-                result=state.task_updates.get("result"),
-                error=state.task_updates.get("error"),
-                completed_at=state.task_updates.get("completed_at"),
-                deduction_result=state.task_updates.get("deduction_result")
-            )
+            # 构建更新参数，只传入存在的字段，避免 None 值覆盖
+            update_kwargs = {}
+            for field in ["status", "result", "error", "completed_at"]:
+                if field in state.task_updates:
+                    update_kwargs[field] = state.task_updates.get(field)
+            # deduction_result 单独处理，只有明确存在时才更新
+            if "deduction_result" in state.task_updates:
+                update_kwargs["deduction_result"] = state.task_updates.get("deduction_result")
+
+            task_in = TaskUpdate(**update_kwargs)
 
             db_task = task_mgr.update_task(db, state.task_id, task_in)
 
