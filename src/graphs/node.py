@@ -1070,7 +1070,8 @@ def create_task_node(state: CreateTaskInput, config: RunnableConfig, runtime: Ru
                 workflow_parameters=state.task_data.get("workflow_parameters"),
                 parameter_snapshot=state.task_data.get("parameter_snapshot"),
                 batch_id=state.task_data.get("batch_id"),
-                connection_mode=state.task_data.get("connection_mode", "sse")
+                connection_mode=state.task_data.get("connection_mode", "sse"),
+                deduction_result=state.task_data.get("deduction_result")
             )
 
             db_task = task_mgr.create_task(db, task_in)

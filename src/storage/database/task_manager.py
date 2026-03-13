@@ -20,6 +20,7 @@ class TaskCreate(BaseModel):
     parameter_snapshot: Optional[dict] = Field(default=None, description="完整参数快照")
     batch_id: Optional[str] = Field(default=None, description="批次ID")
     connection_mode: Optional[str] = Field(default="sse", description="连接模式")
+    deduction_result: Optional[dict] = Field(default=None, description="扣费结果记录")
 
 
 class TaskUpdate(BaseModel):
