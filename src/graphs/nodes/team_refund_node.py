@@ -3,7 +3,6 @@ import json
 import logging
 import uuid
 from typing import Optional
-from jinja2 import Template
 from langchain_core.runnables import RunnableConfig
 from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
@@ -11,7 +10,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from storage.database.db import get_session
-from storage.database.shared.model import Teams, TeamMembers, TeamConsumptionRecords
+from storage.database.shared.model import Teams, Users, TeamConsumptionRecords
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +50,18 @@ def team_refund_node(state: TeamRefundInput, config: RunnableConfig, runtime: Ru
                 response_data={"code": 400, "msg": "原消费记录ID不能为空", "data": None}
             )
         
+        # 通过 users 表查找用户及其团队
+        user = db.query(Users).filter(Users.user_id == state.user_id).first()
+        if not user:
+            return TeamRefundOutput(
+                response_data={"code": 404, "msg": "用户不存在", "data": None}
+            )
+        
+        if not user.team_id:
+            return TeamRefundOutput(
+                response_data={"code": 404, "msg": "用户未加入任何团队", "data": None}
+            )
+        
         # 查找原消费记录
         original_record = db.query(TeamConsumptionRecords).filter(
             TeamConsumptionRecords.id == state.original_record_id,
@@ -62,13 +73,8 @@ def team_refund_node(state: TeamRefundInput, config: RunnableConfig, runtime: Ru
                 response_data={"code": 404, "msg": "原消费记录不存在", "data": None}
             )
         
-        # 验证用户是否属于该团队
-        member = db.query(TeamMembers).filter(
-            TeamMembers.user_id == state.user_id,
-            TeamMembers.team_id == original_record.team_id
-        ).first()
-        
-        if not member:
+        # 验证用户是否属于同一团队
+        if original_record.team_id != user.team_id:
             return TeamRefundOutput(
                 response_data={"code": 403, "msg": "无权操作该记录", "data": None}
             )
@@ -77,19 +83,11 @@ def team_refund_node(state: TeamRefundInput, config: RunnableConfig, runtime: Ru
         refund_amount = abs(original_record.amount)
         
         # 更新团队余额
-        team = db.query(Teams).filter(Teams.id == original_record.team_id).first()
+        team = db.query(Teams).filter(Teams.id == user.team_id).first()
         balance_before = team.balance
         team.balance += refund_amount
         team.total_consumed -= refund_amount
         team.updated_at = datetime.utcnow()
-        
-        # 更新成员累计消费
-        original_member = db.query(TeamMembers).filter(
-            TeamMembers.user_id == original_record.user_id
-        ).first()
-        if original_member:
-            original_member.total_consumed -= refund_amount
-            original_member.updated_at = datetime.utcnow()
         
         # 记录退款
         record_id = str(uuid.uuid4())
@@ -97,7 +95,7 @@ def team_refund_node(state: TeamRefundInput, config: RunnableConfig, runtime: Ru
             id=record_id,
             team_id=team.id,
             user_id=state.user_id,
-            username=member.username,
+            username=user.username,
             operation_type="refund",
             amount=refund_amount,  # 退款为正数
             balance_before=balance_before,

@@ -2,7 +2,6 @@ import os
 import json
 import logging
 from typing import Optional
-from jinja2 import Template
 from langchain_core.runnables import RunnableConfig
 from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
@@ -10,7 +9,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
 
 from storage.database.db import get_session
-from storage.database.shared.model import Teams, TeamMembers, TeamConsumptionRecords
+from storage.database.shared.model import Teams, Users, TeamConsumptionRecords
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +43,14 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
                 response_data={"code": 400, "msg": "用户ID不能为空", "data": None}
             )
         
-        # 查找用户所属团队
-        member = db.query(TeamMembers).filter(TeamMembers.user_id == state.user_id).first()
-        if not member:
+        # 通过 users 表查找用户及其团队
+        user = db.query(Users).filter(Users.user_id == state.user_id).first()
+        if not user:
+            return TeamRecordsOutput(
+                response_data={"code": 404, "msg": "用户不存在", "data": None}
+            )
+        
+        if not user.team_id:
             return TeamRecordsOutput(
                 response_data={"code": 404, "msg": "用户未加入任何团队", "data": None}
             )
@@ -57,7 +61,7 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
             start_time = datetime.utcnow() - timedelta(days=days)
             
             records = db.query(TeamConsumptionRecords).filter(
-                TeamConsumptionRecords.team_id == member.team_id,
+                TeamConsumptionRecords.team_id == user.team_id,
                 TeamConsumptionRecords.created_at >= start_time
             ).order_by(TeamConsumptionRecords.created_at.desc()).all()
             
@@ -81,17 +85,17 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
         
         elif operation_type == "get_stats":
             # 查询统计数据
-            team = db.query(Teams).filter(Teams.id == member.team_id).first()
+            team = db.query(Teams).filter(Teams.id == user.team_id).first()
             
-            # 查询所有成员
-            members = db.query(TeamMembers).filter(TeamMembers.team_id == member.team_id).all()
+            # 查询所有该团队的成员
+            members = db.query(Users).filter(Users.team_id == user.team_id).all()
             
             member_stats = [
                 {
                     "user_id": m.user_id,
                     "username": m.username,
                     "role": m.role,
-                    "total_consumed": m.total_consumed
+                    "gold_credits": m.gold_credits
                 }
                 for m in members
             ]

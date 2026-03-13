@@ -3,7 +3,6 @@ import json
 import logging
 import uuid
 from typing import Optional
-from jinja2 import Template
 from langchain_core.runnables import RunnableConfig
 from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
@@ -11,7 +10,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from storage.database.db import get_session
-from storage.database.shared.model import Teams, TeamMembers, TeamConsumptionRecords
+from storage.database.shared.model import Teams, Users, TeamConsumptionRecords
 
 logger = logging.getLogger(__name__)
 
@@ -51,21 +50,26 @@ def team_recharge_node(state: TeamRechargeInput, config: RunnableConfig, runtime
                 response_data={"code": 400, "msg": "充值金额必须大于0", "data": None}
             )
         
-        # 查找用户所属团队
-        member = db.query(TeamMembers).filter(TeamMembers.user_id == state.user_id).first()
-        if not member:
+        # 通过 users 表查找用户及其团队
+        user = db.query(Users).filter(Users.user_id == state.user_id).first()
+        if not user:
+            return TeamRechargeOutput(
+                response_data={"code": 404, "msg": "用户不存在", "data": None}
+            )
+        
+        if not user.team_id:
             return TeamRechargeOutput(
                 response_data={"code": 404, "msg": "用户未加入任何团队", "data": None}
             )
         
         # 只有管理员可以充值
-        if member.role != "admin":
+        if user.role != "admin":
             return TeamRechargeOutput(
                 response_data={"code": 403, "msg": "只有管理员可以充值", "data": None}
             )
         
         # 更新团队余额
-        team = db.query(Teams).filter(Teams.id == member.team_id).first()
+        team = db.query(Teams).filter(Teams.id == user.team_id).first()
         balance_before = team.balance
         team.balance += state.amount
         team.updated_at = datetime.utcnow()
@@ -76,7 +80,7 @@ def team_recharge_node(state: TeamRechargeInput, config: RunnableConfig, runtime
             id=record_id,
             team_id=team.id,
             user_id=state.user_id,
-            username=member.username,
+            username=user.username,
             operation_type="recharge",
             amount=state.amount,
             balance_before=balance_before,

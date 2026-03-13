@@ -3,7 +3,6 @@ import json
 import logging
 import uuid
 from typing import Optional
-from jinja2 import Template
 from langchain_core.runnables import RunnableConfig
 from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
@@ -11,7 +10,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from storage.database.db import get_session
-from storage.database.shared.model import Teams, TeamMembers
+from storage.database.shared.model import Teams, TeamMembers, Users
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +33,7 @@ class TeamManageOutput(BaseModel):
 def team_manage_node(state: TeamManageInput, config: RunnableConfig, runtime: Runtime[Context]) -> TeamManageOutput:
     """
     title: 团队管理
-    desc: 处理团队创建、查询、成员管理等操作
+    desc: 处理团队查询、成员管理等操作
     integrations: 数据库
     """
     ctx = runtime.context
@@ -43,64 +42,32 @@ def team_manage_node(state: TeamManageInput, config: RunnableConfig, runtime: Ru
     db = get_session()
     
     try:
-        if operation_type == "create_team":
-            # 创建团队
-            if not state.name:
-                return TeamManageOutput(
-                    response_data={"code": 400, "msg": "团队名称不能为空", "data": None}
-                )
-            
-            team_id = str(uuid.uuid4())
-            team = Teams(
-                id=team_id,
-                name=state.name,
-                balance=0,
-                total_consumed=0,
-                member_count=1,
-                status="active"
-            )
-            db.add(team)
-            
-            # 创建者自动成为管理员
-            member_id = str(uuid.uuid4())
-            member = TeamMembers(
-                id=member_id,
-                team_id=team_id,
-                user_id=state.user_id,
-                username=state.target_username or "",
-                role="admin",
-                total_consumed=0
-            )
-            db.add(member)
-            db.commit()
-            
-            return TeamManageOutput(
-                response_data={
-                    "code": 0,
-                    "msg": "创建团队成功",
-                    "data": {
-                        "team_id": team_id,
-                        "name": team.name,
-                        "balance": team.balance
-                    }
-                }
-            )
-        
-        elif operation_type == "get_team":
-            # 查询团队信息
+        if operation_type == "get_team":
+            # 查询团队信息 - 通过 users 表的 team_id 字段
             if not state.user_id:
                 return TeamManageOutput(
                     response_data={"code": 400, "msg": "用户ID不能为空", "data": None}
                 )
             
-            # 查找用户所属团队
-            member = db.query(TeamMembers).filter(TeamMembers.user_id == state.user_id).first()
-            if not member:
+            # 查找用户
+            user = db.query(Users).filter(Users.user_id == state.user_id).first()
+            if not user:
+                return TeamManageOutput(
+                    response_data={"code": 404, "msg": "用户不存在", "data": None}
+                )
+            
+            # 检查用户是否加入了团队
+            if not user.team_id:
                 return TeamManageOutput(
                     response_data={"code": 404, "msg": "用户未加入任何团队", "data": None}
                 )
             
-            team = db.query(Teams).filter(Teams.id == member.team_id).first()
+            # 查询团队信息
+            team = db.query(Teams).filter(Teams.id == user.team_id).first()
+            if not team:
+                return TeamManageOutput(
+                    response_data={"code": 404, "msg": "团队不存在", "data": None}
+                )
             
             return TeamManageOutput(
                 response_data={
@@ -116,47 +83,40 @@ def team_manage_node(state: TeamManageInput, config: RunnableConfig, runtime: Ru
             )
         
         elif operation_type == "add_member":
-            # 添加成员
+            # 添加成员 - 更新用户的 team_id
             if not state.user_id or not state.target_user_id:
                 return TeamManageOutput(
                     response_data={"code": 400, "msg": "用户ID和目标用户ID不能为空", "data": None}
                 )
             
-            # 查找用户所属团队
-            admin_member = db.query(TeamMembers).filter(
-                TeamMembers.user_id == state.user_id,
-                TeamMembers.role == "admin"
-            ).first()
+            # 查找操作者
+            operator = db.query(Users).filter(Users.user_id == state.user_id).first()
+            if not operator or not operator.team_id:
+                return TeamManageOutput(
+                    response_data={"code": 403, "msg": "操作者未加入任何团队", "data": None}
+                )
             
-            if not admin_member:
+            # 检查操作者是否是管理员（通过 users 表的 role 字段）
+            if operator.role != "admin":
                 return TeamManageOutput(
                     response_data={"code": 403, "msg": "只有管理员可以添加成员", "data": None}
                 )
             
             # 检查目标用户是否已在团队中
-            existing = db.query(TeamMembers).filter(TeamMembers.user_id == state.target_user_id).first()
-            if existing:
+            target_user = db.query(Users).filter(Users.user_id == state.target_user_id).first()
+            if not target_user:
+                return TeamManageOutput(
+                    response_data={"code": 404, "msg": "目标用户不存在", "data": None}
+                )
+            
+            if target_user.team_id:
                 return TeamManageOutput(
                     response_data={"code": 400, "msg": "该用户已在团队中", "data": None}
                 )
             
-            # 添加成员
-            member_id = str(uuid.uuid4())
-            new_member = TeamMembers(
-                id=member_id,
-                team_id=admin_member.team_id,
-                user_id=state.target_user_id,
-                username=state.target_username or "",
-                role=state.target_role or "member",
-                total_consumed=0
-            )
-            db.add(new_member)
-            
-            # 更新团队成员数
-            team = db.query(Teams).filter(Teams.id == admin_member.team_id).first()
-            team.member_count += 1
-            team.updated_at = datetime.utcnow()
-            
+            # 添加成员 - 更新目标用户的 team_id
+            target_user.team_id = operator.team_id
+            target_user.updated_at = datetime.utcnow()
             db.commit()
             
             return TeamManageOutput(
@@ -170,22 +130,22 @@ def team_manage_node(state: TeamManageInput, config: RunnableConfig, runtime: Ru
                     response_data={"code": 400, "msg": "用户ID不能为空", "data": None}
                 )
             
-            # 查找用户所属团队
-            member = db.query(TeamMembers).filter(TeamMembers.user_id == state.user_id).first()
-            if not member:
+            # 查找用户
+            user = db.query(Users).filter(Users.user_id == state.user_id).first()
+            if not user or not user.team_id:
                 return TeamManageOutput(
                     response_data={"code": 404, "msg": "用户未加入任何团队", "data": None}
                 )
             
-            # 查询所有成员
-            members = db.query(TeamMembers).filter(TeamMembers.team_id == member.team_id).all()
+            # 查询所有该团队的成员
+            members = db.query(Users).filter(Users.team_id == user.team_id).all()
             
             member_list = [
                 {
                     "user_id": m.user_id,
                     "username": m.username,
                     "role": m.role,
-                    "total_consumed": m.total_consumed
+                    "gold_credits": m.gold_credits
                 }
                 for m in members
             ]

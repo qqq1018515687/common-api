@@ -3,7 +3,6 @@ import json
 import logging
 import uuid
 from typing import Optional
-from jinja2 import Template
 from langchain_core.runnables import RunnableConfig
 from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
@@ -11,7 +10,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from storage.database.db import get_session
-from storage.database.shared.model import Teams, TeamMembers, TeamConsumptionRecords
+from storage.database.shared.model import Teams, Users, TeamConsumptionRecords
 
 logger = logging.getLogger(__name__)
 
@@ -51,15 +50,20 @@ def team_deduct_node(state: TeamDeductInput, config: RunnableConfig, runtime: Ru
                 response_data={"code": 400, "msg": "扣费金额必须大于0", "data": None}
             )
         
-        # 查找用户所属团队
-        member = db.query(TeamMembers).filter(TeamMembers.user_id == state.user_id).first()
-        if not member:
+        # 通过 users 表查找用户及其团队
+        user = db.query(Users).filter(Users.user_id == state.user_id).first()
+        if not user:
+            return TeamDeductOutput(
+                response_data={"code": 404, "msg": "用户不存在", "data": None}
+            )
+        
+        if not user.team_id:
             return TeamDeductOutput(
                 response_data={"code": 404, "msg": "用户未加入任何团队", "data": None}
             )
         
         # 检查团队余额
-        team = db.query(Teams).filter(Teams.id == member.team_id).first()
+        team = db.query(Teams).filter(Teams.id == user.team_id).first()
         if team.balance < state.amount:
             return TeamDeductOutput(
                 response_data={"code": 400, "msg": "团队余额不足", "data": None}
@@ -71,17 +75,13 @@ def team_deduct_node(state: TeamDeductInput, config: RunnableConfig, runtime: Ru
         team.total_consumed += state.amount
         team.updated_at = datetime.utcnow()
         
-        # 更新成员累计消费
-        member.total_consumed += state.amount
-        member.updated_at = datetime.utcnow()
-        
         # 记录消费
         record_id = str(uuid.uuid4())
         record = TeamConsumptionRecords(
             id=record_id,
             team_id=team.id,
             user_id=state.user_id,
-            username=member.username,
+            username=user.username,
             operation_type="consumption",
             amount=-state.amount,  # 消费为负数
             balance_before=balance_before,
