@@ -88,6 +88,8 @@ def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runt
     desc: 团队余额操作的路由入口，数据透传到后续条件分支
     integrations: 
     """
+    ctx = runtime.context
+    ctx.logger.info(f"[team_route_node] 接收到的 state.action: {state.action}")
     # 数据已经通过 action 传递，直接透传
     return TeamRouteOutput(action=state.action)
 

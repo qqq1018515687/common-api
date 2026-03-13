@@ -84,6 +84,9 @@ def router_node(state: RouterInput, config: RunnableConfig, runtime: Runtime[Con
     title: 路由节点
     desc: 用于条件分支的虚拟节点，传递 call_type 和 action
     """
+    ctx = runtime.context
+    ctx.logger.info(f"[router_node] 接收到的 state.call_type: {state.call_type}")
+    ctx.logger.info(f"[router_node] 接收到的 state.action: {state.action}")
     return RouterOutput(call_type=state.call_type, action=state.action)
 
 
@@ -167,6 +170,12 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
     desc: 将 input 对象中的业务字段解包到全局状态中，支持 MIME 类型的 file_type 和密码自动哈希
     """
     ctx = runtime.context
+    
+    # 调试日志：打印接收到的 state
+    ctx.logger.info(f"[unpack_input_data_node] 接收到的 state.call_type: {state.call_type}")
+    ctx.logger.info(f"[unpack_input_data_node] 接收到的 state.action: {state.action}")
+    ctx.logger.info(f"[unpack_input_data_node] 接收到的 state.tool_type: {state.tool_type}")
+    ctx.logger.info(f"[unpack_input_data_node] 接收到的 state.input: {state.input}")
 
     # 从 input 对象中解包数据
     input_data = state.input if state.input else None
