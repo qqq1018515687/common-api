@@ -1,9 +1,12 @@
+import logging
 from langgraph.graph import StateGraph, END
 from langchain_core.runnables import RunnableConfig
 from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
 from pydantic import BaseModel, Field
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 from graphs.state import (
     GlobalState,
     GraphInput,
@@ -88,8 +91,6 @@ def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runt
     desc: 团队余额操作的路由入口，数据透传到后续条件分支
     integrations: 
     """
-    ctx = runtime.context
-    ctx.logger.info(f"[team_route_node] 接收到的 state.action: {state.action}")
     # 数据已经通过 action 传递，直接透传
     return TeamRouteOutput(action=state.action)
 

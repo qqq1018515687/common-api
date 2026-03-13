@@ -1,7 +1,10 @@
 # 修复 langchain_core 中缺失的类
 # 必须在任何 langchain 相关导入之前执行
+import logging
 import langchain_core.exceptions
 import langchain_core.language_models
+
+logger = logging.getLogger(__name__)
 
 # 修复 ContextOverflowError
 if not hasattr(langchain_core.exceptions, 'ContextOverflowError'):
@@ -84,9 +87,6 @@ def router_node(state: RouterInput, config: RunnableConfig, runtime: Runtime[Con
     title: 路由节点
     desc: 用于条件分支的虚拟节点，传递 call_type 和 action
     """
-    ctx = runtime.context
-    ctx.logger.info(f"[router_node] 接收到的 state.call_type: {state.call_type}")
-    ctx.logger.info(f"[router_node] 接收到的 state.action: {state.action}")
     return RouterOutput(call_type=state.call_type, action=state.action)
 
 
@@ -169,14 +169,6 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
     title: 数据解包
     desc: 将 input 对象中的业务字段解包到全局状态中，支持 MIME 类型的 file_type 和密码自动哈希
     """
-    ctx = runtime.context
-    
-    # 调试日志：打印接收到的 state
-    ctx.logger.info(f"[unpack_input_data_node] 接收到的 state.call_type: {state.call_type}")
-    ctx.logger.info(f"[unpack_input_data_node] 接收到的 state.action: {state.action}")
-    ctx.logger.info(f"[unpack_input_data_node] 接收到的 state.tool_type: {state.tool_type}")
-    ctx.logger.info(f"[unpack_input_data_node] 接收到的 state.input: {state.input}")
-
     # 从 input 对象中解包数据
     input_data = state.input if state.input else None
 
@@ -248,6 +240,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         amount=input_data.amount if input_data else None,
         description=input_data.description if input_data else None,
         days=input_data.days if input_data else None,
+        name=input_data.name if input_data else None,
         target_user_id=input_data.target_user_id if input_data else None,
         target_username=input_data.target_username if input_data else None,
         target_role=input_data.target_role if input_data else None,
