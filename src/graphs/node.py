@@ -198,7 +198,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
 
     return UnpackInputDataOutput(
         call_type=state.call_type,
-        action=state.action,
+        action=state.action,  # 修复：从state获取action，确保team_balance等路由正常工作
         tool_type=state.tool_type,
         operation_type=input_data.operation_type if input_data else None,
         username=input_data.username if input_data else None,
