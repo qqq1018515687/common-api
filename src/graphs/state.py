@@ -471,11 +471,13 @@ class FormatResponseOutput(BaseModel):
 class RouterOutput(BaseModel):
     """路由节点的输出"""
     call_type: str = Field(..., description="调用类型")
+    action: Optional[str] = Field(default=None, description="操作类型（团队余额等使用）")
 
 
 class RouterInput(BaseModel):
     """路由节点的输入"""
     call_type: str = Field(..., description="调用类型")
+    action: Optional[str] = Field(default=None, description="操作类型（团队余额等使用）")
 
 
 class OperationRouteInput(BaseModel):
