@@ -71,28 +71,33 @@ from graphs.nodes.team_recharge_node import team_recharge_node
 from graphs.nodes.team_deduct_node import team_deduct_node
 from graphs.nodes.team_records_node import team_records_node
 from graphs.nodes.team_refund_node import team_refund_node
+from graphs.team_balance_state import TeamRouteInput, TeamRouteOutput
 
 
-# ============ 团队余额路由类型定义 ============
-class TeamRouteInput(BaseModel):
-    """团队余额路由输入"""
-    action: Optional[str] = Field(default=None, description="操作类型")
-
-
-class TeamRouteOutput(BaseModel):
-    """团队余额路由输出"""
-    action: Optional[str] = Field(default=None, description="操作类型（透传）")
-
-
-# 简单的团队余额路由节点，将输入数据透传到后续条件分支
+# 团队余额路由节点，透传所有字段到后续条件分支
 def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runtime[Context]) -> TeamRouteOutput:
     """
     title: 团队余额路由
-    desc: 团队余额操作的路由入口，数据透传到后续条件分支
+    desc: 团队余额操作的路由入口，透传所有字段到后续条件分支
     integrations: 
     """
-    # 数据已经通过 action 传递，直接透传
-    return TeamRouteOutput(action=state.action)
+    return TeamRouteOutput(
+        action=state.action,
+        team_id=state.team_id,
+        user_id=state.user_id,
+        username=state.username,
+        name=state.name,
+        amount=state.amount,
+        description=state.description,
+        days=state.days,
+        target_user_id=state.target_user_id,
+        target_username=state.target_username,
+        target_role=state.target_role,
+        original_record_id=state.original_record_id,
+        reason=state.reason,
+        task_id=state.task_id,
+        operator_user_id=state.operator_user_id
+    )
 
 
 def route_by_call_type(state: RouterOutput) -> str:
