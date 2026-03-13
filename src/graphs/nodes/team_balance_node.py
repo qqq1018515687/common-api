@@ -1,14 +1,16 @@
 """
-团队余额节点 - 完全重写
-所有团队余额操作合并到一个节点
+团队余额节点
+处理所有团队余额相关操作：初始化、查询、充值、扣费、退款、记录查询
 """
 import logging
 import uuid
 from datetime import datetime, timedelta
+from typing import Optional
 from langchain_core.runnables import RunnableConfig
 from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
-from graphs.team_balance_state import TeamManageInput, TeamManageOutput
+from pydantic import BaseModel, Field
+
 from storage.database.db import get_session
 from storage.database.shared.model import Teams, TeamMembers, TeamConsumptionRecords
 from sqlalchemy import func
@@ -16,7 +18,33 @@ from sqlalchemy import func
 logger = logging.getLogger(__name__)
 
 
-def team_balance_node(state: TeamManageInput, config: RunnableConfig, runtime: Runtime[Context]) -> TeamManageOutput:
+class TeamBalanceInput(BaseModel):
+    """团队余额节点的输入"""
+    action: str = Field(..., description="操作类型：init/get_team/create_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats")
+    team_id: Optional[str] = Field(default=None, description="团队ID")
+    user_id: Optional[str] = Field(default=None, description="用户ID")
+    username: Optional[str] = Field(default=None, description="用户名")
+    name: Optional[str] = Field(default=None, description="团队名称")
+    amount: Optional[int] = Field(default=None, description="金额")
+    days: Optional[int] = Field(default=30, description="查询天数")
+    target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
+    target_username: Optional[str] = Field(default=None, description="目标用户名")
+    target_role: Optional[str] = Field(default=None, description="目标角色")
+    description: Optional[str] = Field(default=None, description="描述")
+    original_record_id: Optional[str] = Field(default=None, description="原消费记录ID")
+    reason: Optional[str] = Field(default=None, description="退款原因")
+
+
+class TeamBalanceOutput(BaseModel):
+    """团队余额节点的输出"""
+    response_data: dict = Field(..., description="响应数据")
+
+
+def team_balance_node(
+    state: TeamBalanceInput,
+    config: RunnableConfig,
+    runtime: Runtime[Context]
+) -> TeamBalanceOutput:
     """
     title: 团队余额管理
     desc: 处理所有团队余额相关操作：初始化、查询、充值、扣费、退款、记录查询
@@ -28,79 +56,69 @@ def team_balance_node(state: TeamManageInput, config: RunnableConfig, runtime: R
         action = state.action
         
         if action == "init" or action == "check":
-            return _init_system()
+            result = _init_system()
         elif action == "get_team":
-            return _get_team(state)
+            result = _get_team(state)
         elif action == "create_team":
-            return _create_team(state)
+            result = _create_team(state)
         elif action == "add_member":
-            return _add_member(state)
+            result = _add_member(state)
         elif action == "list_members":
-            return _list_members(state)
+            result = _list_members(state)
         elif action == "recharge":
-            return _recharge(state)
+            result = _recharge(state)
         elif action == "deduct":
-            return _deduct(state)
+            result = _deduct(state)
         elif action == "refund":
-            return _refund(state)
+            result = _refund(state)
         elif action == "get_records":
-            return _get_records(state)
+            result = _get_records(state)
         elif action == "get_stats":
-            return _get_stats(state)
+            result = _get_stats(state)
         elif action == "get_member_stats":
-            return _get_member_stats(state)
+            result = _get_member_stats(state)
         else:
-            return TeamManageOutput(
-                response_data={"code": 1, "msg": f"未知操作: {action}", "data": {}}
-            )
+            result = {"code": 1, "msg": f"未知操作: {action}", "data": {}}
+        
+        return TeamBalanceOutput(response_data=result)
     
     except Exception as e:
         logger.error(f"团队余额操作失败: {e}")
-        return TeamManageOutput(
-            response_data={"code": 1, "msg": f"操作失败: {str(e)}", "data": {}}
-        )
+        return TeamBalanceOutput(response_data={"code": 1, "msg": f"操作失败: {str(e)}", "data": {}})
 
 
-def _init_system() -> TeamManageOutput:
+def _init_system() -> dict:
     """初始化系统表"""
     try:
         from storage.database.team_balance_init import init_team_balance_system
         result = init_team_balance_system()
-        return TeamManageOutput(
-            response_data={"code": 0, "msg": result.get("message", "初始化成功"), "data": result}
-        )
-    except Exception as e:
-        return TeamManageOutput(
-            response_data={"code": 0, "msg": "表已存在", "data": {"success": True}}
-        )
+        return {"code": 0, "msg": result.get("message", "初始化成功"), "data": result}
+    except Exception:
+        return {"code": 0, "msg": "表已存在", "data": {"success": True}}
 
 
-def _get_team(state: TeamManageInput) -> TeamManageOutput:
+def _get_team(state: TeamBalanceInput) -> dict:
     """查询团队信息"""
     with get_session() as session:
         team = session.query(Teams).filter(Teams.id == state.team_id).first()
         if not team:
-            return TeamManageOutput(
-                response_data={"code": 1, "msg": f"团队不存在: {state.team_id}", "data": {}}
-            )
+            return {"code": 1, "msg": f"团队不存在: {state.team_id}", "data": {}}
         
-        return TeamManageOutput(
-            response_data={
-                "code": 0,
-                "msg": "查询成功",
-                "data": {
-                    "team_id": team.id,
-                    "name": team.name,
-                    "balance": team.balance,
-                    "total_consumed": team.total_consumed,
-                    "member_count": team.member_count,
-                    "status": team.status
-                }
+        return {
+            "code": 0,
+            "msg": "查询成功",
+            "data": {
+                "team_id": team.id,
+                "name": team.name,
+                "balance": team.balance,
+                "total_consumed": team.total_consumed,
+                "member_count": team.member_count,
+                "status": team.status
             }
-        )
+        }
 
 
-def _create_team(state: TeamManageInput) -> TeamManageOutput:
+def _create_team(state: TeamBalanceInput) -> dict:
     """创建团队"""
     team_id = state.team_id or str(uuid.uuid4())[:8]
     name = state.name or f"团队 {team_id}"
@@ -108,9 +126,7 @@ def _create_team(state: TeamManageInput) -> TeamManageOutput:
     with get_session() as session:
         existing = session.query(Teams).filter(Teams.id == team_id).first()
         if existing:
-            return TeamManageOutput(
-                response_data={"code": 1, "msg": f"团队ID已存在: {team_id}", "data": {}}
-            )
+            return {"code": 1, "msg": f"团队ID已存在: {team_id}", "data": {}}
         
         team = Teams(
             id=team_id,
@@ -133,32 +149,22 @@ def _create_team(state: TeamManageInput) -> TeamManageOutput:
         session.add(member)
         session.commit()
         
-        return TeamManageOutput(
-            response_data={
-                "code": 0,
-                "msg": "创建成功",
-                "data": {"team_id": team_id, "name": name, "balance": 0}
-            }
-        )
+        return {"code": 0, "msg": "创建成功", "data": {"team_id": team_id, "name": name, "balance": 0}}
 
 
-def _add_member(state: TeamManageInput) -> TeamManageOutput:
+def _add_member(state: TeamBalanceInput) -> dict:
     """添加成员"""
     with get_session() as session:
         team = session.query(Teams).filter(Teams.id == state.team_id).first()
         if not team:
-            return TeamManageOutput(
-                response_data={"code": 1, "msg": "团队不存在", "data": {}}
-            )
+            return {"code": 1, "msg": "团队不存在", "data": {}}
         
         existing = session.query(TeamMembers).filter(
             TeamMembers.team_id == state.team_id,
             TeamMembers.user_id == state.target_user_id
         ).first()
         if existing:
-            return TeamManageOutput(
-                response_data={"code": 1, "msg": "用户已在团队中", "data": {}}
-            )
+            return {"code": 1, "msg": "用户已在团队中", "data": {}}
         
         member = TeamMembers(
             id=str(uuid.uuid4())[:16],
@@ -172,42 +178,38 @@ def _add_member(state: TeamManageInput) -> TeamManageOutput:
         team.member_count += 1
         session.commit()
         
-        return TeamManageOutput(
-            response_data={"code": 0, "msg": "添加成功", "data": {}}
-        )
+        return {"code": 0, "msg": "添加成功", "data": {}}
 
 
-def _list_members(state: TeamManageInput) -> TeamManageOutput:
+def _list_members(state: TeamBalanceInput) -> dict:
     """列出成员"""
     with get_session() as session:
         members = session.query(TeamMembers).filter(
             TeamMembers.team_id == state.team_id
         ).all()
         
-        return TeamManageOutput(
-            response_data={
-                "code": 0,
-                "msg": "查询成功",
-                "data": {
-                    "members": [
-                        {"user_id": m.user_id, "username": m.username, "role": m.role, "total_consumed": m.total_consumed}
-                        for m in members
-                    ]
-                }
+        return {
+            "code": 0,
+            "msg": "查询成功",
+            "data": {
+                "members": [
+                    {"user_id": m.user_id, "username": m.username, "role": m.role, "total_consumed": m.total_consumed}
+                    for m in members
+                ]
             }
-        )
+        }
 
 
-def _recharge(state: TeamManageInput) -> TeamManageOutput:
+def _recharge(state: TeamBalanceInput) -> dict:
     """充值"""
     amount = state.amount or 0
     if amount <= 0:
-        return TeamManageOutput(response_data={"code": 1, "msg": "充值金额必须大于0", "data": {}})
+        return {"code": 1, "msg": "充值金额必须大于0", "data": {}}
     
     with get_session() as session:
         team = session.query(Teams).filter(Teams.id == state.team_id).first()
         if not team:
-            return TeamManageOutput(response_data={"code": 1, "msg": "团队不存在", "data": {}})
+            return {"code": 1, "msg": "团队不存在", "data": {}}
         
         balance_before = team.balance
         team.balance += amount
@@ -226,26 +228,22 @@ def _recharge(state: TeamManageInput) -> TeamManageOutput:
         session.add(record)
         session.commit()
         
-        return TeamManageOutput(
-            response_data={"code": 0, "msg": "充值成功", "data": {"balance": team.balance}}
-        )
+        return {"code": 0, "msg": "充值成功", "data": {"balance": team.balance}}
 
 
-def _deduct(state: TeamManageInput) -> TeamManageOutput:
+def _deduct(state: TeamBalanceInput) -> dict:
     """扣费"""
     amount = state.amount or 0
     if amount <= 0:
-        return TeamManageOutput(response_data={"code": 1, "msg": "扣费金额必须大于0", "data": {}})
+        return {"code": 1, "msg": "扣费金额必须大于0", "data": {}}
     
     with get_session() as session:
         team = session.query(Teams).filter(Teams.id == state.team_id).first()
         if not team:
-            return TeamManageOutput(response_data={"code": 1, "msg": "团队不存在", "data": {}})
+            return {"code": 1, "msg": "团队不存在", "data": {}}
         
         if team.balance < amount:
-            return TeamManageOutput(
-                response_data={"code": 1, "msg": f"余额不足: 当前{team.balance}", "data": {}}
-            )
+            return {"code": 1, "msg": f"余额不足: 当前{team.balance}", "data": {}}
         
         balance_before = team.balance
         team.balance -= amount
@@ -272,21 +270,19 @@ def _deduct(state: TeamManageInput) -> TeamManageOutput:
         session.add(record)
         session.commit()
         
-        return TeamManageOutput(
-            response_data={"code": 0, "msg": "扣费成功", "data": {"balance": team.balance}}
-        )
+        return {"code": 0, "msg": "扣费成功", "data": {"balance": team.balance}}
 
 
-def _refund(state: TeamManageInput) -> TeamManageOutput:
+def _refund(state: TeamBalanceInput) -> dict:
     """退款"""
     amount = state.amount or 0
     if amount <= 0:
-        return TeamManageOutput(response_data={"code": 1, "msg": "退款金额必须大于0", "data": {}})
+        return {"code": 1, "msg": "退款金额必须大于0", "data": {}}
     
     with get_session() as session:
         team = session.query(Teams).filter(Teams.id == state.team_id).first()
         if not team:
-            return TeamManageOutput(response_data={"code": 1, "msg": "团队不存在", "data": {}})
+            return {"code": 1, "msg": "团队不存在", "data": {}}
         
         balance_before = team.balance
         team.balance += amount
@@ -307,12 +303,10 @@ def _refund(state: TeamManageInput) -> TeamManageOutput:
         session.add(record)
         session.commit()
         
-        return TeamManageOutput(
-            response_data={"code": 0, "msg": "退款成功", "data": {"balance": team.balance}}
-        )
+        return {"code": 0, "msg": "退款成功", "data": {"balance": team.balance}}
 
 
-def _get_records(state: TeamManageInput) -> TeamManageOutput:
+def _get_records(state: TeamBalanceInput) -> dict:
     """查询消费记录"""
     with get_session() as session:
         start_date = datetime.now() - timedelta(days=state.days)
@@ -327,29 +321,27 @@ def _get_records(state: TeamManageInput) -> TeamManageOutput:
         
         records = query.order_by(TeamConsumptionRecords.created_at.desc()).limit(50).all()
         
-        return TeamManageOutput(
-            response_data={
-                "code": 0,
-                "msg": "查询成功",
-                "data": {
-                    "records": [
-                        {
-                            "id": r.id,
-                            "user_id": r.user_id,
-                            "username": r.username,
-                            "amount": r.amount,
-                            "operation_type": r.operation_type,
-                            "description": r.description,
-                            "created_at": r.created_at.isoformat() if r.created_at else None
-                        }
-                        for r in records
-                    ]
-                }
+        return {
+            "code": 0,
+            "msg": "查询成功",
+            "data": {
+                "records": [
+                    {
+                        "id": r.id,
+                        "user_id": r.user_id,
+                        "username": r.username,
+                        "amount": r.amount,
+                        "operation_type": r.operation_type,
+                        "description": r.description,
+                        "created_at": r.created_at.isoformat() if r.created_at else None
+                    }
+                    for r in records
+                ]
             }
-        )
+        }
 
 
-def _get_stats(state: TeamManageInput) -> TeamManageOutput:
+def _get_stats(state: TeamBalanceInput) -> dict:
     """查询消费统计"""
     with get_session() as session:
         start_date = datetime.now() - timedelta(days=state.days)
@@ -368,22 +360,20 @@ def _get_stats(state: TeamManageInput) -> TeamManageOutput:
         
         team = session.query(Teams).filter(Teams.id == state.team_id).first()
         
-        return TeamManageOutput(
-            response_data={
-                "code": 0,
-                "msg": "查询成功",
-                "data": {
-                    "team_id": state.team_id,
-                    "balance": team.balance if team else 0,
-                    "consumption": consumption,
-                    "recharge": abs(recharge),
-                    "days": state.days
-                }
+        return {
+            "code": 0,
+            "msg": "查询成功",
+            "data": {
+                "team_id": state.team_id,
+                "balance": team.balance if team else 0,
+                "consumption": consumption,
+                "recharge": abs(recharge),
+                "days": state.days
             }
-        )
+        }
 
 
-def _get_member_stats(state: TeamManageInput) -> TeamManageOutput:
+def _get_member_stats(state: TeamBalanceInput) -> dict:
     """查询成员消费统计"""
     with get_session() as session:
         start_date = datetime.now() - timedelta(days=state.days)
@@ -401,15 +391,13 @@ def _get_member_stats(state: TeamManageInput) -> TeamManageOutput:
             TeamConsumptionRecords.username
         ).all()
         
-        return TeamManageOutput(
-            response_data={
-                "code": 0,
-                "msg": "查询成功",
-                "data": {
-                    "members": [
-                        {"user_id": r.user_id, "username": r.username, "consumption": r.total}
-                        for r in results
-                    ]
-                }
+        return {
+            "code": 0,
+            "msg": "查询成功",
+            "data": {
+                "members": [
+                    {"user_id": r.user_id, "username": r.username, "consumption": r.total}
+                    for r in results
+                ]
             }
-        )
+        }
