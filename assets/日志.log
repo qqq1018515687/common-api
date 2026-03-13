@@ -1,28 +1,22 @@
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-logger.ts:92 [08:20:54][组件可见性管理] 获取工作流 workflow_01 的可见性配置 {visibilityConfig: {…}}
-useParameterExport.ts:149 🔧 [exportToSDKFormat] 开始导出参数: {workflowId: 'workflow_01', formattedParamsKeys: Array(6)}
-apiParamBuilder.ts:173 [apiParamBuilder] 开始构建 API 参数: workflow_01
-apiParamBuilder.ts:131 [apiParamBuilder] 全局参数: uploadedImage -> img {originalValue: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png', transformedValue: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png'}
-apiParamBuilder.ts:131 [apiParamBuilder] 全局参数: workflow -> workflow {originalValue: '01', transformedValue: '01'}
-apiParamBuilder.ts:103 [apiParamBuilder] 组件字段: num_01 -> noise {originalValue: 0.6, transformedValue: 0.6}
-apiParamBuilder.ts:103 [apiParamBuilder] 组件字段: seg_01 -> number {originalValue: '1', transformedValue: '1'}
-apiParamBuilder.ts:103 [apiParamBuilder] 组件字段: sel_01 -> model_name {originalValue: Array(1), transformedValue: Array(1)}
-apiParamBuilder.ts:103 [apiParamBuilder] 组件字段: prompt_01 -> prompt {originalValue: '', transformedValue: ''}
-apiParamBuilder.ts:213 [apiParamBuilder] API 参数构建完成: {img: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png', workflow: '01', noise: 0.6, number: '1', model_name: Array(1), …}
+logger.ts:92 [09:29:07][组件可见性管理] 获取工作流 workflow_01 的可见性配置 {visibilityConfig: {…}}
+useParameterExport.ts:149 🔧 [exportToSDKFormat] 开始导出参数: {workflowId: 'workflow_01', formattedParamsKeys: Array(7)}
+apiParamBuilder.ts:177 [apiParamBuilder] 开始构建 API 参数: workflow_01
+apiParamBuilder.ts:133 [apiParamBuilder] 全局参数: uploadedImage -> img {originalValue: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_uscxf_1773391291.png', transformedValue: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_uscxf_1773391291.png'}
+apiParamBuilder.ts:133 [apiParamBuilder] 全局参数: workflow -> workflow {originalValue: '01', transformedValue: '01'}
+apiParamBuilder.ts:105 [apiParamBuilder] 组件字段: num_01 -> noise {originalValue: 0.6, transformedValue: 0.6}
+apiParamBuilder.ts:105 [apiParamBuilder] 组件字段: seg_01 -> number {originalValue: '1', transformedValue: '1'}
+apiParamBuilder.ts:105 [apiParamBuilder] 组件字段: sel_01 -> model_name {originalValue: Array(1), transformedValue: Array(1)}
+apiParamBuilder.ts:105 [apiParamBuilder] 组件字段: prompt_01 -> prompt {originalValue: '主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微…、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。', transformedValue: '主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微…、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。'}
+apiParamBuilder.ts:215 [apiParamBuilder] API 参数构建完成: {img: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_uscxf_1773391291.png', workflow: '01', noise: 0.6, number: '1', model_name: Array(1), …}
 useParameterExport.ts:158 ✅ [exportToSDKFormat] 参数构建成功: {parameterCount: 6, parameters: {…}}
 useParameterExport.ts:173 🚀 [useParameterExport] 最终SDK格式参数: {
   "workflow_id": "7569119072085524506",
   "app_id": "7528684477728882734",
   "parameters": {
-    "input": "{\"img\":\"https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png\",\"workflow\":\"01\",\"noise\":0.6,\"number\":\"1\",\"model_name\":[\"model1\"],\"prompt\":\"\"}"
+    "input": "{\"img\":\"https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_uscxf_1773391291.png\",\"workflow\":\"01\",\"noise\":0.6,\"number\":\"1\",\"model_name\":[\"model1\"],\"prompt\":\"主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。\"}"
   }
 }
-logger.ts:92 [08:20:54][参数快照] 📸 开始生成参数快照 {workflowId: 'workflow_01'}
+logger.ts:92 [09:29:07][参数快照] 📸 开始生成参数快照 {workflowId: 'workflow_01'}
 parameterMappingManager.ts:35  ⚠️ [ParameterMappingManager] 此系统已废弃，请使用 apiParamBuilder
 warn @ forward-logs-shared.ts:95
 module evaluation @ parameterMappingManager.ts:35
@@ -69,97 +63,74 @@ batchedUpdates$1 @ react-dom-client.development.js:3375
 dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
 dispatchEvent @ react-dom-client.development.js:25580
 dispatchDiscreteEvent @ react-dom-client.development.js:25548
-logger.ts:92 [08:20:54][参数快照] ✅ 参数快照生成完成 {snapshotId: '2f7e816c-0dc0-4bf3-b961-ee90c6192bf8', workflowId: 'workflow_01', totalParams: 11, filledParams: 6, completeness: 55}
+logger.ts:92 [09:29:07][参数快照] ✅ 参数快照生成完成 {snapshotId: '5158c30c-1cb0-48b3-b17a-6da66858029a', workflowId: 'workflow_01', totalParams: 12, filledParams: 8, completeness: 67}
 ImageGenerationParams.tsx:536 [Generate] 检测到多任务组件: {componentId: 'sel_01', selectedModels: Array(1), modelCount: 1}
-useBalanceCheck.ts:66 [useBalanceCheck] 开始检查余额: {userId: '9182519078', requiredAmount: 50, currencyType: 'silver', currentSilver: 7409, currentGold: 4587}
+useBalanceCheck.ts:66 [useBalanceCheck] 开始检查余额: {userId: '9182519078', requiredAmount: 50, currencyType: 'silver', currentSilver: 7292, currentGold: 4587}
 userCreditService.ts:67 [UserCreditService] 💰 开始预扣费: {userId: '9182519078', silverAmount: 50, goldAmount: 0}
-userCreditService.ts:111 [UserCreditService] ✅ 本地余额已更新（乐观更新）: {newGoldBalance: 4587, newSilverBalance: 7359}
+userCreditService.ts:111 [UserCreditService] ✅ 本地余额已更新（乐观更新）: {newGoldBalance: 4587, newSilverBalance: 7242}
 cozeAccountService.ts:59 [Coze] 工作流响应: {operation_type: 'update_user', data: {…}}
-userCreditService.ts:127 [UserCreditService] ✅ 数据库余额已更新: {newGoldBalance: 4587, newSilverBalance: 7359}
-userStore.ts:307 [UserStore] ✅ 银豆预扣费成功: {原余额: 7409, 预扣: 50, 新余额: 7359}
-useBalanceCheck.ts:117 [useBalanceCheck] ✅ 预扣费成功: {requiredAmount: 50, currencyType: 'silver', newBalance: 7359}
-taskListStore.ts:421 [TaskStore] ✅ 任务已添加（含扣费信息）: {id: '177339005504842', type: 'image', workflowId: 'workflow_01', deductionInfo: {…}}
-ImageGenerationParams.tsx:695 [ImageGeneration] ✅ 任务已创建: 177339005504842
-ImageGenerationParams.tsx:696 [ImageGeneration] 📸 参数快照已保存: {snapshotId: '2f7e816c-0dc0-4bf3-b961-ee90c6192bf8', workflowId: 'workflow_01', totalParams: 11, filledParams: 6}
-resultDisplayStore.ts:42 [ResultDisplayStore] ✅ 任务已添加到结果区: {taskId: '177339005504842', workflowName: '01 图文生图', totalTasks: 1}
-ImageGenerationParams.tsx:720 [ImageGeneration] ✅ 任务已添加到结果区显示: 177339005504842
-ImageGenerationParams.tsx:749 [生成] 检测到提示词为空，开始自动生成...
-taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177339005504842', updates: {…}, activeTaskIds: Array(1)}
-ImageGenerationParams.tsx:782 [生成] 第1次尝试生成提示词...
-promptEnhancementManager.ts:147 [提示词增强管理器] 发起新的生成请求: {imageUrl: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png', requestKey: 'generate_https://rh-images.xiaoyaoyou.com/5312cd62…bc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png'}
+userCreditService.ts:127 [UserCreditService] ✅ 数据库余额已更新: {newGoldBalance: 4587, newSilverBalance: 7242}
+userStore.ts:307 [UserStore] ✅ 银豆预扣费成功: {原余额: 7292, 预扣: 50, 新余额: 7242}
+useBalanceCheck.ts:117 [useBalanceCheck] ✅ 预扣费成功: {requiredAmount: 50, currencyType: 'silver', newBalance: 7242}
+taskListStore.ts:413 [TaskStore] 📝 创建任务时 deductionResult: {taskId: '177339414852899', hasDeductionResult: true, deductionResult: {…}}
+taskListStore.ts:432 [TaskStore] ✅ 任务已添加（含扣费信息）: {id: '177339414852899', type: 'image', workflowId: 'workflow_01', deductionInfo: {…}}
+ImageGenerationParams.tsx:713 [ImageGeneration] ✅ 任务已创建: 177339414852899
+ImageGenerationParams.tsx:714 [ImageGeneration] 📸 参数快照已保存: {snapshotId: '5158c30c-1cb0-48b3-b17a-6da66858029a', workflowId: 'workflow_01', totalParams: 12, filledParams: 8}
+resultDisplayStore.ts:42 [ResultDisplayStore] ✅ 任务已添加到结果区: {taskId: '177339414852899', workflowName: '01 图文生图', totalTasks: 2}
+ImageGenerationParams.tsx:738 [ImageGeneration] ✅ 任务已添加到结果区显示: 177339414852899
+ImageGenerationParams.tsx:988 导出的SDK格式参数: {workflow_id: '7569119072085524506', app_id: '7528684477728882734', parameters: {…}}
+ImageGenerationParams.tsx:989 🔍 完整的SDK parameters.input 内容: {"img":"https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_uscxf_1773391291.png","workflow":"01","noise":0.6,"number":"1","model_name":["model1"],"prompt":"主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。"}
+ImageGenerationParams.tsx:993 📋 解析后的参数内容: {img: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_uscxf_1773391291.png', workflow: '01', noise: 0.6, number: '1', model_name: Array(1), …}
+ImageGenerationParams.tsx:1000 [Generate] 🚀 使用SSE处理器
+logger.ts:110 🚀 [09:29:08][图片生成SSE] 开始执行任务: 852899
+logger.ts:86 [09:29:08][SSE处理器] 开始SSE连接: 852899 {mode: 'single'}
 index.tsx:79 [ResultArea] 检测到生成开始，自动切换到结果页面
 index.tsx:79 [ResultArea] 检测到生成开始，自动切换到结果页面
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-promptEnhancementManager.ts:184 [提示词增强管理器] ✅ 生成成功: {imageUrl: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png', generatedPrompt: '主体是一位年轻的欧洲白人女性，深棕色直长发，妆容精致，眉形自然，眼妆突出，腮红柔和，露齿微笑，身着军…，背景深灰，上衣军绿，肤色自然。光影柔和均匀，营造出专业、清新的肖像氛围，突出人物面容与衣着质感。', requestKey: 'generate_https://rh-images.xiaoyaoyou.com/5312cd62…bc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png'}
-ImageGenerationParams.tsx:800 [生成] ✅ 提示词生成成功: 主体是一位年轻的欧洲白人女性，深棕色直长发，妆容精致，眉形自然，眼妆突出，腮红柔和，露齿微笑，身着军绿色短袖上衣。前景、中景均为该女性，背景是深灰色纯色幕布。构图为近景人像，中心对齐。色调偏冷，背景深灰，上衣军绿，肤色自然。光影柔和均匀，营造出专业、清新的肖像氛围，突出人物面容与衣着质感。
-logger.ts:92 [08:20:59][GlobalStore] [updateCurrentWorkflowParam] 更新工作流参数: {workflowId: 'workflow_01', key: 'prompt', value: '主体是一位年轻的欧洲白人女性，深棕色直长发，妆容精致，眉形自然，眼妆突出，腮红柔和，露齿微笑，身着军…，背景深灰，上衣军绿，肤色自然。光影柔和均匀，营造出专业、清新的肖像氛围，突出人物面容与衣着质感。'}
-logger.ts:92 [08:20:59][GlobalStore] [updateCurrentWorkflowParam] 更新工作流参数: {workflowId: 'workflow_01', key: 'prompt_01', value: '主体是一位年轻的欧洲白人女性，深棕色直长发，妆容精致，眉形自然，眼妆突出，腮红柔和，露齿微笑，身着军…，背景深灰，上衣军绿，肤色自然。光影柔和均匀，营造出专业、清新的肖像氛围，突出人物面容与衣着质感。'}
-ImageGenerationParams.tsx:819 [生成] ✅ 已更新请求参数，包含生成的提示词: 主体是一位年轻的欧洲白人女性，深棕色直长发，妆容精致，眉形自然，眼妆突出，腮红柔和，露齿微笑，身着军绿色短袖上衣。前景、中景均为该女性，背景是深灰色纯色幕布。构图为近景人像，中心对齐。色调偏冷，背景深灰，上衣军绿，肤色自然。光影柔和均匀，营造出专业、清新的肖像氛围，突出人物面容与衣着质感。
-ImageGenerationParams.tsx:836 [生成] ✅ 已同步更新 taskDataRef（包含 parameterSnapshot 和 inputData）
-taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177339005504842', updates: {…}, activeTaskIds: Array(1)}
-logger.ts:92 [08:20:59][GlobalStore] [getMultiModelPricing] 多模型定价计算: {workflowId: 'workflow_01', selectedModels: Array(1), totalPrice: 0, mode: 'silver', modelCount: 1, …}
-logger.ts:92 [08:20:59][GlobalStore] [getMultiModelPricing] 多模型定价计算: {workflowId: 'workflow_01', selectedModels: Array(1), totalPrice: 0, mode: 'silver', modelCount: 1, …}
-useFormattedParameters.ts:64 [参数预览] 状态变化触发刷新: {uploadedImage: '已上传', imageMark: '未绘制', currentWorkflowId: 'workflow_01'}
-apiParamBuilder.ts:173 [apiParamBuilder] 开始构建 API 参数: workflow_01
-apiParamBuilder.ts:131 [apiParamBuilder] 全局参数: uploadedImage -> img {originalValue: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png', transformedValue: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png'}
-apiParamBuilder.ts:131 [apiParamBuilder] 全局参数: workflow -> workflow {originalValue: '01', transformedValue: '01'}
-apiParamBuilder.ts:103 [apiParamBuilder] 组件字段: num_01 -> noise {originalValue: 0.6, transformedValue: 0.6}
-apiParamBuilder.ts:103 [apiParamBuilder] 组件字段: seg_01 -> number {originalValue: '1', transformedValue: '1'}
-apiParamBuilder.ts:103 [apiParamBuilder] 组件字段: sel_01 -> model_name {originalValue: Array(1), transformedValue: Array(1)}
-apiParamBuilder.ts:103 [apiParamBuilder] 组件字段: prompt_01 -> prompt {originalValue: '主体是一位年轻的欧洲白人女性，深棕色直长发，妆容精致，眉形自然，眼妆突出，腮红柔和，露齿微笑，身着军…，背景深灰，上衣军绿，肤色自然。光影柔和均匀，营造出专业、清新的肖像氛围，突出人物面容与衣着质感。', transformedValue: '主体是一位年轻的欧洲白人女性，深棕色直长发，妆容精致，眉形自然，眼妆突出，腮红柔和，露齿微笑，身着军…，背景深灰，上衣军绿，肤色自然。光影柔和均匀，营造出专业、清新的肖像氛围，突出人物面容与衣着质感。'}
-apiParamBuilder.ts:213 [apiParamBuilder] API 参数构建完成: {img: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png', workflow: '01', noise: 0.6, number: '1', model_name: Array(1), …}
-useFormattedParameters.ts:46 [useFormattedParameters] 参数构建成功: {img: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png', workflow: '01', noise: 0.6, number: '1', model_name: Array(1), …}
-ImageGenerationParams.tsx:970 导出的SDK格式参数: {workflow_id: '7569119072085524506', app_id: '7528684477728882734', parameters: {…}}
-ImageGenerationParams.tsx:971 🔍 完整的SDK parameters.input 内容: {"img":"https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png","workflow":"01","noise":0.6,"number":"1","model_name":["model1"],"prompt":"主体是一位年轻的欧洲白人女性，深棕色直长发，妆容精致，眉形自然，眼妆突出，腮红柔和，露齿微笑，身着军绿色短袖上衣。前景、中景均为该女性，背景是深灰色纯色幕布。构图为近景人像，中心对齐。色调偏冷，背景深灰，上衣军绿，肤色自然。光影柔和均匀，营造出专业、清新的肖像氛围，突出人物面容与衣着质感。","prompt_01":"主体是一位年轻的欧洲白人女性，深棕色直长发，妆容精致，眉形自然，眼妆突出，腮红柔和，露齿微笑，身着军绿色短袖上衣。前景、中景均为该女性，背景是深灰色纯色幕布。构图为近景人像，中心对齐。色调偏冷，背景深灰，上衣军绿，肤色自然。光影柔和均匀，营造出专业、清新的肖像氛围，突出人物面容与衣着质感。"}
-ImageGenerationParams.tsx:975 📋 解析后的参数内容: {img: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png', workflow: '01', noise: 0.6, number: '1', model_name: Array(1), …}
-ImageGenerationParams.tsx:982 [Generate] 🚀 使用SSE处理器
-logger.ts:110 🚀 [08:21:00][图片生成SSE] 开始执行任务: 504842
-logger.ts:86 [08:21:00][SSE处理器] 开始SSE连接: 504842 {mode: 'single'}
-logger.ts:86 [08:21:00][SSE处理器] 获取到taskId: 040769 {taskId: '504842', account: '02'}
-taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177339005504842', updates: {…}, activeTaskIds: Array(1)}
-logger.ts:92 [08:21:00][TaskDatabase] 开始创建任务: taskId=177339005504842, platformTaskId=2032371333547040769
-logger.ts:92 [08:21:00][TaskDatabase] 请求体结构: call_type=user_task_management, operation_type=create_task
-logger.ts:92 [08:21:00][TaskDatabase] 📋 完整创建任务请求体:
+ImageDisplay.tsx:302 图片加载完成: /api/proxy-image?url=https%3A%2F%2Frh-images.xiaoyaoyou.com%2F5312cd62e1fd756057e3849edbc9d5af%2Foutput%2FComfyUI_00001_pqemf_1773394084.png
+logger.ts:92 [09:29:08][ImagePreviewModal] 模态框状态变化 {isOpen: false, imageUrl: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_pqemf_1773394084.png'}
+logger.ts:92 [09:29:08][ImagePreviewModal] 模态框状态变化 {isOpen: false, imageUrl: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_pqemf_1773394084.png'}
+logger.ts:86 [09:29:09][SSE处理器] 获取到taskId: 081217 {taskId: '852899', account: '02'}
+taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177339414852899', updates: {…}, activeTaskIds: Array(1)}
+logger.ts:92 [09:29:09][TaskDatabase] 开始创建任务: taskId=177339414852899, platformTaskId=2032388482739081217
+logger.ts:92 [09:29:09][TaskDatabase] 请求体结构: call_type=user_task_management, operation_type=create_task
+logger.ts:92 [09:29:09][TaskDatabase] 📋 完整创建任务请求体:
 {
   "call_type": "user_task_management",
   "input": {
     "operation_type": "create_task",
     "user_id": "9182519078",
     "task_data": {
-      "id": "177339005504842",
+      "id": "177339414852899",
       "platform": "aigc",
-      "platform_task_id": "2032371333547040769",
+      "platform_task_id": "2032388482739081217",
       "type": "image",
       "team_id": "mars",
       "workflow_parameters": {
-        "img": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png",
+        "img": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_uscxf_1773391291.png",
         "workflow": "01",
         "noise": 0.6,
         "number": "1",
         "model_name": [
           "model1"
         ],
-        "prompt": "主体是一位年轻的欧洲白人女性，深棕色直长发，妆容精致，眉形自然，眼妆突出，腮红柔和，露齿微笑，身着军绿色短袖上衣。前景、中景均为该女性，背景是深灰色纯色幕布。构图为近景人像，中心对齐。色调偏冷，背景深灰，上衣军绿，肤色自然。光影柔和均匀，营造出专业、清新的肖像氛围，突出人物面容与衣着质感。",
-        "prompt_01": "主体是一位年轻的欧洲白人女性，深棕色直长发，妆容精致，眉形自然，眼妆突出，腮红柔和，露齿微笑，身着军绿色短袖上衣。前景、中景均为该女性，背景是深灰色纯色幕布。构图为近景人像，中心对齐。色调偏冷，背景深灰，上衣军绿，肤色自然。光影柔和均匀，营造出专业、清新的肖像氛围，突出人物面容与衣着质感。"
+        "prompt": "主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。"
       },
       "parameter_snapshot": {
-        "snapshotId": "2f7e816c-0dc0-4bf3-b961-ee90c6192bf8",
-        "snapshotTime": 1773390054627,
+        "snapshotId": "5158c30c-1cb0-48b3-b17a-6da66858029a",
+        "snapshotTime": 1773394147631,
         "snapshotVersion": "1.0.0",
         "workflowId": "workflow_01",
         "workflowName": "01 图文生图",
         "globalParams": {
-          "uploadedImage": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png",
+          "uploadedImage": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_uscxf_1773391291.png",
           "uploadedImage2": null,
           "uploadedImage3": null,
           "uploadedImage4": null,
           "imageMark": null,
-          "imageUrls": []
+          "imageUrls": [
+            "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00003_cjemo_1773393192.png",
+            "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00003_hushr_1773393452.png"
+          ]
         },
         "workflowParams": {
           "num_01": 0.6,
@@ -170,34 +141,36 @@ logger.ts:92 [08:21:00][TaskDatabase] 📋 完整创建任务请求体:
           "sel_01": [
             "model1"
           ],
-          "prompt_01": "",
-          "workflow": "01"
+          "prompt_01": "主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。",
+          "workflow": "01",
+          "prompt": "主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。"
         },
         "mappedParams": {
-          "input": "{\"num_01\":0.6,\"seg_01\":\"1\",\"sel_01\":[\"model1\"],\"prompt_01\":\"\",\"workflow\":\"01\",\"uploadedImage\":\"https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png\"}",
+          "input": "{\"num_01\":0.6,\"seg_01\":\"1\",\"sel_01\":[\"model1\"],\"prompt_01\":\"主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。\",\"workflow\":\"01\",\"prompt\":\"主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。\",\"uploadedImage\":\"https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_uscxf_1773391291.png\"}",
           "parsedInput": {
             "num_01": 0.6,
             "seg_01": "1",
             "sel_01": [
               "model1"
             ],
-            "prompt_01": "",
+            "prompt_01": "主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。",
             "workflow": "01",
-            "uploadedImage": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00003_qrjvl_1773389079.png"
+            "prompt": "主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。",
+            "uploadedImage": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_uscxf_1773391291.png"
           },
           "mappingConfigs": []
         },
         "parameterMetadata": {
-          "totalParams": 11,
-          "filledParams": 6,
-          "emptyParams": 5,
+          "totalParams": 12,
+          "filledParams": 8,
+          "emptyParams": 4,
           "validation": {
             "isValid": true,
             "errors": [],
             "warnings": []
           },
           "completeness": {
-            "score": 55,
+            "score": 67,
             "missingRequired": []
           }
         },
@@ -210,135 +183,113 @@ logger.ts:92 [08:21:00][TaskDatabase] 📋 完整创建任务请求体:
       },
       "batch_id": null,
       "connection_mode": "sse",
-      "deduction_result": null
+      "deduction_result": {
+        "mode": "personal_silver",
+        "amount": 50,
+        "status": "deducted",
+        "deducted_at": 1773394148528
+      }
     }
   }
 }
-logger.ts:92 [08:21:01][TaskDatabase] 任务创建成功: taskId=177339005504842, status=running, 耗时=279ms
-logger.ts:98 ✅ [08:21:01][SSE处理器] 任务已持久化到数据库 {taskId: '504842'}
-logger.ts:86 [08:21:01][图片生成SSE] 任务 504842 获取到平台ID: 040769 {account: '02'}
-taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177339005504842', updates: {…}, activeTaskIds: Array(1)}
+logger.ts:92 [09:29:09][TaskDatabase] 任务创建成功: taskId=177339414852899, status=running, 耗时=302ms
+logger.ts:98 ✅ [09:29:09][SSE处理器] 任务已持久化到数据库 {taskId: '852899'}
+logger.ts:86 [09:29:09][图片生成SSE] 任务 852899 获取到平台ID: 081217 {account: '02'}
+taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177339414852899', updates: {…}, activeTaskIds: Array(1)}
+deductionManager.ts:201 [DeductionManager] 扣费记录不存在，无法标记为处理中: 177339414852899
+userCreditService.ts:169 [UserCreditService] 💰 开始结算扣费: {userId: '9182519078', taskId: '177339414852899', mode: 'silver', preDeductedAmount: 50, finalAmount: 3}
+userCreditService.ts:196 [UserCreditService] 💵 需要退还差额: 47
+userCreditService.ts:210 [UserCreditService] ✅ 本地余额已更新（退还差额）: {newSilverBalance: 7289}
 NotificationProvider.tsx:111 [NotificationProvider] 👁️ 页面可见，立即刷新通知
 NotificationProvider.tsx:60 [NotificationProvider] 🔄 执行通知轮询
 notificationStore.ts:46 [NotificationStore] 🔄 开始获取通知列表
-logger.ts:92 [08:21:48][NotificationService] 开始获取通知列表: target=all
-logger.ts:92 [08:21:48][NotificationService] 📋 请求体: {"call_type":"notification_management","input":{"operation_type":"get_active","target_audience":"all","current_time":1773390108154}}
-logger.ts:92 [08:21:48][NotificationService] ✅ 通知列表获取成功: count=2, 耗时=342ms
-notificationStore.ts:69 [NotificationStore] ✅ 通知列表获取成功: {count: 2, dismissed: 0, read: 1}
-NotificationProvider.tsx:66 [NotificationProvider] ✅ 轮询成功
-NotificationProvider.tsx:111 [NotificationProvider] 👁️ 页面可见，立即刷新通知
-NotificationProvider.tsx:60 [NotificationProvider] 🔄 执行通知轮询
-notificationStore.ts:46 [NotificationStore] 🔄 开始获取通知列表
-logger.ts:92 [08:21:49][NotificationService] 开始获取通知列表: target=all
-logger.ts:92 [08:21:49][NotificationService] 📋 请求体: {"call_type":"notification_management","input":{"operation_type":"get_active","target_audience":"all","current_time":1773390109356}}
-notificationStore.ts:69 [NotificationStore] ✅ 通知列表获取成功: {count: 2, dismissed: 0, read: 1}
-NotificationProvider.tsx:66 [NotificationProvider] ✅ 轮询成功
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-deductionManager.ts:201 [DeductionManager] 扣费记录不存在，无法标记为处理中: 177339005504842
-userCreditService.ts:169 [UserCreditService] 💰 开始结算扣费: {userId: '9182519078', taskId: '177339005504842', mode: 'silver', preDeductedAmount: 50, finalAmount: 12}
-userCreditService.ts:196 [UserCreditService] 💵 需要退还差额: 38
-userCreditService.ts:210 [UserCreditService] ✅ 本地余额已更新（退还差额）: {newSilverBalance: 7397}
+logger.ts:92 [09:29:24][NotificationService] 开始获取通知列表: target=all
+logger.ts:92 [09:29:24][NotificationService] 📋 请求体: {"call_type":"notification_management","input":{"operation_type":"get_active","target_audience":"all","current_time":1773394164935}}
 cozeAccountService.ts:59 [Coze] 工作流响应: {operation_type: 'update_user', data: {…}}
-userCreditService.ts:225 [UserCreditService] ✅ 数据库余额已更新（退还差额）: {refundedAmount: 38, newSilverBalance: 7397}
-taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177339005504842', updates: {…}, activeTaskIds: Array(1)}
-taskListStore.ts:284 [TaskStore] 💰 扣费结果已暂存: {taskId: '177339005504842', deductionResult: {…}}
-taskListStore.ts:519 [TaskStore] 💰 扣费结果已暂存，等待结果更新合并: {mode: 'personal_silver', amount: 12, status: 'settled', deducted_at: 1773390055048, settled_at: 1773390123051}
-taskListStore.ts:521 [TaskStore] ✅ 银豆任务已结算: {taskId: '177339005504842', 预扣: 50, 实际: 12, 退还: 38}
-deductionManager.ts:215 [DeductionManager] 扣费记录不存在，无法标记为已结算: 177339005504842
-taskListStore.ts:127 [TaskStore] ⏱️ 记录任务最终耗时: {id: '177339005504842', 最终耗时: 68}
-sound.ts:47 [Sound] 播放任务完成音效
-taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177339005504842', updates: {…}, activeTaskIds: Array(0)}
-logger.ts:92 [08:22:03][TaskDatabase] 开始更新任务: taskId=177339005504842, status=completed
-logger.ts:92 [08:22:03][TaskDatabase] 📋 完整更新任务请求体:
+userCreditService.ts:225 [UserCreditService] ✅ 数据库余额已更新（退还差额）: {refundedAmount: 47, newSilverBalance: 7289}
+taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177339414852899', updates: {…}, activeTaskIds: Array(1)}
+logger.ts:92 [09:29:25][TaskDatabase] 开始更新任务: taskId=177339414852899, status=completed
+logger.ts:92 [09:29:25][TaskDatabase] 📋 完整更新任务请求体:
 {
   "call_type": "user_task_management",
   "input": {
     "operation_type": "update_task",
     "user_id": "9182519078",
-    "task_id": "177339005504842",
+    "task_id": "177339414852899",
+    "task_updates": {
+      "status": "completed",
+      "deduction_result": {
+        "mode": "personal_silver",
+        "amount": 3,
+        "status": "settled",
+        "deducted_at": 1773394148528,
+        "settled_at": 1773394164771
+      }
+    }
+  }
+}
+logger.ts:92 [09:29:25][NotificationService] ✅ 通知列表获取成功: count=2, 耗时=577ms
+notificationStore.ts:69 [NotificationStore] ✅ 通知列表获取成功: {count: 2, dismissed: 0, read: 1}
+NotificationProvider.tsx:66 [NotificationProvider] ✅ 轮询成功
+logger.ts:92 [09:29:25][TaskDatabase] 任务更新成功: taskId=177339414852899, newStatus=completed, 耗时=292ms
+taskListStore.ts:538 [TaskStore] ✅ 银豆结算结果已更新到数据库: 177339414852899
+taskListStore.ts:284 [TaskStore] 💰 扣费结果已暂存: {taskId: '177339414852899', deductionResult: {…}}
+taskListStore.ts:547 [TaskStore] 💰 扣费结果已暂存，等待结果更新合并: {mode: 'personal_silver', amount: 3, status: 'settled', deducted_at: 1773394148528, settled_at: 1773394164771}
+taskListStore.ts:549 [TaskStore] ✅ 银豆任务已结算: {taskId: '177339414852899', 预扣: 50, 实际: 3, 退还: 47}
+deductionManager.ts:215 [DeductionManager] 扣费记录不存在，无法标记为已结算: 177339414852899
+taskListStore.ts:127 [TaskStore] ⏱️ 记录任务最终耗时: {id: '177339414852899', 最终耗时: 17}
+sound.ts:47 [Sound] 播放任务完成音效
+taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177339414852899', updates: {…}, activeTaskIds: Array(0)}
+logger.ts:92 [09:29:25][TaskDatabase] 开始更新任务: taskId=177339414852899, status=completed
+logger.ts:92 [09:29:25][TaskDatabase] 📋 完整更新任务请求体:
+{
+  "call_type": "user_task_management",
+  "input": {
+    "operation_type": "update_task",
+    "user_id": "9182519078",
+    "task_id": "177339414852899",
     "task_updates": {
       "status": "completed",
       "result": {
         "message": "success",
         "files": [
           {
-            "file_url": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_kjefv_1773390114.png",
+            "file_url": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00002_ugmuv_1773394158.png",
             "file_type": "png"
           }
         ],
         "raw_response": [
           {
-            "fileUrl": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_kjefv_1773390114.png",
+            "fileUrl": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00002_ugmuv_1773394158.png",
             "fileType": "png",
-            "taskCostTime": "60",
+            "taskCostTime": "13",
             "nodeId": "6",
             "thirdPartyConsumeMoney": null,
             "consumeMoney": null,
-            "consumeCoins": "12"
+            "consumeCoins": "3"
           }
         ]
       },
-      "completed_at": 1773390123761
+      "completed_at": 1773394165622
     }
   }
 }
-logger.ts:92 [08:22:04][TaskDatabase] 任务更新成功: taskId=177339005504842, newStatus=completed, 耗时=267ms
-logger.ts:98 ✅ [08:22:04][图片生成SSE] 任务 504842 完成，获取 1 张图片
-taskListStore.ts:456  [TaskStore] ⚠️ 任务无需结算或已结算: 177339005504842
+logger.ts:98 ✅ [09:29:25][图片生成SSE] 任务 852899 完成，获取 1 张图片
+taskListStore.ts:467  [TaskStore] ⚠️ 任务无需结算或已结算: 177339414852899
 warn @ forward-logs-shared.ts:95
-settleTaskDeduction @ taskListStore.ts:456
-useImageGenerationSSE.useSSEHandler @ useImageGenerationSSE.ts:94
+settleTaskDeduction @ taskListStore.ts:467
+useImageGenerationSSE.useSSEHandler @ useImageGenerationSSE.ts:99
 useSSEHandler.useCallback[handlePollTaskStatus] @ useSSEHandler.ts:409
-await in useSSEHandler.useCallback[handlePollTaskStatus]
-useSSEHandler.useCallback[handleSSEMessage] @ useSSEHandler.ts:439
-useSSEHandler.useCallback[startSSEConnection] @ useSSEHandler.ts:597
-logger.ts:86 [08:22:04][SSE处理器] 清理连接: 504842
-logger.ts:92 [08:22:04][GlobalStore] [updateGlobalParam] 更新全局参数: {key: 'imageUrls', value: Array(1)}
-resultDisplayStore.ts:92 [ResultDisplayStore] ✅ 图片已添加到任务: {taskId: '177339005504842', imageId: '177339005504842-image-0-1773390124033', totalImages: 1, autoSelected: true}
-resultDisplayStore.ts:121 [ResultDisplayStore] 🔄 任务状态已更新: {taskId: '177339005504842', status: 'success'}
-logger.ts:86 [08:22:04][图片生成SSE] 已将 1 张图片添加到结果区显示
-logger.ts:92 [08:22:04][ImagePreviewModal] 模态框状态变化 {isOpen: false, imageUrl: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_kjefv_1773390114.png'}
-logger.ts:92 [08:22:04][ImagePreviewModal] 模态框状态变化 {isOpen: false, imageUrl: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_kjefv_1773390114.png'}
-ImageDisplay.tsx:302 图片加载完成: /api/proxy-image?url=https%3A%2F%2Frh-images.xiaoyaoyou.com%2F5312cd62e1fd756057e3849edbc9d5af%2Foutput%2FComfyUI_00001_kjefv_1773390114.png
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
+logger.ts:86 [09:29:25][SSE处理器] 清理连接: 852899
+logger.ts:92 [09:29:25][GlobalStore] [updateGlobalParam] 更新全局参数: {key: 'imageUrls', value: Array(3)}
+resultDisplayStore.ts:92 [ResultDisplayStore] ✅ 图片已添加到任务: {taskId: '177339414852899', imageId: '177339414852899-image-0-1773394165944', totalImages: 1, autoSelected: false}
+resultDisplayStore.ts:121 [ResultDisplayStore] 🔄 任务状态已更新: {taskId: '177339414852899', status: 'success'}
+logger.ts:86 [09:29:25][图片生成SSE] 已将 1 张图片添加到结果区显示
+NotificationProvider.tsx:111 [NotificationProvider] 👁️ 页面可见，立即刷新通知
 NotificationProvider.tsx:60 [NotificationProvider] 🔄 执行通知轮询
 notificationStore.ts:46 [NotificationStore] 🔄 开始获取通知列表
-logger.ts:92 [08:22:12][NotificationService] 开始获取通知列表: target=all
-logger.ts:92 [08:22:12][NotificationService] 📋 请求体: {"call_type":"notification_management","input":{"operation_type":"get_active","target_audience":"all","current_time":1773390132790}}
-logger.ts:92 [08:22:13][NotificationService] ✅ 通知列表获取成功: count=2, 耗时=311ms
+logger.ts:92 [09:29:31][NotificationService] 开始获取通知列表: target=all
+logger.ts:92 [09:29:31][NotificationService] 📋 请求体: {"call_type":"notification_management","input":{"operation_type":"get_active","target_audience":"all","current_time":1773394171024}}
+logger.ts:92 [09:29:31][NotificationService] ✅ 通知列表获取成功: count=2, 耗时=259ms
 notificationStore.ts:69 [NotificationStore] ✅ 通知列表获取成功: {count: 2, dismissed: 0, read: 1}
 NotificationProvider.tsx:66 [NotificationProvider] ✅ 轮询成功
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '功能更新', 内容: 'AI应用：新增<产品精修>、<产品白底图', 容器宽: 618, 内容宽: 618, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
-NotificationTicker.tsx:83 [Notification] 溢出检测: {标题: '重要提醒', 内容: '服务器已修复，可以正常使用。', 容器宽: 196, 内容宽: 196, 滚动距离: '0px', …}
