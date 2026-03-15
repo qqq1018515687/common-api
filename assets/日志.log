@@ -1,168 +1,123 @@
-logger.ts:92 [09:29:07][组件可见性管理] 获取工作流 workflow_01 的可见性配置 {visibilityConfig: {…}}
-useParameterExport.ts:149 🔧 [exportToSDKFormat] 开始导出参数: {workflowId: 'workflow_01', formattedParamsKeys: Array(7)}
-apiParamBuilder.ts:177 [apiParamBuilder] 开始构建 API 参数: workflow_01
-apiParamBuilder.ts:133 [apiParamBuilder] 全局参数: uploadedImage -> img {originalValue: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_uscxf_1773391291.png', transformedValue: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_uscxf_1773391291.png'}
-apiParamBuilder.ts:133 [apiParamBuilder] 全局参数: workflow -> workflow {originalValue: '01', transformedValue: '01'}
-apiParamBuilder.ts:105 [apiParamBuilder] 组件字段: num_01 -> noise {originalValue: 0.6, transformedValue: 0.6}
-apiParamBuilder.ts:105 [apiParamBuilder] 组件字段: seg_01 -> number {originalValue: '1', transformedValue: '1'}
+NotificationProvider.tsx:60 [NotificationProvider] 🔄 执行通知轮询
+notificationStore.ts:46 [NotificationStore] 🔄 开始获取通知列表
+logger.ts:92 [06:55:06][NotificationService] 开始获取通知列表: target=all
+logger.ts:92 [06:55:06][NotificationService] 📋 请求体: {"call_type":"notification_management","input":{"operation_type":"get_active","target_audience":"all","current_time":1773557706971}}
+logger.ts:92 [06:55:07][NotificationService] ✅ 通知列表获取成功: count=1, 耗时=358ms
+notificationStore.ts:69 [NotificationStore] ✅ 通知列表获取成功: {count: 1, dismissed: 0, read: 1}
+NotificationProvider.tsx:66 [NotificationProvider] ✅ 轮询成功
+logger.ts:92 [06:55:07][组件可见性管理] 获取工作流 workflow_02 的可见性配置 {visibilityConfig: {…}}
+useParameterExport.ts:149 🔧 [exportToSDKFormat] 开始导出参数: {workflowId: 'workflow_02', formattedParamsKeys: Array(6)}
+apiParamBuilder.ts:177 [apiParamBuilder] 开始构建 API 参数: workflow_02
+apiParamBuilder.ts:133 [apiParamBuilder] 全局参数: uploadedImage -> img {originalValue: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_voerc_1773410050.png', transformedValue: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_voerc_1773410050.png'}
+apiParamBuilder.ts:133 [apiParamBuilder] 全局参数: workflow -> workflow {originalValue: '02', transformedValue: '02'}
 apiParamBuilder.ts:105 [apiParamBuilder] 组件字段: sel_01 -> model_name {originalValue: Array(1), transformedValue: Array(1)}
-apiParamBuilder.ts:105 [apiParamBuilder] 组件字段: prompt_01 -> prompt {originalValue: '主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微…、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。', transformedValue: '主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微…、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。'}
-apiParamBuilder.ts:215 [apiParamBuilder] API 参数构建完成: {img: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_uscxf_1773391291.png', workflow: '01', noise: 0.6, number: '1', model_name: Array(1), …}
+apiParamBuilder.ts:105 [apiParamBuilder] 组件字段: prompt_01 -> prompt {originalValue: '仅针对图中女子的衣服进行材质替换。严格保留原图中衣服的结构、形状以及因人体轮廓产生的自然起伏，将原本…皮衣的挺括与光泽感，同时保持原图的光影方向、色温以及背景环境参数不变，使皮衣与人物的融合自然真实。', transformedValue: '仅针对图中女子的衣服进行材质替换。严格保留原图中衣服的结构、形状以及因人体轮廓产生的自然起伏，将原本…皮衣的挺括与光泽感，同时保持原图的光影方向、色温以及背景环境参数不变，使皮衣与人物的融合自然真实。'}
+apiParamBuilder.ts:105 [apiParamBuilder] 组件字段: seg_01 -> dpi {originalValue: '1K', transformedValue: '1K'}
+apiParamBuilder.ts:105 [apiParamBuilder] 组件字段: num_01 -> number {originalValue: 2, transformedValue: 2}
+apiParamBuilder.ts:215 [apiParamBuilder] API 参数构建完成: {img: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_voerc_1773410050.png', workflow: '02', model_name: Array(1), prompt: '仅针对图中女子的衣服进行材质替换。严格保留原图中衣服的结构、形状以及因人体轮廓产生的自然起伏，将原本…皮衣的挺括与光泽感，同时保持原图的光影方向、色温以及背景环境参数不变，使皮衣与人物的融合自然真实。', dpi: '1K', …}
 useParameterExport.ts:158 ✅ [exportToSDKFormat] 参数构建成功: {parameterCount: 6, parameters: {…}}
 useParameterExport.ts:173 🚀 [useParameterExport] 最终SDK格式参数: {
   "workflow_id": "7569119072085524506",
   "app_id": "7528684477728882734",
   "parameters": {
-    "input": "{\"img\":\"https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_uscxf_1773391291.png\",\"workflow\":\"01\",\"noise\":0.6,\"number\":\"1\",\"model_name\":[\"model1\"],\"prompt\":\"主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。\"}"
+    "input": "{\"img\":\"https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_voerc_1773410050.png\",\"workflow\":\"02\",\"model_name\":[\"model3\"],\"prompt\":\"仅针对图中女子的衣服进行材质替换。严格保留原图中衣服的结构、形状以及因人体轮廓产生的自然起伏，将原本的棉质T恤材质替换为皮衣材质。新的皮衣材质需呈现出皮革特有的微观细节，如细腻的纹理、轻微的反光质感，并且要随着原图中衣服的物理形态（如胸部的隆起、肩部的转折、衣身的褶皱走向）产生自然的曲面转折，确保皮衣的褶皱和光影变化与人体轮廓的起伏完全贴合。整体质感要体现出皮衣的挺括与光泽感，同时保持原图的光影方向、色温以及背景环境参数不变，使皮衣与人物的融合自然真实。\",\"dpi\":\"1K\",\"number\":2}"
   }
 }
-logger.ts:92 [09:29:07][参数快照] 📸 开始生成参数快照 {workflowId: 'workflow_01'}
-parameterMappingManager.ts:35  ⚠️ [ParameterMappingManager] 此系统已废弃，请使用 apiParamBuilder
-warn @ forward-logs-shared.ts:95
-module evaluation @ parameterMappingManager.ts:35
-(匿名) @ dev-base.ts:244
-runModuleExecutionHooks @ dev-base.ts:278
-instantiateModule @ dev-base.ts:238
-getOrInstantiateModuleFromParent @ dev-base.ts:162
-esmImport @ runtime-utils.ts:347
-(匿名) @ src_c704bc62._.js:73
-Promise.then
-(匿名) @ src_c704bc62._.js:72
-asyncLoader @ runtime-utils.ts:369
-generateParameterSnapshot @ parameterSnapshot.ts:55
-ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:510
-await in ImageGenerationParams.useCallback[handleGenerate]
-executeDispatch @ react-dom-client.development.js:20447
-runWithFiberInDEV @ react-dom-client.development.js:984
-processDispatchQueue @ react-dom-client.development.js:20497
-(匿名) @ react-dom-client.development.js:21068
-batchedUpdates$1 @ react-dom-client.development.js:3375
-dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
-dispatchEvent @ react-dom-client.development.js:25580
-dispatchDiscreteEvent @ react-dom-client.development.js:25548
-parameterMappingManager.ts:36  📚 迁移文档：请参考 AGENTS.md 中的 API URL 配置规范
-warn @ forward-logs-shared.ts:95
-module evaluation @ parameterMappingManager.ts:36
-(匿名) @ dev-base.ts:244
-runModuleExecutionHooks @ dev-base.ts:278
-instantiateModule @ dev-base.ts:238
-getOrInstantiateModuleFromParent @ dev-base.ts:162
-esmImport @ runtime-utils.ts:347
-(匿名) @ src_c704bc62._.js:73
-Promise.then
-(匿名) @ src_c704bc62._.js:72
-asyncLoader @ runtime-utils.ts:369
-generateParameterSnapshot @ parameterSnapshot.ts:55
-ImageGenerationParams.useCallback[handleGenerate] @ ImageGenerationParams.tsx:510
-await in ImageGenerationParams.useCallback[handleGenerate]
-executeDispatch @ react-dom-client.development.js:20447
-runWithFiberInDEV @ react-dom-client.development.js:984
-processDispatchQueue @ react-dom-client.development.js:20497
-(匿名) @ react-dom-client.development.js:21068
-batchedUpdates$1 @ react-dom-client.development.js:3375
-dispatchEventForPluginEventSystem @ react-dom-client.development.js:20651
-dispatchEvent @ react-dom-client.development.js:25580
-dispatchDiscreteEvent @ react-dom-client.development.js:25548
-logger.ts:92 [09:29:07][参数快照] ✅ 参数快照生成完成 {snapshotId: '5158c30c-1cb0-48b3-b17a-6da66858029a', workflowId: 'workflow_01', totalParams: 12, filledParams: 8, completeness: 67}
+logger.ts:92 [06:55:07][参数快照] 📸 开始生成参数快照 {workflowId: 'workflow_02'}
+logger.ts:92 [06:55:07][参数快照] ✅ 参数快照生成完成 {snapshotId: '61a15448-a199-4f6e-a1b1-a60e1678a60a', workflowId: 'workflow_02', totalParams: 11, filledParams: 7, completeness: 64}
 ImageGenerationParams.tsx:536 [Generate] 检测到多任务组件: {componentId: 'sel_01', selectedModels: Array(1), modelCount: 1}
-useBalanceCheck.ts:66 [useBalanceCheck] 开始检查余额: {userId: '9182519078', requiredAmount: 50, currencyType: 'silver', currentSilver: 7292, currentGold: 4587}
-userCreditService.ts:67 [UserCreditService] 💰 开始预扣费: {userId: '9182519078', silverAmount: 50, goldAmount: 0}
-userCreditService.ts:111 [UserCreditService] ✅ 本地余额已更新（乐观更新）: {newGoldBalance: 4587, newSilverBalance: 7242}
-cozeAccountService.ts:59 [Coze] 工作流响应: {operation_type: 'update_user', data: {…}}
-userCreditService.ts:127 [UserCreditService] ✅ 数据库余额已更新: {newGoldBalance: 4587, newSilverBalance: 7242}
-userStore.ts:307 [UserStore] ✅ 银豆预扣费成功: {原余额: 7292, 预扣: 50, 新余额: 7242}
-useBalanceCheck.ts:117 [useBalanceCheck] ✅ 预扣费成功: {requiredAmount: 50, currencyType: 'silver', newBalance: 7242}
-taskListStore.ts:413 [TaskStore] 📝 创建任务时 deductionResult: {taskId: '177339414852899', hasDeductionResult: true, deductionResult: {…}}
-taskListStore.ts:432 [TaskStore] ✅ 任务已添加（含扣费信息）: {id: '177339414852899', type: 'image', workflowId: 'workflow_01', deductionInfo: {…}}
-ImageGenerationParams.tsx:713 [ImageGeneration] ✅ 任务已创建: 177339414852899
-ImageGenerationParams.tsx:714 [ImageGeneration] 📸 参数快照已保存: {snapshotId: '5158c30c-1cb0-48b3-b17a-6da66858029a', workflowId: 'workflow_01', totalParams: 12, filledParams: 8}
-resultDisplayStore.ts:42 [ResultDisplayStore] ✅ 任务已添加到结果区: {taskId: '177339414852899', workflowName: '01 图文生图', totalTasks: 2}
-ImageGenerationParams.tsx:738 [ImageGeneration] ✅ 任务已添加到结果区显示: 177339414852899
-ImageGenerationParams.tsx:988 导出的SDK格式参数: {workflow_id: '7569119072085524506', app_id: '7528684477728882734', parameters: {…}}
-ImageGenerationParams.tsx:989 🔍 完整的SDK parameters.input 内容: {"img":"https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_uscxf_1773391291.png","workflow":"01","noise":0.6,"number":"1","model_name":["model1"],"prompt":"主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。"}
-ImageGenerationParams.tsx:993 📋 解析后的参数内容: {img: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_uscxf_1773391291.png', workflow: '01', noise: 0.6, number: '1', model_name: Array(1), …}
-ImageGenerationParams.tsx:1000 [Generate] 🚀 使用SSE处理器
-logger.ts:110 🚀 [09:29:08][图片生成SSE] 开始执行任务: 852899
-logger.ts:86 [09:29:08][SSE处理器] 开始SSE连接: 852899 {mode: 'single'}
-index.tsx:79 [ResultArea] 检测到生成开始，自动切换到结果页面
-index.tsx:79 [ResultArea] 检测到生成开始，自动切换到结果页面
-ImageDisplay.tsx:302 图片加载完成: /api/proxy-image?url=https%3A%2F%2Frh-images.xiaoyaoyou.com%2F5312cd62e1fd756057e3849edbc9d5af%2Foutput%2FComfyUI_00001_pqemf_1773394084.png
-logger.ts:92 [09:29:08][ImagePreviewModal] 模态框状态变化 {isOpen: false, imageUrl: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_pqemf_1773394084.png'}
-logger.ts:92 [09:29:08][ImagePreviewModal] 模态框状态变化 {isOpen: false, imageUrl: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_pqemf_1773394084.png'}
-logger.ts:86 [09:29:09][SSE处理器] 获取到taskId: 081217 {taskId: '852899', account: '02'}
-taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177339414852899', updates: {…}, activeTaskIds: Array(1)}
-logger.ts:92 [09:29:09][TaskDatabase] 开始创建任务: taskId=177339414852899, platformTaskId=2032388482739081217
-logger.ts:92 [09:29:09][TaskDatabase] 请求体结构: call_type=user_task_management, operation_type=create_task
-logger.ts:92 [09:29:09][TaskDatabase] 📋 完整创建任务请求体:
+useBalanceCheck.ts:87 [useBalanceCheck] 开始检查余额: {userId: '9182519078', requiredAmount: 5, currencyType: 'gold', isTeamMode: true, teamId: 'Mars', …}
+teamBalanceService.ts:42 [TeamBalanceService] 调用 API: {operationType: 'get_team', params: {…}}
+teamBalanceService.ts:57 [TeamBalanceService] API 响应: {operationType: 'get_team', result: {…}}
+teamBalanceService.ts:75 [TeamBalanceService] ✅ 查询团队信息成功: {team_id: 'Mars', name: '设计部', balance: 19995, total_consumed: 5}
+teamBalanceService.ts:42 [TeamBalanceService] 调用 API: {operationType: 'deduct', params: {…}}
+teamBalanceService.ts:57 [TeamBalanceService] API 响应: {operationType: 'deduct', result: {…}}
+teamBalanceService.ts:147 [TeamBalanceService] ✅ 扣费成功: {balance: 19990, amount: 5, record_id: '09180e74-1b73-42b3-8e0e-2ea0ea42eb6c'}
+useBalanceCheck.ts:171 [useBalanceCheck] ✅ 团队扣费成功: {teamId: 'Mars', requiredAmount: 5, newBalance: 19990, recordId: '09180e74-1b73-42b3-8e0e-2ea0ea42eb6c'}
+taskListStore.ts:413 [TaskStore] 📝 创建任务时 deductionResult: {taskId: '177355770819436', hasDeductionResult: true, deductionResult: {…}}
+taskListStore.ts:432 [TaskStore] ✅ 任务已添加（含扣费信息）: {id: '177355770819436', type: 'image', workflowId: 'workflow_02', deductionInfo: {…}}
+ImageGenerationParams.tsx:718 [ImageGeneration] ✅ 任务已创建: 177355770819436
+ImageGenerationParams.tsx:719 [ImageGeneration] 📸 参数快照已保存: {snapshotId: '61a15448-a199-4f6e-a1b1-a60e1678a60a', workflowId: 'workflow_02', totalParams: 11, filledParams: 7}
+resultDisplayStore.ts:42 [ResultDisplayStore] ✅ 任务已添加到结果区: {taskId: '177355770819436', workflowName: '02 图像编辑', totalTasks: 3}
+ImageGenerationParams.tsx:743 [ImageGeneration] ✅ 任务已添加到结果区显示: 177355770819436
+ImageGenerationParams.tsx:993 导出的SDK格式参数: {workflow_id: '7569119072085524506', app_id: '7528684477728882734', parameters: {…}}
+ImageGenerationParams.tsx:994 🔍 完整的SDK parameters.input 内容: {"img":"https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_voerc_1773410050.png","workflow":"02","model_name":["model3"],"prompt":"仅针对图中女子的衣服进行材质替换。严格保留原图中衣服的结构、形状以及因人体轮廓产生的自然起伏，将原本的棉质T恤材质替换为皮衣材质。新的皮衣材质需呈现出皮革特有的微观细节，如细腻的纹理、轻微的反光质感，并且要随着原图中衣服的物理形态（如胸部的隆起、肩部的转折、衣身的褶皱走向）产生自然的曲面转折，确保皮衣的褶皱和光影变化与人体轮廓的起伏完全贴合。整体质感要体现出皮衣的挺括与光泽感，同时保持原图的光影方向、色温以及背景环境参数不变，使皮衣与人物的融合自然真实。","dpi":"1K","number":2}
+ImageGenerationParams.tsx:998 📋 解析后的参数内容: {img: 'https://rh-images.xiaoyaoyou.com/5312cd62e1fd75605…bc9d5af/output/ComfyUI_00001_voerc_1773410050.png', workflow: '02', model_name: Array(1), prompt: '仅针对图中女子的衣服进行材质替换。严格保留原图中衣服的结构、形状以及因人体轮廓产生的自然起伏，将原本…皮衣的挺括与光泽感，同时保持原图的光影方向、色温以及背景环境参数不变，使皮衣与人物的融合自然真实。', dpi: '1K', …}
+ImageGenerationParams.tsx:1005 [Generate] 🚀 使用SSE处理器
+logger.ts:110 🚀 [06:55:08][图片生成SSE] 开始执行任务: 819436
+logger.ts:86 [06:55:08][SSE处理器] 开始SSE连接: 819436 {mode: 'single'}
+logger.ts:86 [06:55:09][SSE处理器] 获取到taskId: 758018 {taskId: '819436', account: '02'}
+taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177355770819436', updates: {…}, activeTaskIds: Array(3)}
+logger.ts:92 [06:55:09][TaskDatabase] 开始创建任务: taskId=177355770819436, platformTaskId=2033074504988758018
+logger.ts:92 [06:55:09][TaskDatabase] 请求体结构: call_type=user_task_management, operation_type=create_task
+logger.ts:92 [06:55:09][TaskDatabase] 📋 完整创建任务请求体:
 {
   "call_type": "user_task_management",
   "input": {
     "operation_type": "create_task",
     "user_id": "9182519078",
     "task_data": {
-      "id": "177339414852899",
+      "id": "177355770819436",
       "platform": "aigc",
-      "platform_task_id": "2032388482739081217",
+      "platform_task_id": "2033074504988758018",
       "type": "image",
-      "team_id": "mars",
+      "team_id": "Mars",
       "workflow_parameters": {
-        "img": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_uscxf_1773391291.png",
-        "workflow": "01",
-        "noise": 0.6,
-        "number": "1",
+        "img": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_voerc_1773410050.png",
+        "workflow": "02",
         "model_name": [
-          "model1"
+          "model3"
         ],
-        "prompt": "主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。"
+        "prompt": "仅针对图中女子的衣服进行材质替换。严格保留原图中衣服的结构、形状以及因人体轮廓产生的自然起伏，将原本的棉质T恤材质替换为皮衣材质。新的皮衣材质需呈现出皮革特有的微观细节，如细腻的纹理、轻微的反光质感，并且要随着原图中衣服的物理形态（如胸部的隆起、肩部的转折、衣身的褶皱走向）产生自然的曲面转折，确保皮衣的褶皱和光影变化与人体轮廓的起伏完全贴合。整体质感要体现出皮衣的挺括与光泽感，同时保持原图的光影方向、色温以及背景环境参数不变，使皮衣与人物的融合自然真实。",
+        "dpi": "1K",
+        "number": 2
       },
       "parameter_snapshot": {
-        "snapshotId": "5158c30c-1cb0-48b3-b17a-6da66858029a",
-        "snapshotTime": 1773394147631,
+        "snapshotId": "61a15448-a199-4f6e-a1b1-a60e1678a60a",
+        "snapshotTime": 1773557707646,
         "snapshotVersion": "1.0.0",
-        "workflowId": "workflow_01",
-        "workflowName": "01 图文生图",
+        "workflowId": "workflow_02",
+        "workflowName": "02 图像编辑",
         "globalParams": {
-          "uploadedImage": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_uscxf_1773391291.png",
+          "uploadedImage": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_voerc_1773410050.png",
           "uploadedImage2": null,
           "uploadedImage3": null,
           "uploadedImage4": null,
           "imageMark": null,
           "imageUrls": [
-            "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00003_cjemo_1773393192.png",
-            "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00003_hushr_1773393452.png"
+            "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_pmmrp_1773555497.png",
+            "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00002_aljfz_1773556139.png"
           ]
         },
         "workflowParams": {
-          "num_01": 0.6,
-          "seg_01": {
-            "displayValue": "1",
-            "realValue": "1"
-          },
           "sel_01": [
-            "model1"
+            "model3"
           ],
-          "prompt_01": "主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。",
-          "workflow": "01",
-          "prompt": "主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。"
+          "prompt_01": "仅针对图中女子的衣服进行材质替换。严格保留原图中衣服的结构、形状以及因人体轮廓产生的自然起伏，将原本的棉质T恤材质替换为皮衣材质。新的皮衣材质需呈现出皮革特有的微观细节，如细腻的纹理、轻微的反光质感，并且要随着原图中衣服的物理形态（如胸部的隆起、肩部的转折、衣身的褶皱走向）产生自然的曲面转折，确保皮衣的褶皱和光影变化与人体轮廓的起伏完全贴合。整体质感要体现出皮衣的挺括与光泽感，同时保持原图的光影方向、色温以及背景环境参数不变，使皮衣与人物的融合自然真实。",
+          "seg_01": {
+            "displayValue": "1K",
+            "realValue": "1K"
+          },
+          "num_01": 2,
+          "workflow": "02"
         },
         "mappedParams": {
-          "input": "{\"num_01\":0.6,\"seg_01\":\"1\",\"sel_01\":[\"model1\"],\"prompt_01\":\"主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。\",\"workflow\":\"01\",\"prompt\":\"主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。\",\"uploadedImage\":\"https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_uscxf_1773391291.png\"}",
+          "input": "{\"sel_01\":[\"model3\"],\"prompt_01\":\"仅针对图中女子的衣服进行材质替换。严格保留原图中衣服的结构、形状以及因人体轮廓产生的自然起伏，将原本的棉质T恤材质替换为皮衣材质。新的皮衣材质需呈现出皮革特有的微观细节，如细腻的纹理、轻微的反光质感，并且要随着原图中衣服的物理形态（如胸部的隆起、肩部的转折、衣身的褶皱走向）产生自然的曲面转折，确保皮衣的褶皱和光影变化与人体轮廓的起伏完全贴合。整体质感要体现出皮衣的挺括与光泽感，同时保持原图的光影方向、色温以及背景环境参数不变，使皮衣与人物的融合自然真实。\",\"seg_01\":\"1K\",\"num_01\":2,\"workflow\":\"02\",\"uploadedImage\":\"https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_voerc_1773410050.png\"}",
           "parsedInput": {
-            "num_01": 0.6,
-            "seg_01": "1",
             "sel_01": [
-              "model1"
+              "model3"
             ],
-            "prompt_01": "主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。",
-            "workflow": "01",
-            "prompt": "主体是一位年轻的东欧气质白人女性，深棕色直长发，妆容精致，眼妆凸显蓝色眼眸，脸颊有淡粉色腮红，露齿微笑。她身着军绿色圆领短袖T恤。前景、中景均为人物，背景是纯深灰色，无多余元素。构图为人物居中的半身肖像，简洁聚焦。色调上，人物服装与背景形成冷暖对比，肤色白皙，发色、衣色沉稳，背景深灰。光影柔和均匀，面部与衣物受光自然，无明显阴影，营造出柔和、正式且亲切的氛围。",
-            "uploadedImage": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_uscxf_1773391291.png"
+            "prompt_01": "仅针对图中女子的衣服进行材质替换。严格保留原图中衣服的结构、形状以及因人体轮廓产生的自然起伏，将原本的棉质T恤材质替换为皮衣材质。新的皮衣材质需呈现出皮革特有的微观细节，如细腻的纹理、轻微的反光质感，并且要随着原图中衣服的物理形态（如胸部的隆起、肩部的转折、衣身的褶皱走向）产生自然的曲面转折，确保皮衣的褶皱和光影变化与人体轮廓的起伏完全贴合。整体质感要体现出皮衣的挺括与光泽感，同时保持原图的光影方向、色温以及背景环境参数不变，使皮衣与人物的融合自然真实。",
+            "seg_01": "1K",
+            "num_01": 2,
+            "workflow": "02",
+            "uploadedImage": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00001_voerc_1773410050.png"
           },
           "mappingConfigs": []
         },
         "parameterMetadata": {
-          "totalParams": 12,
-          "filledParams": 8,
+          "totalParams": 11,
+          "filledParams": 7,
           "emptyParams": 4,
           "validation": {
             "isValid": true,
@@ -170,126 +125,144 @@ logger.ts:92 [09:29:09][TaskDatabase] 📋 完整创建任务请求体:
             "warnings": []
           },
           "completeness": {
-            "score": 67,
+            "score": 64,
             "missingRequired": []
           }
         },
+        "modelName": "Bnanana 2",
         "pricingSnapshot": {
-          "mode": "silver",
-          "finalAmount": 50
+          "mode": "gold",
+          "finalAmount": 5
         },
-        "modelName": "Klein",
         "selectedAccount": "02"
       },
       "batch_id": null,
       "connection_mode": "sse",
       "deduction_result": {
-        "mode": "personal_silver",
-        "amount": 50,
-        "status": "deducted",
-        "deducted_at": 1773394148528
+        "mode": "team_gold",
+        "amount": 5,
+        "status": "pre_deducted",
+        "team_id": "Mars",
+        "team_record_id": "09180e74-1b73-42b3-8e0e-2ea0ea42eb6c",
+        "deducted_at": 1773557708194
       }
     }
   }
 }
-logger.ts:92 [09:29:09][TaskDatabase] 任务创建成功: taskId=177339414852899, status=running, 耗时=302ms
-logger.ts:98 ✅ [09:29:09][SSE处理器] 任务已持久化到数据库 {taskId: '852899'}
-logger.ts:86 [09:29:09][图片生成SSE] 任务 852899 获取到平台ID: 081217 {account: '02'}
-taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177339414852899', updates: {…}, activeTaskIds: Array(1)}
-deductionManager.ts:201 [DeductionManager] 扣费记录不存在，无法标记为处理中: 177339414852899
-userCreditService.ts:169 [UserCreditService] 💰 开始结算扣费: {userId: '9182519078', taskId: '177339414852899', mode: 'silver', preDeductedAmount: 50, finalAmount: 3}
-userCreditService.ts:196 [UserCreditService] 💵 需要退还差额: 47
-userCreditService.ts:210 [UserCreditService] ✅ 本地余额已更新（退还差额）: {newSilverBalance: 7289}
-NotificationProvider.tsx:111 [NotificationProvider] 👁️ 页面可见，立即刷新通知
-NotificationProvider.tsx:60 [NotificationProvider] 🔄 执行通知轮询
-notificationStore.ts:46 [NotificationStore] 🔄 开始获取通知列表
-logger.ts:92 [09:29:24][NotificationService] 开始获取通知列表: target=all
-logger.ts:92 [09:29:24][NotificationService] 📋 请求体: {"call_type":"notification_management","input":{"operation_type":"get_active","target_audience":"all","current_time":1773394164935}}
-cozeAccountService.ts:59 [Coze] 工作流响应: {operation_type: 'update_user', data: {…}}
-userCreditService.ts:225 [UserCreditService] ✅ 数据库余额已更新（退还差额）: {refundedAmount: 47, newSilverBalance: 7289}
-taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177339414852899', updates: {…}, activeTaskIds: Array(1)}
-logger.ts:92 [09:29:25][TaskDatabase] 开始更新任务: taskId=177339414852899, status=completed
-logger.ts:92 [09:29:25][TaskDatabase] 📋 完整更新任务请求体:
-{
-  "call_type": "user_task_management",
-  "input": {
-    "operation_type": "update_task",
-    "user_id": "9182519078",
-    "task_id": "177339414852899",
-    "task_updates": {
-      "status": "completed",
-      "deduction_result": {
-        "mode": "personal_silver",
-        "amount": 3,
-        "status": "settled",
-        "deducted_at": 1773394148528,
-        "settled_at": 1773394164771
-      }
-    }
-  }
-}
-logger.ts:92 [09:29:25][NotificationService] ✅ 通知列表获取成功: count=2, 耗时=577ms
-notificationStore.ts:69 [NotificationStore] ✅ 通知列表获取成功: {count: 2, dismissed: 0, read: 1}
-NotificationProvider.tsx:66 [NotificationProvider] ✅ 轮询成功
-logger.ts:92 [09:29:25][TaskDatabase] 任务更新成功: taskId=177339414852899, newStatus=completed, 耗时=292ms
-taskListStore.ts:538 [TaskStore] ✅ 银豆结算结果已更新到数据库: 177339414852899
-taskListStore.ts:284 [TaskStore] 💰 扣费结果已暂存: {taskId: '177339414852899', deductionResult: {…}}
-taskListStore.ts:547 [TaskStore] 💰 扣费结果已暂存，等待结果更新合并: {mode: 'personal_silver', amount: 3, status: 'settled', deducted_at: 1773394148528, settled_at: 1773394164771}
-taskListStore.ts:549 [TaskStore] ✅ 银豆任务已结算: {taskId: '177339414852899', 预扣: 50, 实际: 3, 退还: 47}
-deductionManager.ts:215 [DeductionManager] 扣费记录不存在，无法标记为已结算: 177339414852899
-taskListStore.ts:127 [TaskStore] ⏱️ 记录任务最终耗时: {id: '177339414852899', 最终耗时: 17}
+logger.ts:92 [06:55:09][TaskDatabase] 任务创建成功: taskId=177355770819436, status=running, 耗时=368ms
+logger.ts:98 ✅ [06:55:09][SSE处理器] 任务已持久化到数据库 {taskId: '819436'}
+logger.ts:86 [06:55:09][图片生成SSE] 任务 819436 获取到平台ID: 758018 {account: '02'}
+taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177355770819436', updates: {…}, activeTaskIds: Array(3)}
+teamBalanceStore.ts:188 [TeamBalanceStore] 轮询触发
+teamBalanceStore.ts:137 [TeamBalanceStore] 刷新所有数据: 9182519078
+teamBalanceService.ts:42 [TeamBalanceService] 调用 API: {operationType: 'get_team', params: {…}}
+teamBalanceService.ts:42 [TeamBalanceService] 调用 API: {operationType: 'get_records', params: {…}}
+teamBalanceService.ts:42 [TeamBalanceService] 调用 API: {operationType: 'get_stats', params: {…}}
+teamBalanceService.ts:57 [TeamBalanceService] API 响应: {operationType: 'get_team', result: {…}}
+teamBalanceService.ts:75 [TeamBalanceService] ✅ 查询团队信息成功: {team_id: 'Mars', name: '设计部', balance: 19990, total_consumed: 10}
+teamBalanceService.ts:57 [TeamBalanceService] API 响应: {operationType: 'get_records', result: {…}}
+teamBalanceService.ts:209 [TeamBalanceService] ✅ 查询消费记录成功: (2) [{…}, {…}]
+teamBalanceService.ts:57 [TeamBalanceService] API 响应: {operationType: 'get_stats', result: {…}}
+teamBalanceService.ts:237 [TeamBalanceService] ✅ 查询统计成功: {team_id: 'Mars', name: '设计部', balance: 19990, total_consumed: 10, members: Array(18)}
+teamBalanceStore.ts:162 [TeamBalanceStore] ✅ 所有数据刷新成功
+taskListStore.ts:127 [TaskStore] ⏱️ 记录任务最终耗时: {id: '177355770819436', 最终耗时: 31}
 sound.ts:47 [Sound] 播放任务完成音效
-taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177339414852899', updates: {…}, activeTaskIds: Array(0)}
-logger.ts:92 [09:29:25][TaskDatabase] 开始更新任务: taskId=177339414852899, status=completed
-logger.ts:92 [09:29:25][TaskDatabase] 📋 完整更新任务请求体:
+taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177355770819436', updates: {…}, activeTaskIds: Array(2)}
+logger.ts:92 [06:55:39][TaskDatabase] 开始更新任务: taskId=177355770819436, status=completed
+logger.ts:92 [06:55:39][TaskDatabase] 📋 完整更新任务请求体:
 {
   "call_type": "user_task_management",
   "input": {
     "operation_type": "update_task",
     "user_id": "9182519078",
-    "task_id": "177339414852899",
+    "task_id": "177355770819436",
     "task_updates": {
       "status": "completed",
       "result": {
         "message": "success",
         "files": [
           {
-            "file_url": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00002_ugmuv_1773394158.png",
+            "file_url": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00003_xhkcc_1773557734.png",
             "file_type": "png"
           }
         ],
         "raw_response": [
           {
-            "fileUrl": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00002_ugmuv_1773394158.png",
+            "fileUrl": "https://rh-images.xiaoyaoyou.com/5312cd62e1fd756057e3849edbc9d5af/output/ComfyUI_00003_xhkcc_1773557734.png",
             "fileType": "png",
-            "taskCostTime": "13",
-            "nodeId": "6",
-            "thirdPartyConsumeMoney": null,
+            "taskCostTime": "30",
+            "nodeId": "5",
+            "thirdPartyConsumeMoney": "0.080",
             "consumeMoney": null,
-            "consumeCoins": "3"
+            "consumeCoins": "1"
           }
         ]
       },
-      "completed_at": 1773394165622
+      "deduction_result": {
+        "mode": "team_gold",
+        "amount": 1,
+        "status": "settled",
+        "team_id": "Mars",
+        "deducted_at": 1773557708194,
+        "settled_at": 1773557739977
+      },
+      "completed_at": 1773557739983
     }
   }
 }
-logger.ts:98 ✅ [09:29:25][图片生成SSE] 任务 852899 完成，获取 1 张图片
-taskListStore.ts:467  [TaskStore] ⚠️ 任务无需结算或已结算: 177339414852899
-warn @ forward-logs-shared.ts:95
-settleTaskDeduction @ taskListStore.ts:467
-useImageGenerationSSE.useSSEHandler @ useImageGenerationSSE.ts:99
-useSSEHandler.useCallback[handlePollTaskStatus] @ useSSEHandler.ts:409
-logger.ts:86 [09:29:25][SSE处理器] 清理连接: 852899
-logger.ts:92 [09:29:25][GlobalStore] [updateGlobalParam] 更新全局参数: {key: 'imageUrls', value: Array(3)}
-resultDisplayStore.ts:92 [ResultDisplayStore] ✅ 图片已添加到任务: {taskId: '177339414852899', imageId: '177339414852899-image-0-1773394165944', totalImages: 1, autoSelected: false}
-resultDisplayStore.ts:121 [ResultDisplayStore] 🔄 任务状态已更新: {taskId: '177339414852899', status: 'success'}
-logger.ts:86 [09:29:25][图片生成SSE] 已将 1 张图片添加到结果区显示
+logger.ts:92 [06:55:40][TaskDatabase] 任务更新成功: taskId=177355770819436, newStatus=completed, 耗时=275ms
+logger.ts:98 ✅ [06:55:40][SSE处理器] 任务完成状态已同步到数据库 {taskId: '819436'}
+logger.ts:98 ✅ [06:55:40][图片生成SSE] 任务 819436 完成，获取 1 张图片
+deductionManager.ts:201 [DeductionManager] 扣费记录不存在，无法标记为处理中: 177355770819436
+taskListStore.ts:170 [TaskStore] 🔄 任务已更新: {id: '177355770819436', updates: {…}, activeTaskIds: Array(3)}
+logger.ts:92 [06:55:40][TaskDatabase] 开始更新任务: taskId=177355770819436, status=completed
+logger.ts:92 [06:55:40][TaskDatabase] 📋 完整更新任务请求体:
+{
+  "call_type": "user_task_management",
+  "input": {
+    "operation_type": "update_task",
+    "user_id": "9182519078",
+    "task_id": "177355770819436",
+    "task_updates": {
+      "status": "completed",
+      "deduction_result": {
+        "mode": "team_gold",
+        "amount": 5,
+        "status": "settled",
+        "team_id": "Mars",
+        "deducted_at": 1773557708194,
+        "settled_at": 1773557740258
+      }
+    }
+  }
+}
+logger.ts:86 [06:55:40][SSE处理器] 清理连接: 819436
+taskListStore.ts:600 [TaskStore] ✅ 金豆结算结果已更新到数据库: 177355770819436
+taskListStore.ts:284 [TaskStore] 💰 扣费结果已暂存: {taskId: '177355770819436', deductionResult: {…}}
+taskListStore.ts:609 [TaskStore] 💰 扣费结果已暂存，等待结果更新合并: {mode: 'team_gold', amount: 5, status: 'settled', team_record_id: undefined, team_id: 'Mars', …}
+taskListStore.ts:611 [TaskStore] ✅ 金豆任务已确认扣费: {taskId: '177355770819436', 金额: 5, 模式: '团队金豆'}
+deductionManager.ts:215 [DeductionManager] 扣费记录不存在，无法标记为已结算: 177355770819436
+logger.ts:92 [06:55:40][GlobalStore] [updateGlobalParam] 更新全局参数: {key: 'imageUrls', value: Array(3)}
+resultDisplayStore.ts:92 [ResultDisplayStore] ✅ 图片已添加到任务: {taskId: '177355770819436', imageId: '177355770819436-image-0-1773557740462', totalImages: 1, autoSelected: false}
+resultDisplayStore.ts:121 [ResultDisplayStore] 🔄 任务状态已更新: {taskId: '177355770819436', status: 'success'}
+logger.ts:86 [06:55:40][图片生成SSE] 已将 1 张图片添加到结果区显示
+teamBalanceStore.ts:188 [TeamBalanceStore] 轮询触发
+teamBalanceStore.ts:137 [TeamBalanceStore] 刷新所有数据: 9182519078
+teamBalanceService.ts:42 [TeamBalanceService] 调用 API: {operationType: 'get_team', params: {…}}
+teamBalanceService.ts:42 [TeamBalanceService] 调用 API: {operationType: 'get_records', params: {…}}
+teamBalanceService.ts:42 [TeamBalanceService] 调用 API: {operationType: 'get_stats', params: {…}}
+teamBalanceService.ts:57 [TeamBalanceService] API 响应: {operationType: 'get_team', result: {…}}
+teamBalanceService.ts:75 [TeamBalanceService] ✅ 查询团队信息成功: {team_id: 'Mars', name: '设计部', balance: 19990, total_consumed: 10}
+teamBalanceService.ts:57 [TeamBalanceService] API 响应: {operationType: 'get_records', result: {…}}
+teamBalanceService.ts:209 [TeamBalanceService] ✅ 查询消费记录成功: (2) [{…}, {…}]
+teamBalanceService.ts:57 [TeamBalanceService] API 响应: {operationType: 'get_stats', result: {…}}
+teamBalanceService.ts:237 [TeamBalanceService] ✅ 查询统计成功: {team_id: 'Mars', name: '设计部', balance: 19990, total_consumed: 10, members: Array(18)}
+teamBalanceStore.ts:162 [TeamBalanceStore] ✅ 所有数据刷新成功
 NotificationProvider.tsx:111 [NotificationProvider] 👁️ 页面可见，立即刷新通知
 NotificationProvider.tsx:60 [NotificationProvider] 🔄 执行通知轮询
 notificationStore.ts:46 [NotificationStore] 🔄 开始获取通知列表
-logger.ts:92 [09:29:31][NotificationService] 开始获取通知列表: target=all
-logger.ts:92 [09:29:31][NotificationService] 📋 请求体: {"call_type":"notification_management","input":{"operation_type":"get_active","target_audience":"all","current_time":1773394171024}}
-logger.ts:92 [09:29:31][NotificationService] ✅ 通知列表获取成功: count=2, 耗时=259ms
-notificationStore.ts:69 [NotificationStore] ✅ 通知列表获取成功: {count: 2, dismissed: 0, read: 1}
+logger.ts:92 [06:56:08][NotificationService] 开始获取通知列表: target=all
+logger.ts:92 [06:56:08][NotificationService] 📋 请求体: {"call_type":"notification_management","input":{"operation_type":"get_active","target_audience":"all","current_time":1773557768444}}
+logger.ts:92 [06:56:08][NotificationService] ✅ 通知列表获取成功: count=1, 耗时=302ms
+notificationStore.ts:69 [NotificationStore] ✅ 通知列表获取成功: {count: 1, dismissed: 0, read: 1}
 NotificationProvider.tsx:66 [NotificationProvider] ✅ 轮询成功
