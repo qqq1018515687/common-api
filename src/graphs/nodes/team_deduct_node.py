@@ -21,6 +21,8 @@ class TeamDeductInput(BaseModel):
     user_id: Optional[str] = Field(default=None, description="用户ID")
     amount: Optional[int] = Field(default=None, description="扣费金额")
     description: Optional[str] = Field(default=None, description="扣费描述")
+    mode: Optional[str] = Field(default="deduct", description="扣费模式：deduct(立即确认)/pre_deduct(预扣)")
+    related_id: Optional[str] = Field(default=None, description="关联ID（任务ID）")
 
 
 class TeamDeductOutput(BaseModel):
@@ -31,12 +33,12 @@ class TeamDeductOutput(BaseModel):
 def team_deduct_node(state: TeamDeductInput, config: RunnableConfig, runtime: Runtime[Context]) -> TeamDeductOutput:
     """
     title: 团队扣费
-    desc: 从团队余额扣费
+    desc: 从团队余额扣费，支持预扣模式（任务完成前只扣余额不生成确认记录）
     integrations: 数据库
     """
     ctx = runtime.context
     
-    operation_type = state.operation_type
+    mode = state.mode or "deduct"
     db = get_session()
     
     try:
@@ -75,8 +77,10 @@ def team_deduct_node(state: TeamDeductInput, config: RunnableConfig, runtime: Ru
         team.total_consumed += state.amount
         team.updated_at = datetime.utcnow()
         
-        # 记录消费
+        # 创建消费记录
         record_id = str(uuid.uuid4())
+        record_status = "pending" if mode == "pre_deduct" else "confirmed"
+        
         record = TeamConsumptionRecords(
             id=record_id,
             team_id=team.id,
@@ -86,7 +90,9 @@ def team_deduct_node(state: TeamDeductInput, config: RunnableConfig, runtime: Ru
             amount=-state.amount,  # 消费为负数
             balance_before=balance_before,
             balance_after=team.balance,
-            description=state.description or "团队消费"
+            description=state.description or ("团队预扣费" if mode == "pre_deduct" else "团队消费"),
+            related_id=state.related_id,
+            status=record_status
         )
         db.add(record)
         db.commit()
@@ -94,11 +100,13 @@ def team_deduct_node(state: TeamDeductInput, config: RunnableConfig, runtime: Ru
         return TeamDeductOutput(
             response_data={
                 "code": 0,
-                "msg": "扣费成功",
+                "msg": "扣费成功" if mode == "deduct" else "预扣费成功",
                 "data": {
                     "balance": team.balance,
                     "amount": state.amount,
-                    "record_id": record_id
+                    "record_id": record_id,
+                    "status": record_status,
+                    "mode": mode
                 }
             }
         )

@@ -20,6 +20,10 @@ class TeamRouteInput(BaseModel):
     description: Optional[str] = Field(default=None, description="描述")
     original_record_id: Optional[str] = Field(default=None, description="原消费记录ID")
     reason: Optional[str] = Field(default=None, description="退款原因")
+    mode: Optional[str] = Field(default=None, description="扣费模式：deduct/pre_deduct")
+    record_id: Optional[str] = Field(default=None, description="预扣记录ID")
+    actual_amount: Optional[int] = Field(default=None, description="实际消费金额")
+    related_id: Optional[str] = Field(default=None, description="关联ID（任务ID）")
 
 
 class TeamRouteOutput(BaseModel):
@@ -32,6 +36,10 @@ class TeamRouteOutput(BaseModel):
     description: Optional[str] = Field(default=None, description="描述")
     original_record_id: Optional[str] = Field(default=None, description="原消费记录ID")
     reason: Optional[str] = Field(default=None, description="退款原因")
+    mode: Optional[str] = Field(default=None, description="扣费模式：deduct/pre_deduct")
+    record_id: Optional[str] = Field(default=None, description="预扣记录ID")
+    actual_amount: Optional[int] = Field(default=None, description="实际消费金额")
+    related_id: Optional[str] = Field(default=None, description="关联ID（任务ID）")
 
 
 def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runtime[Context]) -> TeamRouteOutput:
@@ -44,6 +52,11 @@ def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runt
     
     operation_type = state.operation_type
     
+    # 如果 operation_type 是 pre_deduct，设置 mode 为 pre_deduct
+    mode = state.mode
+    if operation_type == "pre_deduct":
+        mode = "pre_deduct"
+    
     if not operation_type:
         # 默认返回初始化
         return TeamRouteOutput(
@@ -54,7 +67,11 @@ def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runt
             amount=state.amount,
             description=state.description,
             original_record_id=state.original_record_id,
-            reason=state.reason
+            reason=state.reason,
+            mode=mode,
+            record_id=state.record_id,
+            actual_amount=state.actual_amount,
+            related_id=state.related_id
         )
     
     return TeamRouteOutput(
@@ -65,7 +82,11 @@ def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runt
         amount=state.amount,
         description=state.description,
         original_record_id=state.original_record_id,
-        reason=state.reason
+        reason=state.reason,
+        mode=mode,
+        record_id=state.record_id,
+        actual_amount=state.actual_amount,
+        related_id=state.related_id
     )
 
 
@@ -90,6 +111,12 @@ def route_by_team_operation_type(state: TeamRouteOutput) -> str:
         return "团队充值"
     elif operation_type == "deduct":
         return "团队扣费"
+    elif operation_type == "pre_deduct":
+        return "团队扣费"
+    elif operation_type == "confirm_consume":
+        return "确认消费"
+    elif operation_type == "cancel_deduct":
+        return "取消预扣"
     elif operation_type == "refund":
         return "团队退款"
     elif operation_type == "get_records":
