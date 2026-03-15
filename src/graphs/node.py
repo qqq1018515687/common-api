@@ -245,11 +245,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         target_role=input_data.target_role if input_data else None,
         original_record_id=input_data.original_record_id if input_data else None,
         reason=input_data.reason if input_data else None,
-        filter_user_id=input_data.filter_user_id if input_data else None,
-        mode=input_data.mode if input_data else None,
-        record_id=input_data.record_id if input_data else None,
-        actual_amount=input_data.actual_amount if input_data else None,
-        related_id=input_data.related_id if input_data else None
+        filter_user_id=input_data.filter_user_id if input_data else None
     )
 
 from storage.s3.s3_storage import S3SyncStorage

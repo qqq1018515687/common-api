@@ -236,6 +236,5 @@ class TeamConsumptionRecords(Base):
     related_id: Mapped[Optional[str]] = mapped_column(String(64), comment='关联ID（任务ID/订单ID）')
     description: Mapped[Optional[str]] = mapped_column(String(255), comment='描述说明')
     extra_data: Mapped[Optional[dict]] = mapped_column('metadata', JSON, comment='扩展信息（任务类型、产品信息等）')
-    status: Mapped[Optional[str]] = mapped_column(String(20), server_default=text("'confirmed'"), comment='记录状态：pending/confirmed/cancelled')
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
 

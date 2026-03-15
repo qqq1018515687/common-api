@@ -66,8 +66,6 @@ from graphs.nodes.team_recharge_node import team_recharge_node
 from graphs.nodes.team_deduct_node import team_deduct_node
 from graphs.nodes.team_refund_node import team_refund_node
 from graphs.nodes.team_records_node import team_records_node
-from graphs.nodes.team_confirm_consume_node import team_confirm_consume_node
-from graphs.nodes.team_cancel_deduct_node import team_cancel_deduct_node
 
 
 def route_by_call_type(state: RouterOutput) -> str:
@@ -165,8 +163,6 @@ builder.add_node("team_recharge", team_recharge_node)
 builder.add_node("team_deduct", team_deduct_node)
 builder.add_node("team_refund", team_refund_node)
 builder.add_node("team_records", team_records_node)
-builder.add_node("team_confirm_consume", team_confirm_consume_node)
-builder.add_node("team_cancel_deduct", team_cancel_deduct_node)
 
 # 设置入口点（先解包数据）
 builder.set_entry_point("unpack_input_data")
@@ -238,9 +234,7 @@ builder.add_conditional_edges(
         "团队充值": "team_recharge",
         "团队扣费": "team_deduct",
         "团队退款": "team_refund",
-        "消费记录": "team_records",
-        "确认消费": "team_confirm_consume",
-        "取消预扣": "team_cancel_deduct"
+        "消费记录": "team_records"
     }
 )
 
@@ -269,8 +263,6 @@ builder.add_edge("team_recharge", "format_response")
 builder.add_edge("team_deduct", "format_response")
 builder.add_edge("team_refund", "format_response")
 builder.add_edge("team_records", "format_response")
-builder.add_edge("team_confirm_consume", "format_response")
-builder.add_edge("team_cancel_deduct", "format_response")
 
 # ============ 图像标签生成流程（暂时禁用）============
 # 启用图像自动打标时，取消下面的注释，并注释掉上面的 `builder.add_edge("update_task", "format_response")`

@@ -57,10 +57,7 @@ class InputData(BaseModel):
     original_record_id: Optional[str] = Field(default=None, description="原消费记录ID（退款用）")
     reason: Optional[str] = Field(default=None, description="退款原因")
     filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（消费记录查询使用）")
-    mode: Optional[str] = Field(default=None, description="扣费模式：deduct(立即确认)/pre_deduct(预扣)")
-    record_id: Optional[str] = Field(default=None, description="预扣记录ID（确认消费/取消预扣使用）")
-    actual_amount: Optional[int] = Field(default=None, description="实际消费金额（确认消费使用）")
-    related_id: Optional[str] = Field(default=None, description="关联ID（任务ID）")
+    filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（消费记录查询使用）")
 
 
 class GlobalState(BaseModel):
@@ -121,10 +118,6 @@ class GlobalState(BaseModel):
     original_record_id: Optional[str] = Field(default=None, description="原消费记录ID（退款用）")
     reason: Optional[str] = Field(default=None, description="退款原因")
     filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（消费记录查询使用）")
-    mode: Optional[str] = Field(default=None, description="扣费模式：deduct(立即确认)/pre_deduct(预扣)")
-    record_id: Optional[str] = Field(default=None, description="预扣记录ID（确认消费/取消预扣使用）")
-    actual_amount: Optional[int] = Field(default=None, description="实际消费金额（确认消费使用）")
-    related_id: Optional[str] = Field(default=None, description="关联ID（任务ID）")
 
 
 class GraphInput(BaseModel):
@@ -556,10 +549,6 @@ class UnpackInputDataOutput(BaseModel):
     original_record_id: Optional[str] = Field(default=None, description="原消费记录ID（退款用）")
     reason: Optional[str] = Field(default=None, description="退款原因")
     filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（查询消费记录用）")
-    mode: Optional[str] = Field(default=None, description="扣费模式：deduct(立即确认)/pre_deduct(预扣)")
-    record_id: Optional[str] = Field(default=None, description="预扣记录ID（确认消费/取消预扣使用）")
-    actual_amount: Optional[int] = Field(default=None, description="实际消费金额（确认消费使用）")
-    related_id: Optional[str] = Field(default=None, description="关联ID（任务ID）")
 
 
 # 工具路由节点

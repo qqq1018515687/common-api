@@ -52,11 +52,6 @@
   - 团队充值：管理员为团队充值金豆
   - 余额查询：查看团队余额、总消费
   - 扣减余额：任务执行时从团队余额扣费
-- **预扣费机制（新增）**：
-  - 预扣费：任务开始时只扣余额，生成 pending 状态的消费记录
-  - 确认消费：任务完成时将 pending 改为 confirmed，支持按实际金额结算
-  - 取消预扣：任务失败/取消时退回余额，将 pending 改为 cancelled
-  - 数据结构：复用 `team_consumption_records` 表，新增 `status` 字段区分状态
 - **退款功能**：
   - 任务失败时可将金额退还到团队账户
   - 支持全额/部分退款
@@ -71,10 +66,10 @@
 - **数据结构**：
   - `teams` 表：团队基本信息和余额
   - `team_members` 表：团队成员关系
-  - `team_consumption_records` 表：消费记录明细（含 status 字段：pending/confirmed/cancelled）
+  - `team_consumption_records` 表：消费记录明细
 - **使用方式**：
   - **工作流节点**：通过 `call_type=team_balance` + `action` 调用不同节点
-  - **节点列表**：team_init（初始化）、team_manage（团队管理）、team_recharge（充值）、team_deduct（扣费/预扣）、team_confirm_consume（确认消费）、team_cancel_deduct（取消预扣）、team_refund（退款）、team_records（消费记录）
+  - **节点列表**：team_init（初始化）、team_manage（团队管理）、team_recharge（充值）、team_deduct（扣费）、team_records（消费记录）
 
 ### 节点清单
 | 节点名 | 文件位置 | 类型 | 功能描述 | 分支逻辑 | 配置文件 |
@@ -84,13 +79,11 @@
 | operation_route | node.py | condition | 根据操作类型路由 | 限流检查→check_rate_limit, 更新限流→update_rate_limit, 用户注册→register_with_limit, 用户登录→get_user, 查询单个用户→get_user_by_id, 更新用户→update_user, 删除用户→delete_user, 用户列表→list_users | - |
 | tool_route | node.py | condition | 根据工具类型路由 | 反推图像→reverse_image, 翻译推荐→translate_doubao, 提示词增强→prompt_enhance | - |
 | task_route | node.py | condition | 根据任务操作类型路由 | 创建任务→create_task, 更新任务→update_task, 删除任务→delete_task, 查询任务列表→list_tasks | - |
-| team_route | nodes/team_route_node.py | condition | 根据团队操作类型路由 | 初始化团队→team_init, 团队管理→team_manage, 团队充值→team_recharge, 团队扣费→team_deduct, 确认消费→team_confirm_consume, 取消预扣→team_cancel_deduct, 团队退款→team_refund, 消费记录→team_records | - |
+| team_route | nodes/team_route_node.py | condition | 根据团队操作类型路由 | 初始化团队→team_init, 团队管理→team_manage, 团队充值→team_recharge, 团队扣费→team_deduct, 团队退款→team_refund, 消费记录→team_records | - |
 | team_init | nodes/team_init_node.py | task | 团队系统初始化（创建表/检查表） | - | - |
 | team_manage | nodes/team_manage_node.py | task | 团队管理（创建团队/查询/添加成员/成员列表） | - | - |
 | team_recharge | nodes/team_recharge_node.py | task | 团队充值 | - | - |
-| team_deduct | nodes/team_deduct_node.py | task | 团队扣费（支持预扣模式：mode=pre_deduct） | - | - |
-| team_confirm_consume | nodes/team_confirm_consume_node.py | task | 确认预扣消费（pending→confirmed） | - | - |
-| team_cancel_deduct | nodes/team_cancel_deduct_node.py | task | 取消预扣并退回余额（pending→cancelled） | - | - |
+| team_deduct | nodes/team_deduct_node.py | task | 团队扣费（任务消费） | - | - |
 | team_refund | nodes/team_refund_node.py | task | 团队退款（任务失败时） | - | - |
 | team_records | nodes/team_records_node.py | task | 团队消费记录查询（支持user_id筛选） | - | - |
 | check_rate_limit | node.py | task | 检查限流 | - | - |
@@ -124,7 +117,7 @@
 ## 集成使用
 - 节点 `check_rate_limit`, `update_rate_limit`, `register_with_limit`, `get_user`, `update_user`, `delete_user`, `list_users`, `save`, `upload`, `create_task`, `update_task`, `delete_task`, `list_tasks` 使用数据库集成
 - 节点 `system_notification_handler` 使用数据库集成（系统通知表）
-- 节点 `team_init`, `team_manage`, `team_recharge`, `team_deduct`, `team_confirm_consume`, `team_cancel_deduct`, `team_refund`, `team_records` 使用数据库集成（团队余额表）
+- 节点 `team_init`, `team_manage`, `team_recharge`, `team_deduct`, `team_refund`, `team_records` 使用数据库集成（团队余额表）
 - 节点 `upload`, `save`, `update_user` 使用对象存储集成（使用 StorageManager 自动分类管理）
 - 节点 `reverse_image`, `translate_doubao`, `prompt_enhance` 使用大语言模型集成
 - 节点 `upload` 使用内容处理集成
@@ -148,10 +141,7 @@
 - `init` → team_init 节点（初始化表）
 - `create_team` / `get_team` / `add_member` / `list_members` → team_manage 节点
 - `recharge` → team_recharge 节点
-- `deduct` → team_deduct 节点（立即扣费，mode=deduct）
-- `pre_deduct` → team_deduct 节点（预扣费，mode=pre_deduct）
-- `confirm_consume` → team_confirm_consume 节点（确认预扣消费）
-- `cancel_deduct` → team_cancel_deduct 节点（取消预扣）
+- `deduct` → team_deduct 节点
 - `refund` → team_refund 节点
 - `get_records` / `get_stats` → team_records 节点
 
