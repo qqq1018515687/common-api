@@ -79,6 +79,7 @@ ormsgpack==1.12.2
 packaging==26.0
 pandas==2.2.2
 paragraphs==1.0.1
+passlib==1.7.4
 pillow==10.3.0
 platformdirs==4.5.1
 pluggy==1.6.0
