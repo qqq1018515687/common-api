@@ -227,6 +227,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         # 任务时间范围查询字段
         start_time=input_data.start_time if input_data else None,
         end_time=input_data.end_time if input_data else None,
+        before_time=input_data.before_time if input_data else None,
         # 任务管理相关字段
         task_id=input_data.task_id if input_data else None,
         task_data=input_data.task_data if input_data else None,
@@ -1006,6 +1007,7 @@ def task_route_node(state: TaskRouteInput, config: RunnableConfig, runtime: Runt
         task_updates=state.task_updates,
         start_time=state.start_time,
         end_time=state.end_time,
+        before_time=state.before_time,
         team_id=state.team_id,
         status=state.status,
         limit=state.limit
@@ -1224,9 +1226,10 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
         try:
             task_mgr = TaskManager()
 
-            limit = min(state.limit or 100, 500)  # 最大不超过500
+            limit = min(state.limit or 50, 300)  # 最大不超过300
 
-            # 使用灵活查询方法
+            # 使用灵活查询方法（支持游标分页）
+            # 查询 limit + 1 条数据来判断是否还有更多数据
             tasks = task_mgr.get_tasks_flexible(
                 db,
                 user_id=state.user_id,
@@ -1234,7 +1237,8 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 status=state.status,
                 start_time=state.start_time,
                 end_time=state.end_time,
-                limit=limit
+                before_time=state.before_time,
+                limit=limit + 1  # 多查询一条用于判断是否有更多数据
             )
 
             total = task_mgr.count_tasks_flexible(
@@ -1271,12 +1275,26 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "is_deleted": task.is_deleted
                 })
 
+            # 计算是否还有更多数据：如果返回的数据超过 limit，说明还有更多
+            has_more = len(task_list) > limit
+            
+            # 如果还有更多数据，只返回 limit 条
+            if has_more:
+                task_list = task_list[:limit]
+
+            # 获取最后一条记录的时间戳，作为下一次请求的游标
+            next_before_time = None
+            if task_list:
+                next_before_time = int(task_list[-1].get("created_at", 0))
+
             return ListTasksOutput(result={
                 "success": True,
                 "message": "查询成功",
                 "tasks": task_list,
                 "total": total,
                 "limit": limit,
+                "has_more": has_more,
+                "next_before_time": next_before_time,
                 "time_range": {
                     "start_time": state.start_time,
                     "end_time": state.end_time

@@ -35,6 +35,7 @@ class InputData(BaseModel):
     # 任务时间范围查询字段
     start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒，13位整数）")
     end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒，13位整数）")
+    before_time: Optional[int] = Field(default=None, description="游标分页：查询早于该时间戳的记录（毫秒，13位整数）")
 
     # 任务管理相关字段
     task_id: Optional[str] = Field(default=None, description="任务ID（update_task/delete_task 使用）")
@@ -409,13 +410,14 @@ class DeleteTaskOutput(BaseModel):
 
 
 class ListTasksInput(BaseModel):
-    """查询任务列表节点的输入（支持灵活查询）"""
+    """查询任务列表节点的输入（支持灵活查询和游标分页）"""
     user_id: Optional[str] = Field(default=None, description="用户ID（可选，至少提供 user_id 或 team_id 之一）")
     team_id: Optional[str] = Field(default=None, description="团队ID筛选（可选，至少提供 user_id 或 team_id 之一）")
     status: Optional[str] = Field(default=None, description="任务状态筛选")
     start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒，13位整数）")
     end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒，13位整数）")
-    limit: Optional[int] = Field(default=100, description="最大返回数量（默认100，最大不超过500）")
+    before_time: Optional[int] = Field(default=None, description="游标分页：查询早于该时间戳的记录（毫秒，13位整数）")
+    limit: Optional[int] = Field(default=50, description="最大返回数量（默认50，最大不超过300）")
 
 
 class ListTasksOutput(BaseModel):
@@ -434,6 +436,7 @@ class TaskRouteInput(BaseModel):
     # 时间范围查询字段
     start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒）")
     end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒）")
+    before_time: Optional[int] = Field(default=None, description="游标分页：查询早于该时间戳的记录（毫秒）")
     # 其他筛选字段
     team_id: Optional[str] = Field(default=None, description="团队ID")
     status: Optional[str] = Field(default=None, description="任务状态")
@@ -451,6 +454,7 @@ class TaskRouteOutput(BaseModel):
     # 时间范围查询字段
     start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒）")
     end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒）")
+    before_time: Optional[int] = Field(default=None, description="游标分页：查询早于该时间戳的记录（毫秒）")
     # 其他筛选字段
     team_id: Optional[str] = Field(default=None, description="团队ID")
     status: Optional[str] = Field(default=None, description="任务状态")
@@ -530,6 +534,7 @@ class UnpackInputDataOutput(BaseModel):
     # 任务时间范围查询字段
     start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒）")
     end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒）")
+    before_time: Optional[int] = Field(default=None, description="游标分页：查询早于该时间戳的记录（毫秒）")
     # 任务管理相关字段
     task_id: Optional[str] = Field(default=None, description="任务ID")
     task_data: Optional[dict] = Field(default=None, description="任务数据")
