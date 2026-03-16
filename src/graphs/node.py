@@ -426,13 +426,7 @@ def update_rate_limit_node(state: UpdateRateLimitInput, config: RunnableConfig, 
                 blocked=True
             )
 
-        if limits["blocked_ip_10min"] or limits["blocked_ip_1hour"]:
-            rate_mgr.block(db, record, block_duration_hours=2)
-            return UpdateRateLimitOutput(
-                result={"success": True, "blocked": True, "message": "触发限流封禁"},
-                success=True,
-                blocked=True
-            )
+        # IP 限流已移除，仅保留手机号维度限流
 
         return UpdateRateLimitOutput(
             result={"success": True, "blocked": False, "message": "更新成功"},
