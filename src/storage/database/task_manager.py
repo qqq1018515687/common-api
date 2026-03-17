@@ -141,10 +141,10 @@ class TaskManager:
         status: Optional[str] = None,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
-        before_time: Optional[int] = None,
-        limit: int = 50,
+        page: int = 1,
+        page_size: int = 50,
     ) -> List[tuple]:
-        """灵活查询任务列表（支持按用户ID、团队ID或两者查询，支持游标分页）
+        """灵活查询任务列表（支持按用户ID、团队ID或两者查询，传统分页）
 
         Args:
             db: 数据库会话
@@ -153,8 +153,8 @@ class TaskManager:
             status: 任务状态筛选（可选）
             start_time: 查询开始时间戳（毫秒，可选）
             end_time: 查询结束时间戳（毫秒，可选）
-            before_time: 游标分页，查询早于该时间戳的记录（毫秒，可选）
-            limit: 最大返回数量（默认50，最大300）
+            page: 页码（从1开始，默认1）
+            page_size: 每页数量（默认50，最大300）
 
         Returns:
             任务列表（按 created_at DESC 排序），每个元素是 (Task, username) 元组
@@ -162,10 +162,14 @@ class TaskManager:
         查询规则：
             - 如果只提供 user_id（没有 team_id）：查询该用户的所有任务
             - 如果提供 team_id（不管有没有 user_id）：查询该团队的所有任务（包含团队所有成员的任务）
-            - 如果既没有 user_id 也没有 team_id：返回错误
+            - 如果既没有 user_id 也没有 team_id：返回空列表
         """
-        # 限制最大返回数量
-        limit = min(limit, 300)
+        # 限制每页最大数量
+        page_size = min(page_size, 300)
+        page = max(page, 1)  # 页码最小为1
+
+        # 计算偏移量
+        offset = (page - 1) * page_size
 
         # 基础查询：JOIN Users 表，获取 username
         query = db.query(Tasks, Users.username).outerjoin(
@@ -193,16 +197,12 @@ class TaskManager:
         if end_time is not None:
             query = query.filter(Tasks.created_at <= str(end_time))
 
-        # 游标分页：查询早于该时间戳的记录
-        if before_time is not None:
-            query = query.filter(Tasks.created_at < str(before_time))
-
         # 状态筛选
         if status:
             query = query.filter(Tasks.status == status)
 
-        # 按 created_at 降序排列，限制返回数量
-        return query.order_by(Tasks.created_at.desc()).limit(limit).all()
+        # 按 created_at 降序排列，使用 OFFSET 和 LIMIT 分页
+        return query.order_by(Tasks.created_at.desc()).offset(offset).limit(page_size).all()
 
     def get_task_by_platform_task_id(
         self,

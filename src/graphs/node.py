@@ -1226,10 +1226,11 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
         try:
             task_mgr = TaskManager()
 
-            limit = min(state.limit or 50, 300)  # 最大不超过300
+            # 分页参数
+            page = state.page or 1
+            page_size = min(state.page_size or 50, 300)  # 最大不超过300
 
-            # 使用灵活查询方法（支持游标分页）
-            # 查询 limit + 1 条数据来判断是否还有更多数据
+            # 使用传统分页查询
             tasks = task_mgr.get_tasks_flexible(
                 db,
                 user_id=state.user_id,
@@ -1237,10 +1238,11 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 status=state.status,
                 start_time=state.start_time,
                 end_time=state.end_time,
-                before_time=state.before_time,
-                limit=limit + 1  # 多查询一条用于判断是否有更多数据
+                page=page,
+                page_size=page_size
             )
 
+            # 获取总数
             total = task_mgr.count_tasks_flexible(
                 db,
                 user_id=state.user_id,
@@ -1275,26 +1277,18 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "is_deleted": task.is_deleted
                 })
 
-            # 计算是否还有更多数据：如果返回的数据超过 limit，说明还有更多
-            has_more = len(task_list) > limit
-            
-            # 如果还有更多数据，只返回 limit 条
-            if has_more:
-                task_list = task_list[:limit]
-
-            # 获取最后一条记录的时间戳，作为下一次请求的游标
-            next_before_time = None
-            if task_list:
-                next_before_time = int(task_list[-1].get("created_at", 0))
+            # 计算总页数
+            total_pages = (total + page_size - 1) // page_size if total > 0 else 0
 
             return ListTasksOutput(result={
                 "success": True,
                 "message": "查询成功",
                 "tasks": task_list,
                 "total": total,
-                "limit": limit,
-                "has_more": has_more,
-                "next_before_time": next_before_time,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages,
+                "has_more": page < total_pages,
                 "time_range": {
                     "start_time": state.start_time,
                     "end_time": state.end_time
