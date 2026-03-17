@@ -410,14 +410,12 @@ class DeleteTaskOutput(BaseModel):
 
 
 class ListTasksInput(BaseModel):
-    """查询任务列表节点的输入（传统分页）"""
+    """查询任务列表节点的输入"""
     user_id: Optional[str] = Field(default=None, description="用户ID（可选，至少提供 user_id 或 team_id 之一）")
     team_id: Optional[str] = Field(default=None, description="团队ID筛选（可选，至少提供 user_id 或 team_id 之一）")
     status: Optional[str] = Field(default=None, description="任务状态筛选")
-    start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒，13位整数）")
-    end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒，13位整数）")
-    page: Optional[int] = Field(default=1, description="页码（从1开始）")
-    page_size: Optional[int] = Field(default=50, description="每页数量（默认50，最大不超过300）")
+    days: Optional[int] = Field(default=30, description="查询最近N天的数据（默认30天）")
+    limit: Optional[int] = Field(default=50, description="返回数量限制（默认50，最大1000）")
 
 
 class ListTasksOutput(BaseModel):

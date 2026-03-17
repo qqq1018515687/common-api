@@ -1184,8 +1184,11 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
           - 同时提供 user_id 和 team_id：查询该团队的所有任务（包含团队所有成员的任务）
           - 必须至少提供 user_id 或 team_id 其中之一
           - 查询团队任务时需要同时提供 user_id 用于权限验证
+          - days 参数指定查询最近N天的数据，默认30天
+          - limit 参数指定返回数量，默认50，最大1000
     integrations: 数据库
     """
+    import time
     ctx = runtime.context
 
     # 至少需要 user_id 或 team_id 其中之一
@@ -1211,14 +1214,6 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
         except Exception as e:
             return ListTasksOutput(result={"success": False, "message": f"权限验证失败: {str(e)}"})
 
-    # 验证时间参数
-    if not state.start_time or not state.end_time:
-        return ListTasksOutput(result={"success": False, "message": "缺少必要参数：start_time 或 end_time"})
-
-    # 验证时间范围
-    if state.start_time > state.end_time:
-        return ListTasksOutput(result={"success": False, "message": "start_time 不能大于 end_time"})
-
     try:
         from storage.database.task_manager import TaskManager
 
@@ -1226,20 +1221,24 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
         try:
             task_mgr = TaskManager()
 
-            # 分页参数
-            page = state.page or 1
-            page_size = min(state.page_size or 50, 300)  # 最大不超过300
+            # 根据 days 计算时间范围
+            days = state.days or 30
+            current_time = int(time.time() * 1000)
+            start_time = current_time - (days * 24 * 60 * 60 * 1000)  # N天前
+            end_time = current_time
 
-            # 使用传统分页查询
+            # 返回数量限制
+            limit = min(state.limit or 50, 1000)  # 最大1000
+
+            # 查询任务列表
             tasks = task_mgr.get_tasks_flexible(
                 db,
                 user_id=state.user_id,
                 team_id=state.team_id,
                 status=state.status,
-                start_time=state.start_time,
-                end_time=state.end_time,
-                page=page,
-                page_size=page_size
+                start_time=start_time,
+                end_time=end_time,
+                limit=limit
             )
 
             # 获取总数
@@ -1248,8 +1247,8 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 user_id=state.user_id,
                 team_id=state.team_id,
                 status=state.status,
-                start_time=state.start_time,
-                end_time=state.end_time
+                start_time=start_time,
+                end_time=end_time
             )
 
             # 转换为可序列化的字典列表
@@ -1277,22 +1276,13 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "is_deleted": task.is_deleted
                 })
 
-            # 计算总页数
-            total_pages = (total + page_size - 1) // page_size if total > 0 else 0
-
             return ListTasksOutput(result={
                 "success": True,
                 "message": "查询成功",
                 "tasks": task_list,
                 "total": total,
-                "page": page,
-                "page_size": page_size,
-                "total_pages": total_pages,
-                "has_more": page < total_pages,
-                "time_range": {
-                    "start_time": state.start_time,
-                    "end_time": state.end_time
-                }
+                "limit": limit,
+                "days": days
             })
 
         finally:

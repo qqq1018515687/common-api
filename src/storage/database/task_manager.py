@@ -141,10 +141,9 @@ class TaskManager:
         status: Optional[str] = None,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
-        page: int = 1,
-        page_size: int = 50,
+        limit: int = 50,
     ) -> List[tuple]:
-        """灵活查询任务列表（支持按用户ID、团队ID或两者查询，传统分页）
+        """灵活查询任务列表
 
         Args:
             db: 数据库会话
@@ -153,42 +152,30 @@ class TaskManager:
             status: 任务状态筛选（可选）
             start_time: 查询开始时间戳（毫秒，可选）
             end_time: 查询结束时间戳（毫秒，可选）
-            page: 页码（从1开始，默认1）
-            page_size: 每页数量（默认50，最大300）
+            limit: 返回数量限制（默认50，最大1000）
 
         Returns:
             任务列表（按 created_at DESC 排序），每个元素是 (Task, username) 元组
 
         查询规则：
             - 如果只提供 user_id（没有 team_id）：查询该用户的所有任务
-            - 如果提供 team_id（不管有没有 user_id）：查询该团队的所有任务（包含团队所有成员的任务）
+            - 如果提供 team_id（不管有没有 user_id）：查询该团队的所有任务
             - 如果既没有 user_id 也没有 team_id：返回空列表
         """
-        # 限制每页最大数量
-        page_size = min(page_size, 300)
-        page = max(page, 1)  # 页码最小为1
-
-        # 计算偏移量
-        offset = (page - 1) * page_size
+        # 限制最大返回数量
+        limit = min(limit, 1000)
 
         # 基础查询：JOIN Users 表，获取 username
         query = db.query(Tasks, Users.username).outerjoin(
             Users, Tasks.user_id == Users.user_id
         ).filter(Tasks.is_deleted == False)
 
-        # 查询逻辑：
-        # - 如果提供了 team_id，查询整个团队的任务（不加 user_id 筛选）
-        # - 如果只提供 user_id（没有 team_id），查询该用户的任务
-        # - 如果两者都提供，查询团队任务（包含团队所有成员的任务）
-
+        # 查询逻辑
         if team_id:
-            # 查询指定团队的所有任务（包含团队所有成员的任务）
             query = query.filter(Tasks.team_id == team_id)
         elif user_id:
-            # 只查询该用户的任务
             query = query.filter(Tasks.user_id == user_id)
         else:
-            # 既没有 user_id 也没有 team_id，返回空列表
             return []
 
         # 时间范围筛选
@@ -201,8 +188,8 @@ class TaskManager:
         if status:
             query = query.filter(Tasks.status == status)
 
-        # 按 created_at 降序排列，使用 OFFSET 和 LIMIT 分页
-        return query.order_by(Tasks.created_at.desc()).offset(offset).limit(page_size).all()
+        # 按 created_at 降序排列，限制返回数量
+        return query.order_by(Tasks.created_at.desc()).limit(limit).all()
 
     def get_task_by_platform_task_id(
         self,
