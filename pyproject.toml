@@ -2,7 +2,7 @@
 name = "coze-project"
 version = "1.0.0"
 description = "Coze Coding Project"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.18.4",
     "annotated-doc>=0.0.4",
