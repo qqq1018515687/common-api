@@ -51,6 +51,10 @@ from utils.log.loop_trace import init_run_config, init_agent_config
 # 超时配置常量
 TIMEOUT_SECONDS = 900  # 15分钟
 
+# 请求计数器（用于定期资源监控）
+_request_counter = 0
+RESOURCE_LOG_INTERVAL = 100  # 每100次请求记录一次资源状态
+
 class GraphService:
     def __init__(self):
         if not graph_helper.is_agent_proj():
@@ -308,6 +312,39 @@ class GraphService:
 service = GraphService()
 app = FastAPI()
 
+# 启动时记录资源状态
+@app.on_event("startup")
+async def startup_event():
+    try:
+        from utils.resource_monitor import log_resource_stats
+        logger.info("=== 服务启动，初始资源状态 ===")
+        log_resource_stats()
+    except Exception as e:
+        logger.warning(f"Startup resource logging failed: {e}")
+
+
+# 定期清理过期的 running_tasks
+@app.on_event("startup")
+async def start_cleanup_task():
+    """启动定期清理任务"""
+    import asyncio
+    
+    async def cleanup_stale_tasks():
+        while True:
+            try:
+                await asyncio.sleep(300)  # 每5分钟检查一次
+                stale_count = 0
+                for run_id, task in list(service.running_tasks.items()):
+                    if task.done():
+                        service.running_tasks.pop(run_id, None)
+                        stale_count += 1
+                if stale_count > 0:
+                    logger.info(f"清理了 {stale_count} 个已完成的任务记录")
+            except Exception as e:
+                logger.error(f"清理任务失败: {e}")
+    
+    asyncio.create_task(cleanup_stale_tasks())
+
 # 导入并注册任务管理 API 路由
 from api.tasks import router as tasks_router
 app.include_router(tasks_router)
@@ -315,7 +352,17 @@ app.include_router(tasks_router)
 
 @app.post("/run")
 async def http_run(request: Request) -> Dict[str, Any]:
-    global result
+    global result, _request_counter
+    _request_counter += 1
+    
+    # 每100次请求记录一次资源状态
+    if _request_counter % RESOURCE_LOG_INTERVAL == 0:
+        try:
+            from utils.resource_monitor import log_resource_stats
+            log_resource_stats()
+        except Exception as e:
+            logger.warning(f"Resource logging failed: {e}")
+    
     raw_body = await request.body()
     try:
         body_text = raw_body.decode("utf-8")
@@ -375,6 +422,8 @@ async def http_run(request: Request) -> Dict[str, Any]:
         logger.error(f"Unexpected error in http_run: {e}, traceback: {traceback.format_exc()}", exc_info=True)
         raise HTTPException(status_code=500, detail=extract_core_stack())
     finally:
+        # 确保清理任务记录
+        service.running_tasks.pop(run_id, None)
         cozeloop.flush()
 
 
@@ -501,13 +550,30 @@ async def http_node_run(node_id: str, request: Request):
 @app.get("/health")
 async def health_check():
     try:
-        # 这里可以添加更多的健康检查逻辑
+        from utils.resource_monitor import get_resource_stats, check_resource_warning
+        
+        stats = get_resource_stats()
+        warning_result = check_resource_warning()
+        
         return {
-            "status": "ok",
+            "status": "ok" if warning_result["is_healthy"] else "warning",
             "message": "Service is running",
+            "resources": stats,
+            "warnings": warning_result["warnings"],
         }
     except Exception as e:
+        logger.error(f"Health check failed: {e}")
         raise HTTPException(status_code=503, detail=str(e))
+
+
+@app.get("/resource-stats")
+async def resource_stats():
+    """获取详细资源统计（调试用）"""
+    try:
+        from utils.resource_monitor import check_resource_warning
+        return check_resource_warning()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/avatar/{file_key:path}")

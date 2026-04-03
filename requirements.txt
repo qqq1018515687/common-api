@@ -1,3 +1,4 @@
 # Auto-generated from uv.lock for backward compatibility with pip.
 # Do NOT edit manually.
 
+psutil==7.1.3
