@@ -128,10 +128,10 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
         elif operation_type == "get_stats":
             # 查询统计数据
             team = db.query(Teams).filter(Teams.id == user.team_id).first()
-            
+
             # 查询所有该团队的成员
             members = db.query(Users).filter(Users.team_id == user.team_id).all()
-            
+
             member_stats = [
                 {
                     "user_id": m.user_id,
@@ -141,7 +141,7 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
                 }
                 for m in members
             ]
-            
+
             return TeamRecordsOutput(
                 response_data={
                     "code": 0,
@@ -154,11 +154,6 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
                         "members": member_stats
                     }
                 }
-            )
-        
-        else:
-            return TeamRecordsOutput(
-                response_data={"code": 400, "msg": f"未知操作: {operation_type}", "data": None}
             )
 
         elif operation_type == "get_record":
