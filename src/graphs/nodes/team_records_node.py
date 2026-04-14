@@ -16,10 +16,11 @@ logger = logging.getLogger(__name__)
 
 class TeamRecordsInput(BaseModel):
     """消费记录查询节点的输入"""
-    operation_type: Optional[str] = Field(default=None, description="操作类型")
+    operation_type: Optional[str] = Field(default=None, description="操作类型: get_records/get_stats/get_record")
     user_id: Optional[str] = Field(default=None, description="用户ID")
     filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（可选）")
     days: Optional[int] = Field(default=None, description="查询天数")
+    record_id: Optional[str] = Field(default=None, description="单笔记录ID（用于get_record）")
 
 
 class TeamRecordsOutput(BaseModel):
@@ -155,6 +156,54 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
                 }
             )
         
+        else:
+            return TeamRecordsOutput(
+                response_data={"code": 400, "msg": f"未知操作: {operation_type}", "data": None}
+            )
+
+        elif operation_type == "get_record":
+            # 查询单笔记录
+            if not state.record_id:
+                return TeamRecordsOutput(
+                    response_data={"code": 400, "msg": "记录ID不能为空", "data": None}
+                )
+
+            # 查询记录
+            record = db.query(TeamConsumptionRecords).filter(
+                TeamConsumptionRecords.id == state.record_id
+            ).first()
+
+            if not record:
+                return TeamRecordsOutput(
+                    response_data={"code": 404, "msg": "记录不存在", "data": None}
+                )
+
+            # 权限判断：只能查看自己团队的记录
+            if record.team_id != user.team_id:
+                return TeamRecordsOutput(
+                    response_data={"code": 403, "msg": "无权查看该记录", "data": None}
+                )
+
+            # 返回单笔记录详情
+            record_detail = {
+                "record_id": record.id,
+                "team_id": record.team_id,
+                "user_id": record.user_id,
+                "username": record.username,
+                "operation_type": record.operation_type,
+                "amount": record.amount,
+                "balance_before": record.balance_before,
+                "balance_after": record.balance_after,
+                "description": record.description,
+                "related_id": record.related_id,
+                "created_at": int(record.created_at.timestamp() * 1000),
+                "extra_data": record.extra_data
+            }
+
+            return TeamRecordsOutput(
+                response_data={"code": 0, "msg": "查询成功", "data": record_detail}
+            )
+
         else:
             return TeamRecordsOutput(
                 response_data={"code": 400, "msg": f"未知操作: {operation_type}", "data": None}

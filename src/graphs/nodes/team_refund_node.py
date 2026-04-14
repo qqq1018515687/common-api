@@ -78,7 +78,27 @@ def team_refund_node(state: TeamRefundInput, config: RunnableConfig, runtime: Ru
             return TeamRefundOutput(
                 response_data={"code": 403, "msg": "无权操作该记录", "data": None}
             )
-        
+
+        # 幂等性检查：检查是否已退款
+        existing_refund = db.query(TeamConsumptionRecords).filter(
+            TeamConsumptionRecords.related_id == state.original_record_id,
+            TeamConsumptionRecords.operation_type == "refund"
+        ).first()
+
+        if existing_refund:
+            return TeamRefundOutput(
+                response_data={
+                    "code": 0,
+                    "msg": "已退款",
+                    "data": {
+                        "already_refunded": True,
+                        "refund_record_id": existing_refund.id,
+                        "refund_amount": existing_refund.amount,
+                        "refund_time": int(existing_refund.created_at.timestamp() * 1000)
+                    }
+                }
+            )
+
         # 计算退款金额（原消费金额的绝对值）
         refund_amount = abs(original_record.amount)
         
