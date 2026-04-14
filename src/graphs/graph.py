@@ -56,7 +56,6 @@ from graphs.node import (
     list_tasks_node
 )
 from graphs.nodes.system_notification_handler_node import system_notification_handler_node
-from graphs.nodes.system_health_node import system_health_node
 from graphs.nodes.image_tagging_node import image_tagging_node
 from graphs.nodes.save_image_tags_node import save_image_tags_node
 from graphs.nodes.check_need_tags_node import check_need_tags_node
@@ -90,8 +89,6 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "通知管理"
     elif call_type == "team_balance":
         return "团队余额"
-    elif call_type == "system_health":
-        return "系统健康"
     else:
         return "账号管理"  # 默认
 
@@ -151,7 +148,6 @@ builder.add_node("update_task", update_task_node)
 builder.add_node("delete_task", delete_task_node)
 builder.add_node("list_tasks", list_tasks_node)
 builder.add_node("system_notification_handler", system_notification_handler_node)
-builder.add_node("system_health", system_health_node)
 builder.add_node("format_response", format_response_node)
 builder.add_node("check_need_tags", check_need_tags_node)
 builder.add_node("image_tagging", image_tagging_node, metadata={"type": "agent", "llm_cfg": "config/image_tagging_cfg.json"})
@@ -185,8 +181,7 @@ builder.add_conditional_edges(
         "任务管理": "task_route",
         "工具中心": "tool_route",
         "通知管理": "system_notification_handler",
-        "团队余额": "team_route",  # 路由到团队余额路由节点
-        "系统健康": "system_health"
+        "团队余额": "team_route"  # 路由到团队余额路由节点
     }
 )
 
@@ -268,7 +263,6 @@ builder.add_edge("team_recharge", "format_response")
 builder.add_edge("team_deduct", "format_response")
 builder.add_edge("team_refund", "format_response")
 builder.add_edge("team_records", "format_response")
-builder.add_edge("system_health", "format_response")
 
 # ============ 图像标签生成流程（暂时禁用）============
 # 启用图像自动打标时，取消下面的注释，并注释掉上面的 `builder.add_edge("update_task", "format_response")`
