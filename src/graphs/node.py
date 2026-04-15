@@ -135,10 +135,7 @@ def parse_file_type(file_type: Optional[str]) -> str:
         file_type: 文件类型，可以是枚举值或 MIME 类型
 
     Returns:
-        解析后的文件类型枚举值
-
-    Raises:
-        ValueError: 如果 file_type 格式无效或不支持
+        解析后的文件类型枚举值（如果无法解析则返回 'document'）
     """
     if not file_type:
         return "default"
@@ -159,9 +156,13 @@ def parse_file_type(file_type: Optional[str]) -> str:
                 return 'document'
             return mime_prefix
         else:
-            raise ValueError(f"不支持的文件类型前缀: {mime_prefix}（完整类型: {file_type}）")
+            # 不支持的 MIME 类型：归类为 document（安全兜底）
+            logger.warning(f"不支持的文件类型前缀: {mime_prefix}（完整类型: {file_type}），归类为 'document'")
+            return 'document'
     else:
-        raise ValueError(f"无效的文件类型格式: {file_type}")
+        # 无效的格式：归类为 document（安全兜底）
+        logger.warning(f"无效的文件类型格式: {file_type}，归类为 'document'")
+        return 'document'
 
 
 def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, runtime: Runtime[Context]) -> UnpackInputDataOutput:
