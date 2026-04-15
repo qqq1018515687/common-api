@@ -1,5 +1,3 @@
-# Auto-generated from uv.lock for backward compatibility with pip.
-# Do NOT edit manually.
 alembic==1.18.4
 annotated-doc==0.0.4
 annotated-types==0.7.0
