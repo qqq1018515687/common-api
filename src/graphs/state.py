@@ -13,7 +13,7 @@ class InputData(BaseModel):
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
-    operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/register/login/update_user/delete_user/list_users)、任务管理(create_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)")
+    operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/register/login/update_user/delete_user/list_users)、任务管理(create_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、RunningHub错误分析(runninghub_error_analysis)")
 
     # 用户管理相关字段
     phone: Optional[str] = Field(default=None, description="手机号")
@@ -58,7 +58,9 @@ class InputData(BaseModel):
     original_record_id: Optional[str] = Field(default=None, description="原消费记录ID（退款用）")
     reason: Optional[str] = Field(default=None, description="退款原因")
     filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（消费记录查询使用）")
-    filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（消费记录查询使用）")
+
+    # RunningHub 错误分析相关字段
+    error_response: Optional[dict] = Field(default=None, description="RunningHub 错误响应数据（runninghub_error_analysis 使用）")
 
 
 class GlobalState(BaseModel):
@@ -119,6 +121,9 @@ class GlobalState(BaseModel):
     original_record_id: Optional[str] = Field(default=None, description="原消费记录ID（退款用）")
     reason: Optional[str] = Field(default=None, description="退款原因")
     filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（消费记录查询使用）")
+
+    # RunningHub 错误分析相关字段
+    error_response: Optional[dict] = Field(default=None, description="RunningHub 错误响应数据")
 
 
 class GraphInput(BaseModel):
@@ -553,6 +558,9 @@ class UnpackInputDataOutput(BaseModel):
     reason: Optional[str] = Field(default=None, description="退款原因")
     filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（查询消费记录用）")
 
+    # RunningHub 错误分析相关字段
+    error_response: Optional[dict] = Field(default=None, description="RunningHub 错误响应数据")
+
 
 # 工具路由节点
 class ToolRouteInput(BaseModel):
@@ -612,5 +620,17 @@ class SystemNotificationInput(BaseModel):
 class SystemNotificationOutput(BaseModel):
     """系统通知处理节点的输出"""
     result: dict = Field(..., description="操作结果")
+
+
+# ============ RunningHub 错误分析节点 ============
+
+class RunningHubErrorAnalysisInput(BaseModel):
+    """RunningHub 错误分析节点的输入"""
+    error_response: dict = Field(..., description="RunningHub 任务失败响应数据")
+
+
+class RunningHubErrorAnalysisOutput(BaseModel):
+    """RunningHub 错误分析节点的输出"""
+    result: dict = Field(default={}, description="错误分析结果：包含用户友好的错误说明")
 
 

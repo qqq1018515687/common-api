@@ -8,19 +8,19 @@ logger = logging.getLogger(__name__)
 
 # 修复 ContextOverflowError
 if not hasattr(langchain_core.exceptions, 'ContextOverflowError'):
-    class ContextOverflowError(langchain_core.exceptions.LangChainException):
+    class ContextOverflowError(langchain_core.exceptions.LangChainException):  # type: ignore[attr-defined]
         """ContextOverflowError - 用于兼容性"""
         pass
-    langchain_core.exceptions.ContextOverflowError = ContextOverflowError
+    langchain_core.exceptions.ContextOverflowError = ContextOverflowError  # type: ignore[attr-defined]
 
 # 修复 ModelProfileRegistry
 if not hasattr(langchain_core.language_models, 'ModelProfileRegistry'):
-    class ModelProfileRegistry:
+    class ModelProfileRegistry:  # type: ignore[no-redef]
         """ModelProfileRegistry - 用于兼容性"""
         @staticmethod
         def get_default_model_profile(model_name):
             return None
-    langchain_core.language_models.ModelProfileRegistry = ModelProfileRegistry
+    langchain_core.language_models.ModelProfileRegistry = ModelProfileRegistry  # type: ignore[attr-defined]
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.runtime import Runtime
@@ -247,7 +247,9 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         target_role=input_data.target_role if input_data else None,
         original_record_id=input_data.original_record_id if input_data else None,
         reason=input_data.reason if input_data else None,
-        filter_user_id=input_data.filter_user_id if input_data else None
+        filter_user_id=input_data.filter_user_id if input_data else None,
+        # RunningHub 错误分析相关字段
+        error_response=input_data.error_response if input_data else None
     )
 
 from storage.s3.s3_storage import S3SyncStorage

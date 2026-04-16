@@ -1,6 +1,6 @@
 ## 项目概述
 - **名称**: Coze Coding 工作流
-- **功能**: 基于 LangGraph 的工作流项目，包含用户管理、文件上传、历史保存、任务管理、图像自动打标、标签池管理、团队余额管理等功能
+- **功能**: 基于 LangGraph 的工作流项目，包含用户管理、文件上传、历史保存、任务管理、图像自动打标、标签池管理、团队余额管理、RunningHub错误分析等功能
 
 ### 任务管理功能说明
 - **创建任务**：注册用户可创建任务，支持存储 workflow_parameters 和 parameter_snapshot
@@ -82,7 +82,7 @@
 | 节点名 | 文件位置 | 类型 | 功能描述 | 分支逻辑 | 配置文件 |
 |-------|---------|------|---------|---------|---------|
 | unpack_input_data | node.py | task | 解包输入数据 | - | - |
-| call_type_router | node.py | condition | 根据调用类型路由 | 账号管理→operation_route, 文件上传→upload, 保存历史→save, 任务管理→task_route, 工具中心→tool_route, 通知管理→system_notification_handler, 团队余额→team_route | - |
+| call_type_router | node.py | condition | 根据调用类型路由 | 账号管理→operation_route, 文件上传→upload, 保存历史→save, 任务管理→task_route, 工具中心→tool_route, 通知管理→system_notification_handler, 团队余额→team_route, RunningHub错误分析→runninghub_error_analysis | - |
 | operation_route | node.py | condition | 根据操作类型路由 | 限流检查→check_rate_limit, 更新限流→update_rate_limit, 用户注册→register_with_limit, 用户登录→get_user, 查询单个用户→get_user_by_id, 更新用户→update_user, 删除用户→delete_user, 用户列表→list_users | - |
 | tool_route | node.py | condition | 根据工具类型路由 | 反推图像→reverse_image, 翻译推荐→translate_doubao, 提示词增强→prompt_enhance | - |
 | task_route | node.py | condition | 根据任务操作类型路由 | 创建任务→create_task, 更新任务→update_task, 删除任务→delete_task, 查询任务列表→list_tasks | - |
@@ -115,6 +115,7 @@
 | translate_doubao | node.py | agent | 豆包翻译 | - | config/translate_doubao_cfg.json |
 | prompt_enhance | node.py | agent | 提示词增强 | - | config/prompt_enhance_cfg.json |
 | format_response | node.py | task | 格式化响应 | - | - |
+| runninghub_error_analysis | nodes/runninghub_error_analysis_node.py | agent | RunningHub错误分析（LLM分析失败响应生成友好说明） | - | config/runninghub_error_analysis_cfg.json |
 
 **类型说明**: task(task节点) / agent(大模型) / condition(条件分支)
 
@@ -127,6 +128,7 @@
 - 节点 `team_init`, `team_manage`, `team_recharge`, `team_deduct`, `team_refund`, `team_records` 使用数据库集成（团队余额表）
 - 节点 `upload`, `save`, `update_user` 使用对象存储集成（使用 StorageManager 自动分类管理）
 - 节点 `reverse_image`, `translate_doubao`, `prompt_enhance` 使用大语言模型集成
+- 节点 `runninghub_error_analysis` 使用大语言模型集成
 - 节点 `upload` 使用内容处理集成
 
 ### 团队余额调用方式
@@ -151,6 +153,27 @@
 - `deduct` → team_deduct 节点
 - `refund` → team_refund 节点
 - `get_records` / `get_stats` → team_records 节点
+
+### RunningHub 错误分析调用方式
+通过工作流调用，参数示例：
+```json
+{
+  "call_type": "runninghub_error_analysis",
+  "input": {
+    "error_response": {
+      "code": 805,
+      "msg": "APIKEY_TASK_STATUS_ERROR",
+      "data": {
+        "failedReason": {
+          "exception_type": "TypeError",
+          "node_name": "SONIC_PreData",
+          "exception_message": "missing 2 required positional arguments: 'clip_vision' and 'vae'"
+        }
+      }
+    }
+  }
+}
+```
 
 ### 系统通知功能说明
 - **获取有效通知**：查询当前有效的通知列表（支持时间范围筛选）
