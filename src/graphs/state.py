@@ -61,7 +61,6 @@ class InputData(BaseModel):
 
     # RunningHub 错误分析相关字段
     error_response: Optional[dict] = Field(default=None, description="RunningHub 错误响应数据（runninghub_error_analysis 使用）")
-    user_friendly_message: Optional[str] = Field(default=None, description="LLM 生成的用户友好错误提示（update_task 使用）")
 
 
 class GlobalState(BaseModel):
@@ -125,7 +124,6 @@ class GlobalState(BaseModel):
 
     # RunningHub 错误分析相关字段
     error_response: Optional[dict] = Field(default=None, description="RunningHub 错误响应数据")
-    user_friendly_message: Optional[str] = Field(default=None, description="LLM 生成的用户友好错误提示")
 
 
 class GraphInput(BaseModel):
@@ -562,7 +560,6 @@ class UnpackInputDataOutput(BaseModel):
 
     # RunningHub 错误分析相关字段
     error_response: Optional[dict] = Field(default=None, description="RunningHub 错误响应数据")
-    user_friendly_message: Optional[str] = Field(default=None, description="LLM 生成的用户友好错误提示")
 
 
 # 工具路由节点
