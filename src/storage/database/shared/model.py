@@ -55,6 +55,7 @@ class Tasks(Base):
     connection_mode: Mapped[Optional[str]] = mapped_column(String(10), server_default=text("'sse'::character varying"))
     team_id: Mapped[Optional[str]] = mapped_column(String(64))
     is_deleted: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text("false"), comment="是否已删除（软删除标记）")
+    user_friendly_message: Mapped[Optional[str]] = mapped_column(Text, comment="LLM 生成的用户友好错误提示")
 
 
 class Users(Base):

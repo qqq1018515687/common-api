@@ -9,6 +9,12 @@
   - 支持扣费结果记录（deduction_result），包含扣费模式、预扣金额、最终金额和结算时间
   - 已适配 RunningHub 响应结构
   - **图像自动打标**：已实现但暂时禁用，需要时在 `src/graphs/graph.py` 中启用
+- **user_friendly_message 持久化**：
+  - 任务表新增 `user_friendly_message` 字段（TEXT，nullable）
+  - `update_task` 支持接收并保存该字段
+  - `list_tasks` 查询时返回该字段
+  - `runninghub_error_analysis` 节点输出该字段到 result 中
+  - 页面刷新后从数据库加载历史任务时可恢复 LLM 友好提示
 - **删除任务**：
   - 注册用户可软删除任务（is_deleted=true）
   - **管理员**（role='admin'）可删除任何任务

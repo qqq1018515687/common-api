@@ -249,7 +249,8 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         reason=input_data.reason if input_data else None,
         filter_user_id=input_data.filter_user_id if input_data else None,
         # RunningHub 错误分析相关字段
-        error_response=input_data.error_response if input_data else None
+        error_response=input_data.error_response if input_data else None,
+        user_friendly_message=input_data.user_friendly_message if input_data else None
     )
 
 from storage.s3.s3_storage import S3SyncStorage
@@ -1114,7 +1115,7 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
 
             # 构建更新参数，只传入存在的字段，避免 None 值覆盖
             update_kwargs = {}
-            for field in ["status", "result", "error", "completed_at"]:
+            for field in ["status", "result", "error", "completed_at", "user_friendly_message"]:
                 if field in state.task_updates:
                     update_kwargs[field] = state.task_updates.get(field)
             # deduction_result 单独处理，只有明确存在时才更新
@@ -1271,6 +1272,7 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "result": task.result,
                     "error": task.error,
                     "deduction_result": task.deduction_result,
+                    "user_friendly_message": task.user_friendly_message,
                     "created_at": task.created_at,
                     "updated_at": task.updated_at,
                     "completed_at": task.completed_at,

@@ -30,6 +30,7 @@ class TaskUpdate(BaseModel):
     error: Optional[str] = Field(default=None, description="错误信息")
     completed_at: Optional[int] = Field(default=None, description="完成时间")
     deduction_result: Optional[dict] = Field(default=None, description="扣费结果记录")
+    user_friendly_message: Optional[str] = Field(default=None, description="LLM 生成的用户友好错误提示")
 
 
 class TaskManager:
