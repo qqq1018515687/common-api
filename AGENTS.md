@@ -2,6 +2,39 @@
 - **名称**: Coze Coding 工作流
 - **功能**: 基于 LangGraph 的工作流项目，包含用户管理、文件上传、历史保存、任务管理、图像自动打标、标签池管理、团队余额管理、RunningHub错误分析等功能
 
+### 关键业务标识
+- **团队 team_id**: `Mars`（注意：Mars 是 team_id 字段，不是 name 字段，查询时用 `WHERE id = 'Mars'`）
+- **团队充值 SQL 模板**：
+```sql
+-- 1. 团队余额 +{金额}
+UPDATE teams SET balance = balance + {金额} WHERE id = 'Mars';
+
+-- 2. 充值记录
+INSERT INTO team_consumption_records (id, team_id, user_id, amount, balance_before, balance_after, operation_type, description, created_at, username, status)
+SELECT
+  gen_random_uuid()::text,
+  'Mars',
+  'system',
+  {金额},
+  t.balance - {金额},
+  t.balance,
+  'recharge',
+  '团队充值{金额}',
+  now(),
+  'system',
+  'completed'
+FROM teams t WHERE t.id = 'Mars';
+```
+- **用户注册 SQL 模板**：
+```sql
+SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
+
+INSERT INTO users (user_id, username, password_hash, phone, team_id, role, gold_credits, silver_credits, account_status)
+VALUES ('{10位随机数字}', '{姓名}', '{bcrypt哈希}', '{手机号}', 'Mars', 'admin', 0, 9999, 'active');
+```
+- **密码哈希生成**：`python3 -c "import bcrypt; print(bcrypt.hashpw('{密码}'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'))"`
+- **user_id 生成规则**：10位随机数字
+
 ### 任务管理功能说明
 - **创建任务**：注册用户可创建任务，支持存储 workflow_parameters 和 parameter_snapshot
 - **更新任务**：
