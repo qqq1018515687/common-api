@@ -599,7 +599,7 @@ class TranslateDoubaoOutput(BaseModel):
 class PromptEnhanceInput(BaseModel):
     """提示词增强节点的输入"""
     prompt: str = Field(..., description="用户提示词")
-    file_list: List[File] = Field(..., description="图片文件列表，1-4个")
+    file_list: List[File] = Field(default=[], description="图片文件列表，0-4个，非必传")
 
 
 class PromptEnhanceOutput(BaseModel):

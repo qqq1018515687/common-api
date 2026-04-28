@@ -1481,8 +1481,6 @@ def prompt_enhance_node(state: PromptEnhanceInput, config: RunnableConfig, runti
     ctx = runtime.context
 
     # 验证文件数量
-    if not state.file_list or len(state.file_list) < 1:
-        return PromptEnhanceOutput(result={"success": False, "message": "至少需要提供 1 个图片文件"})
     if len(state.file_list) > 4:
         return PromptEnhanceOutput(result={"success": False, "message": "最多支持 4 个图片文件"})
 
@@ -1509,17 +1507,21 @@ def prompt_enhance_node(state: PromptEnhanceInput, config: RunnableConfig, runti
         # 初始化 LLM 客户端
         client = LLMClient(ctx=ctx)
 
-        # 构造多模态消息（支持多图片）
-        content = [{"type": "text", "text": user_prompt_content}]
-        for file in state.file_list:
-            content.append({
-                "type": "image_url",
-                "image_url": {"url": file.url}
-            })
+        # 构造消息（有图片时用多模态，无图片时用纯文本）
+        if state.file_list:
+            content = [{"type": "text", "text": user_prompt_content}]
+            for file in state.file_list:
+                content.append({
+                    "type": "image_url",
+                    "image_url": {"url": file.url}
+                })
+            human_msg = HumanMessage(content=content)
+        else:
+            human_msg = HumanMessage(content=user_prompt_content)
 
         messages = [
             SystemMessage(content=system_prompt_content),
-            HumanMessage(content=content)
+            human_msg
         ]
 
         # 调用模型
