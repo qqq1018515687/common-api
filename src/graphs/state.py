@@ -1,5 +1,5 @@
 from typing import Literal, Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from utils.file.file import File
 
 
@@ -600,6 +600,13 @@ class PromptEnhanceInput(BaseModel):
     """提示词增强节点的输入"""
     prompt: str = Field(..., description="用户提示词")
     file_list: List[File] = Field(default=[], description="图片文件列表，0-4个，非必传")
+
+    @field_validator("file_list", mode="before")
+    @classmethod
+    def normalize_file_list(cls, v: object) -> list:
+        if v is None:
+            return []
+        return v  # type: ignore[return-value]
 
 
 class PromptEnhanceOutput(BaseModel):
