@@ -888,7 +888,7 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
                 "file_key": file_key
             })
 
-        elif file_url.startswith("data:image") or (file_url.startswith("data:application") and ";base64," in file_url):
+        elif file_url.startswith(("data:image", "data:audio", "data:video")) or (file_url.startswith("data:application") and ";base64," in file_url):
             # Base64 格式（Data URL 格式）
             match = re.match(r"data:([^;]+);base64,(.+)", file_url)
             if not match:
@@ -912,6 +912,16 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
                 filename = "upload.gif"
             elif "webp" in mime_type:
                 filename = "upload.webp"
+            elif "mpeg" in mime_type or "mp3" in mime_type:
+                filename = "upload.mp3"
+            elif "wav" in mime_type:
+                filename = "upload.wav"
+            elif "ogg" in mime_type:
+                filename = "upload.ogg"
+            elif "mp4" in mime_type and "audio" not in mime_type:
+                filename = "upload.mp4"
+            elif "webm" in mime_type:
+                filename = "upload.webm"
             else:
                 filename = f"upload.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
 
