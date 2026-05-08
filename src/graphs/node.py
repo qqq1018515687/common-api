@@ -912,16 +912,45 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
                 filename = "upload.gif"
             elif "webp" in mime_type:
                 filename = "upload.webp"
+            elif "bmp" in mime_type:
+                filename = "upload.bmp"
+            elif "svg" in mime_type:
+                filename = "upload.svg"
+            # 音频格式
             elif "mpeg" in mime_type or "mp3" in mime_type:
                 filename = "upload.mp3"
             elif "wav" in mime_type:
                 filename = "upload.wav"
             elif "ogg" in mime_type:
                 filename = "upload.ogg"
-            elif "mp4" in mime_type and "audio" not in mime_type:
+            elif "flac" in mime_type:
+                filename = "upload.flac"
+            elif "aac" in mime_type:
+                filename = "upload.aac"
+            elif "m4a" in mime_type:
+                filename = "upload.m4a"
+            elif "wma" in mime_type:
+                filename = "upload.wma"
+            elif "aiff" in mime_type:
+                filename = "upload.aiff"
+            # 视频格式
+            elif "mp4" in mime_type:
                 filename = "upload.mp4"
             elif "webm" in mime_type:
                 filename = "upload.webm"
+            elif "avi" in mime_type:
+                filename = "upload.avi"
+            elif "mov" in mime_type or "quicktime" in mime_type:
+                filename = "upload.mov"
+            elif "mkv" in mime_type or "x-matroska" in mime_type:
+                filename = "upload.mkv"
+            elif "wmv" in mime_type or "ms-wmv" in mime_type:
+                filename = "upload.wmv"
+            elif "flv" in mime_type or "x-flv" in mime_type:
+                filename = "upload.flv"
+            # 文档格式
+            elif "pdf" in mime_type:
+                filename = "upload.pdf"
             else:
                 filename = f"upload.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
 
