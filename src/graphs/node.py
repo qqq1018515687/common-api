@@ -1347,6 +1347,7 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 task_list.append(task_dict)
 
             debug_count_result = "not_entered"
+            debug_status_value = repr(state.status)
             # 精确计算符合媒体过滤条件的总数
             total = task_mgr.count_tasks_flexible(
                 db,
@@ -1399,7 +1400,8 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 "next_before_time": next_before_time,
                 "_debug_start_time": start_time,
                 "_debug_end_time": end_time,
-                "_debug_count_result": debug_count_result
+                "_debug_count_result": debug_count_result,
+                "_debug_status": debug_status_value
             })
 
         finally:
