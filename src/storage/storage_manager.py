@@ -21,7 +21,6 @@ class StorageCategory:
     AVATAR = 'avatar'      # 用户头像（永久）
     UPLOAD = 'upload'      # 用户上传（30天）
     TEMP = 'temp'          # 临时文件（1天）
-    THUMBNAIL = 'thumbnail'  # 缩略图（15天，匹配 RunningHub URL 有效期）
     
     @classmethod
     def get_prefix(cls, category: str) -> str:
@@ -29,8 +28,7 @@ class StorageCategory:
         mapping = {
             cls.AVATAR: 'avatars',
             cls.UPLOAD: 'uploads',
-            cls.TEMP: 'temp',
-            cls.THUMBNAIL: 'thumbnails'
+            cls.TEMP: 'temp'
         }
         return mapping.get(category, 'misc')
     
@@ -40,8 +38,7 @@ class StorageCategory:
         mapping = {
             cls.AVATAR: 3650,    # 10年
             cls.UPLOAD: 30,      # 30天
-            cls.TEMP: 1,         # 1天
-            cls.THUMBNAIL: 15    # 15天，匹配 RunningHub URL 有效期
+            cls.TEMP: 1          # 1天
         }
         return mapping.get(category, 30)
     
@@ -85,7 +82,7 @@ class StorageManager:
             }
         """
         # 验证分类
-        if category not in [StorageCategory.AVATAR, StorageCategory.UPLOAD, StorageCategory.TEMP, StorageCategory.THUMBNAIL]:
+        if category not in [StorageCategory.AVATAR, StorageCategory.UPLOAD, StorageCategory.TEMP]:
             raise ValueError(f"不支持的分类: {category}")
         
         # 生成带分类前缀的对象键
@@ -97,7 +94,7 @@ class StorageManager:
         # 设置 ACL
         if acl is None:
             # 头像默认公开可读
-            acl = 'public-read' if category in (StorageCategory.AVATAR, StorageCategory.THUMBNAIL) else None
+            acl = 'public-read' if category == StorageCategory.AVATAR else None
         
         # 添加元数据
         metadata = {

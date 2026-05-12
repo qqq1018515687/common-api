@@ -3,7 +3,6 @@ import time
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 
 from storage.database.shared.model import Tasks, Users
 import time
@@ -178,15 +177,11 @@ class TaskManager:
             Users, Tasks.user_id == Users.user_id
         ).filter(Tasks.is_deleted == False)
 
-        # 查询逻辑：
-        # - team_id 为 None（前端未传或传 null）：查询该用户的个人任务（team_id IS NULL）
-        # - team_id 有值：查询该团队的所有任务
-        # - 既没有 user_id 也没有 team_id：返回空列表
+        # 查询逻辑
         if team_id:
             query = query.filter(Tasks.team_id == team_id)
         elif user_id:
-            # 个人任务：team_id 为空或不存在
-            query = query.filter(Tasks.user_id == user_id, Tasks.team_id.is_(None))
+            query = query.filter(Tasks.user_id == user_id)
         else:
             return []
 
@@ -203,28 +198,6 @@ class TaskManager:
         # 状态筛选
         if status:
             query = query.filter(Tasks.status == status)
-
-        # completed 任务：SQL 层过滤无媒体结果（确保分页正确）
-        if status == 'completed':
-            query = query.filter(
-                Tasks.result.isnot(None),
-                text("tasks.result::text NOT IN ('{}', '[]', 'null', '\"\"')"),
-                text("""(
-                    tasks.result->>'files' IS NOT NULL OR
-                    tasks.result->>'url' IS NOT NULL OR
-                    tasks.result->>'urls' IS NOT NULL OR
-                    tasks.result->>'imageUrls' IS NOT NULL OR
-                    tasks.result->>'image_urls' IS NOT NULL OR
-                    tasks.result->>'output' IS NOT NULL OR
-                    tasks.result->>'outputs' IS NOT NULL OR
-                    tasks.result->>'previewUrl' IS NOT NULL OR
-                    tasks.result->>'preview_url' IS NOT NULL OR
-                    tasks.result->>'thumbnailUrl' IS NOT NULL OR
-                    tasks.result->>'thumbnail_url' IS NOT NULL OR
-                    tasks.result->>'previewUrls' IS NOT NULL OR
-                    tasks.result->>'thumbnailUrls' IS NOT NULL
-                )""")
-            )
 
         # 按 created_at 降序排列，限制返回数量
         return query.order_by(Tasks.created_at.desc()).limit(limit).all()
@@ -394,14 +367,14 @@ class TaskManager:
         # - 如果两者都提供，统计团队任务（包含团队所有成员的任务）
 
         if team_id:
-            # 团队任务：只返回该团队的任务，不限制 user_id
+            # 统计指定团队的所有任务（包含团队所有成员的任务）
             query = query.filter(Tasks.team_id == team_id)
+        elif user_id:
+            # 只统计该用户的任务
+            query = query.filter(Tasks.user_id == user_id)
         else:
-            # 个人任务：只返回该用户的任务，且 team_id 为空
-            if user_id:
-                query = query.filter(Tasks.user_id == user_id, Tasks.team_id == None)
-            else:
-                return 0
+            # 既没有 user_id 也没有 team_id，返回 0
+            return 0
 
         # 时间范围筛选
         if start_time is not None:
@@ -409,34 +382,8 @@ class TaskManager:
         if end_time is not None:
             query = query.filter(Tasks.created_at <= str(end_time))
 
-        # before_time 游标分页
-        if before_time is not None:
-            query = query.filter(Tasks.created_at < str(before_time))
-
         # 状态筛选
         if status:
             query = query.filter(Tasks.status == status)
-
-        # completed 任务必须有可展示媒体结果（SQL 层过滤，与 get_tasks_flexible 保持一致）
-        if status == "completed":
-            query = query.filter(
-                Tasks.result.isnot(None),
-                text("tasks.result::text NOT IN ('{}', '[]', 'null', '\"\"')"),
-                text("""(
-                    tasks.result->>'files' IS NOT NULL OR
-                    tasks.result->>'url' IS NOT NULL OR
-                    tasks.result->>'urls' IS NOT NULL OR
-                    tasks.result->>'imageUrls' IS NOT NULL OR
-                    tasks.result->>'image_urls' IS NOT NULL OR
-                    tasks.result->>'output' IS NOT NULL OR
-                    tasks.result->>'outputs' IS NOT NULL OR
-                    tasks.result->>'previewUrl' IS NOT NULL OR
-                    tasks.result->>'preview_url' IS NOT NULL OR
-                    tasks.result->>'thumbnailUrl' IS NOT NULL OR
-                    tasks.result->>'thumbnail_url' IS NOT NULL OR
-                    tasks.result->>'previewUrls' IS NOT NULL OR
-                    tasks.result->>'thumbnailUrls' IS NOT NULL
-                )""")
-            )
 
         return query.count()

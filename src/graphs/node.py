@@ -242,7 +242,6 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         amount=input_data.amount if input_data else None,
         description=input_data.description if input_data else None,
         days=input_data.days if input_data else None,
-        status=input_data.status if input_data else None,
         name=input_data.name if input_data else None,
         target_user_id=input_data.target_user_id if input_data else None,
         target_username=input_data.target_username if input_data else None,
@@ -1162,17 +1161,6 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
             if "deduction_result" in state.task_updates:
                 update_kwargs["deduction_result"] = state.task_updates.get("deduction_result")
 
-            # 任务完成时，自动为图片结果生成缩略图
-            new_status = update_kwargs.get("status")
-            result_data = update_kwargs.get("result")
-            if new_status == "completed" and result_data is not None:
-                try:
-                    from utils.thumbnail import process_result_thumbnails
-                    processed_result = process_result_thumbnails(result_data)
-                    update_kwargs["result"] = processed_result
-                except Exception as thumb_err:
-                    logger.warning(f"缩略图生成失败，跳过: {thumb_err}")
-
             task_in = TaskUpdate(**update_kwargs)
 
             db_task = task_mgr.update_task(db, state.task_id, task_in)
@@ -1325,7 +1313,7 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 end_time=end_time
             )
 
-            # 转换为可序列化的字典列表（媒体过滤已在 SQL 层完成）
+            # 转换为可序列化的字典列表，过滤无媒体结果的 completed 任务
             task_list = []
             for task, username in tasks:
                 task_dict = {
@@ -1350,6 +1338,21 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "connection_mode": task.connection_mode,
                     "is_deleted": task.is_deleted
                 }
+                # 过滤：completed 任务必须有媒体结果才展示
+                if task.status == "completed":
+                    result_data = task.result
+                    has_media = False
+                    if isinstance(result_data, dict):
+                        # 检查 result 中是否有图片/视频/音频 URL
+                        files = result_data.get("files")
+                        if isinstance(files, list) and len(files) > 0:
+                            has_media = True
+                        elif result_data.get("url") or result_data.get("image_url") or result_data.get("video_url") or result_data.get("audio_url"):
+                            has_media = True
+                        elif result_data.get("thumbnailUrl") or result_data.get("preview_url"):
+                            has_media = True
+                    if not has_media:
+                        continue
                 task_list.append(task_dict)
 
             return ListTasksOutput(result={
