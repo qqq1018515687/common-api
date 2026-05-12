@@ -208,21 +208,21 @@ class TaskManager:
         if status == 'completed':
             query = query.filter(
                 Tasks.result.isnot(None),
-                text("result::text NOT IN ('{}', '[]', 'null', '\"\"')"),
+                text("tasks.result::text NOT IN ('{}', '[]', 'null', '\"\"')"),
                 text("""(
-                    result->>'files' IS NOT NULL OR
-                    result->>'url' IS NOT NULL OR
-                    result->>'urls' IS NOT NULL OR
-                    result->>'imageUrls' IS NOT NULL OR
-                    result->>'image_urls' IS NOT NULL OR
-                    result->>'output' IS NOT NULL OR
-                    result->>'outputs' IS NOT NULL OR
-                    result->>'previewUrl' IS NOT NULL OR
-                    result->>'preview_url' IS NOT NULL OR
-                    result->>'thumbnailUrl' IS NOT NULL OR
-                    result->>'thumbnail_url' IS NOT NULL OR
-                    result->>'previewUrls' IS NOT NULL OR
-                    result->>'thumbnailUrls' IS NOT NULL
+                    tasks.result->>'files' IS NOT NULL OR
+                    tasks.result->>'url' IS NOT NULL OR
+                    tasks.result->>'urls' IS NOT NULL OR
+                    tasks.result->>'imageUrls' IS NOT NULL OR
+                    tasks.result->>'image_urls' IS NOT NULL OR
+                    tasks.result->>'output' IS NOT NULL OR
+                    tasks.result->>'outputs' IS NOT NULL OR
+                    tasks.result->>'previewUrl' IS NOT NULL OR
+                    tasks.result->>'preview_url' IS NOT NULL OR
+                    tasks.result->>'thumbnailUrl' IS NOT NULL OR
+                    tasks.result->>'thumbnail_url' IS NOT NULL OR
+                    tasks.result->>'previewUrls' IS NOT NULL OR
+                    tasks.result->>'thumbnailUrls' IS NOT NULL
                 )""")
             )
 
@@ -417,14 +417,26 @@ class TaskManager:
         if status:
             query = query.filter(Tasks.status == status)
 
-        # completed 任务必须有可展示媒体结果（SQL 层过滤）
+        # completed 任务必须有可展示媒体结果（SQL 层过滤，与 get_tasks_flexible 保持一致）
         if status == "completed":
             query = query.filter(
                 Tasks.result.isnot(None),
-                text("result != '{}'"),
-                text("result != '[]'"),
-                text("result != 'null'"),
-                ~text("result::text LIKE '%\"files\":[]%'")
+                text("tasks.result::text NOT IN ('{}', '[]', 'null', '\"\"')"),
+                text("""(
+                    tasks.result->>'files' IS NOT NULL OR
+                    tasks.result->>'url' IS NOT NULL OR
+                    tasks.result->>'urls' IS NOT NULL OR
+                    tasks.result->>'imageUrls' IS NOT NULL OR
+                    tasks.result->>'image_urls' IS NOT NULL OR
+                    tasks.result->>'output' IS NOT NULL OR
+                    tasks.result->>'outputs' IS NOT NULL OR
+                    tasks.result->>'previewUrl' IS NOT NULL OR
+                    tasks.result->>'preview_url' IS NOT NULL OR
+                    tasks.result->>'thumbnailUrl' IS NOT NULL OR
+                    tasks.result->>'thumbnail_url' IS NOT NULL OR
+                    tasks.result->>'previewUrls' IS NOT NULL OR
+                    tasks.result->>'thumbnailUrls' IS NOT NULL
+                )""")
             )
 
         return query.count()
