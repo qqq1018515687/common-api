@@ -35,7 +35,12 @@ class InputData(BaseModel):
     # 任务时间范围查询字段
     start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒，13位整数）")
     end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒，13位整数）")
+    before_time: Optional[int] = Field(default=None, description="游标分页：查询早于该时间戳的记录（毫秒）")
+    status: Optional[str] = Field(default=None, description="任务状态筛选（list_tasks 使用）")
+    status: Optional[str] = Field(default=None, description="任务状态筛选（list_tasks 使用）")
     before_time: Optional[int] = Field(default=None, description="游标分页：查询早于该时间戳的记录（毫秒，13位整数）")
+    status: Optional[str] = Field(default=None, description="任务状态筛选（list_tasks 使用）")
+    days: Optional[int] = Field(default=None, description="查询最近N天的数据（list_tasks 使用）")
 
     # 任务管理相关字段
     task_id: Optional[str] = Field(default=None, description="任务ID（update_task/delete_task 使用）")

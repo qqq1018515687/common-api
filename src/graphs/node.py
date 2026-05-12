@@ -230,6 +230,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         start_time=input_data.start_time if input_data else None,
         end_time=input_data.end_time if input_data else None,
         before_time=input_data.before_time if input_data else None,
+        status=input_data.status if input_data else None,
         # 任务管理相关字段
         task_id=input_data.task_id if input_data else None,
         task_data=input_data.task_data if input_data else None,
@@ -1277,45 +1278,25 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
             # 游标分页参数
             before_time = state.before_time
 
-            # 查询任务列表（多查1条用于判断是否有更多数据）
-            tasks = task_mgr.get_tasks_flexible(
+            # 过-fetch 任务用于 Python 层过滤媒体结果
+            # 由于 completed 任务可能被过滤掉，需要多查一些数据以保证分页准确
+            overfetch_limit = min(limit * 3, 2000)
+
+            # 查询任务列表
+            raw_tasks = task_mgr.get_tasks_flexible(
                 db,
                 user_id=state.user_id,
                 team_id=state.team_id,
                 status=state.status,
                 start_time=start_time,
                 end_time=end_time,
-                limit=limit + 1,
+                limit=overfetch_limit,
                 before_time=before_time
-            )
-
-            # 判断是否有更多数据
-            has_more = len(tasks) > limit
-            if has_more:
-                tasks = tasks[:limit]  # 截断多余的那条
-
-            # 计算 next_before_time：当前页最后一条记录的 created_at
-            next_before_time = None
-            if has_more and tasks:
-                last_task = tasks[-1][0]  # tasks 是 (Task, username) 元组列表
-                try:
-                    next_before_time = int(last_task.created_at)
-                except (ValueError, TypeError):
-                    next_before_time = None
-
-            # 获取总数（不含 before_time 限制，用于前端展示总记录数）
-            total = task_mgr.count_tasks_flexible(
-                db,
-                user_id=state.user_id,
-                team_id=state.team_id,
-                status=state.status,
-                start_time=start_time,
-                end_time=end_time
             )
 
             # 转换为可序列化的字典列表，过滤无媒体结果的 completed 任务
             task_list = []
-            for task, username in tasks:
+            for task, username in raw_tasks:
                 task_dict = {
                     "id": task.id,
                     "user_id": task.user_id,
@@ -1346,14 +1327,62 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                         # 检查 result 中是否有图片/视频/音频 URL
                         files = result_data.get("files")
                         if isinstance(files, list) and len(files) > 0:
-                            has_media = True
+                            # files 中至少有一个条目包含 url 或 file_url
+                            for f in files:
+                                if isinstance(f, dict) and (f.get("url") or f.get("file_url")):
+                                    has_media = True
+                                    break
+                            if not has_media and len(files) > 0:
+                                has_media = True
                         elif result_data.get("url") or result_data.get("image_url") or result_data.get("video_url") or result_data.get("audio_url"):
                             has_media = True
-                        elif result_data.get("thumbnailUrl") or result_data.get("preview_url"):
+                        elif result_data.get("thumbnailUrl") or result_data.get("previewUrl") or result_data.get("thumbnail_url") or result_data.get("preview_url"):
+                            has_media = True
+                        # 检查 images 数组
+                        images = result_data.get("images")
+                        if isinstance(images, list) and len(images) > 0:
                             has_media = True
                     if not has_media:
                         continue
                 task_list.append(task_dict)
+
+            # 精确计算符合媒体过滤条件的总数
+            total = task_mgr.count_tasks_flexible(
+                db,
+                user_id=state.user_id,
+                team_id=state.team_id,
+                status=state.status,
+                start_time=start_time,
+                end_time=end_time
+            )
+
+            # 如果是 completed 状态查询，用 SQL 精确统计有媒体结果的任务数
+            if state.status == "completed":
+                try:
+                    media_total = task_mgr.count_tasks_with_media(
+                        db,
+                        user_id=state.user_id,
+                        team_id=state.team_id,
+                        start_time=start_time,
+                        end_time=end_time,
+                        before_time=before_time
+                    )
+                    total = media_total
+                except Exception as e:
+                    logging.getLogger(__name__).warning(f"count_tasks_with_media failed: {e}")
+
+            # 分页：从过滤后的列表中截取当前页
+            has_more = len(task_list) > limit
+            if has_more:
+                task_list = task_list[:limit]
+
+            # 计算 next_before_time：当前页最后一条记录的 created_at
+            next_before_time = None
+            if task_list:
+                try:
+                    next_before_time = int(task_list[-1]["created_at"])
+                except (ValueError, TypeError):
+                    next_before_time = None
 
             return ListTasksOutput(result={
                 "success": True,

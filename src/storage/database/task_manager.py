@@ -327,6 +327,65 @@ class TaskManager:
         if status:
             query = query.filter(Tasks.status == status)
 
+        # 游标分页：统计早于该时间戳的记录
+        if before_time is not None:
+            query = query.filter(Tasks.created_at < str(before_time))
+
+        return query.count()
+
+    def count_tasks_with_media(
+        self,
+        db: Session,
+        user_id: Optional[str] = None,
+        team_id: Optional[str] = None,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
+        before_time: Optional[int] = None
+    ) -> int:
+        """统计有可展示媒体结果的 completed 任务数量（与前端展示逻辑一致）"""
+        from sqlalchemy import func, text
+
+        query = db.query(Tasks).filter(
+            Tasks.is_deleted == False,
+            Tasks.status == "completed"
+        )
+
+        # 用户/团队筛选
+        if team_id:
+            query = query.filter(Tasks.team_id == team_id)
+        elif user_id:
+            query = query.filter(Tasks.user_id == user_id)
+        else:
+            return 0
+
+        # 时间范围筛选
+        if start_time is not None:
+            query = query.filter(Tasks.created_at >= str(start_time))
+        if end_time is not None:
+            query = query.filter(Tasks.created_at <= str(end_time))
+
+        # 游标分页：统计早于该时间戳的记录
+        if before_time is not None:
+            query = query.filter(Tasks.created_at < str(before_time))
+
+        # 媒体结果过滤：result IS NOT NULL 且 result 包含可展示的媒体 URL
+        # 使用 PostgreSQL JSON 查询，匹配以下任一条件：
+        # 1. result->'files' 是非空数组
+        # 2. result->'images' 是非空数组
+        # 3. result 有 url/image_url/video_url/audio_url/thumbnailUrl/previewUrl/thumbnail_url/preview_url 键
+        media_filter = text("""
+            (result IS NOT NULL
+             AND CAST(result AS text) != 'null'
+             AND CAST(result AS text) != '{}'
+             AND (
+                 (result::jsonb->'files' IS NOT NULL AND jsonb_array_length(result::jsonb->'files') > 0)
+                 OR (result::jsonb->'images' IS NOT NULL AND jsonb_array_length(result::jsonb->'images') > 0)
+                 OR result::jsonb?'url' OR result::jsonb?'image_url' OR result::jsonb?'video_url' OR result::jsonb?'audio_url'
+                 OR result::jsonb?'thumbnailUrl' OR result::jsonb?'previewUrl' OR result::jsonb?'thumbnail_url' OR result::jsonb?'preview_url'
+             ))
+        """)
+        query = query.filter(media_filter)
+
         return query.count()
 
     def count_tasks_flexible(
