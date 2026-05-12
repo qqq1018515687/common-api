@@ -1324,7 +1324,7 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 end_time=end_time
             )
 
-            # 转换为可序列化的字典列表，过滤无媒体结果的 completed 任务
+            # 转换为可序列化的字典列表（媒体过滤已在 SQL 层完成）
             task_list = []
             for task, username in tasks:
                 task_dict = {
@@ -1349,26 +1349,6 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "connection_mode": task.connection_mode,
                     "is_deleted": task.is_deleted
                 }
-                # 过滤：completed 任务必须有媒体结果才展示
-                if task.status == "completed":
-                    try:
-                        from utils.thumbnail import has_media_result
-                        if not has_media_result(task.result):
-                            continue
-                    except Exception:
-                        # has_media_result 失败时退回原逻辑
-                        result_data = task.result
-                        has_media = False
-                        if isinstance(result_data, dict):
-                            files = result_data.get("files")
-                            if isinstance(files, list) and len(files) > 0:
-                                has_media = True
-                            elif result_data.get("url") or result_data.get("image_url") or result_data.get("video_url") or result_data.get("audio_url"):
-                                has_media = True
-                            elif result_data.get("thumbnailUrl") or result_data.get("preview_url"):
-                                has_media = True
-                        if not has_media:
-                            continue
                 task_list.append(task_dict)
 
             return ListTasksOutput(result={
