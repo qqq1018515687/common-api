@@ -1369,7 +1369,8 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     )
                     total = media_total
                 except Exception as e:
-                    total = f"MEDIA_COUNT_ERROR: {type(e).__name__}: {e}"                    import sys
+                    # 临时调试：把错误信息放到 response 里
+                    error_debug_info = f"MEDIA_COUNT_ERROR: {type(e).__name__}: {e}"                    import sys
                     total = f"ERROR: {e}"
 
             # 分页：从过滤后的列表中截取当前页
@@ -1393,7 +1394,8 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 "limit": limit,
                 "days": days,
                 "has_more": has_more,
-                "next_before_time": next_before_time
+                "next_before_time": next_before_time,
+                "debug": error_debug_info if 'error_debug_info' in dir() else None
             })
 
         finally:
