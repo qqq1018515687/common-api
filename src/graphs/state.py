@@ -421,6 +421,7 @@ class ListTasksInput(BaseModel):
     status: Optional[str] = Field(default=None, description="任务状态筛选")
     days: Optional[int] = Field(default=30, description="查询最近N天的数据（默认30天）")
     limit: Optional[int] = Field(default=50, description="返回数量限制（默认50，最大1000）")
+    before_time: Optional[int] = Field(default=None, description="游标分页：查询早于该时间戳的记录（毫秒，13位整数）")
 
 
 class ListTasksOutput(BaseModel):

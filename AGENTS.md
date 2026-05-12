@@ -145,7 +145,7 @@ VALUES ('{10位随机数字}', '{姓名}', '{bcrypt哈希}', '{手机号}', 'Mar
 | create_task | node.py | task | 创建任务 | - | - |
 | update_task | node.py | task | 更新任务 | - | - |
 | delete_task | node.py | task | 删除任务 | - | - |
-| list_tasks | node.py | task | 查询任务列表 | - | - |
+| list_tasks | node.py | task | 查询任务列表（支持游标分页，过滤无媒体结果） | - | - |
 | check_need_tags | nodes/check_need_tags_node.py | task | 检查是否需要生成标签 | 需要标签→image_tagging, 不需要→format_response | - |
 | image_tagging | nodes/image_tagging_node.py | agent | 图像标签生成（场景标签+产品标签） | - | config/image_tagging_cfg.json |
 | save_image_tags | nodes/save_image_tags_node.py | task | 保存图像标签到数据库 | - | - |

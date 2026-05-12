@@ -29,6 +29,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from coze_coding_dev_sdk import LLMClient
 from jinja2 import Template
 import json
+import time
 from typing import Optional, List
 from datetime import datetime
 
@@ -1220,7 +1221,7 @@ def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Ru
 def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runtime[Context]) -> ListTasksOutput:
     """
     title: 查询任务列表
-    desc: 根据用户ID、团队ID查询任务列表，支持状态筛选和时间范围（仅限注册用户）。
+    desc: 根据用户ID、团队ID查询任务列表，支持状态筛选、时间范围和游标分页（仅限注册用户）。
           查询规则：
           - 只提供 user_id：查询该用户的所有任务
           - 同时提供 user_id 和 team_id：查询该团队的所有任务（包含团队所有成员的任务）
@@ -1228,9 +1229,10 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
           - 查询团队任务时需要同时提供 user_id 用于权限验证
           - days 参数指定查询最近N天的数据，默认30天
           - limit 参数指定返回数量，默认50，最大1000
+          - before_time 参数用于游标分页，查询早于该时间戳的记录
+          - 返回 has_more 表示是否还有更多数据，next_before_time 用于翻页
     integrations: 数据库
     """
-    import time
     ctx = runtime.context
 
     # 至少需要 user_id 或 team_id 其中之一
@@ -1272,7 +1274,10 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
             # 返回数量限制
             limit = min(state.limit or 50, 1000)  # 最大1000
 
-            # 查询任务列表
+            # 游标分页参数
+            before_time = state.before_time
+
+            # 查询任务列表（多查1条用于判断是否有更多数据）
             tasks = task_mgr.get_tasks_flexible(
                 db,
                 user_id=state.user_id,
@@ -1280,10 +1285,25 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 status=state.status,
                 start_time=start_time,
                 end_time=end_time,
-                limit=limit
+                limit=limit + 1,
+                before_time=before_time
             )
 
-            # 获取总数
+            # 判断是否有更多数据
+            has_more = len(tasks) > limit
+            if has_more:
+                tasks = tasks[:limit]  # 截断多余的那条
+
+            # 计算 next_before_time：当前页最后一条记录的 created_at
+            next_before_time = None
+            if has_more and tasks:
+                last_task = tasks[-1][0]  # tasks 是 (Task, username) 元组列表
+                try:
+                    next_before_time = int(last_task.created_at)
+                except (ValueError, TypeError):
+                    next_before_time = None
+
+            # 获取总数（不含 before_time 限制，用于前端展示总记录数）
             total = task_mgr.count_tasks_flexible(
                 db,
                 user_id=state.user_id,
@@ -1293,10 +1313,10 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 end_time=end_time
             )
 
-            # 转换为可序列化的字典列表
+            # 转换为可序列化的字典列表，过滤无媒体结果的 completed 任务
             task_list = []
             for task, username in tasks:
-                task_list.append({
+                task_dict = {
                     "id": task.id,
                     "user_id": task.user_id,
                     "username": username,
@@ -1317,7 +1337,23 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "batch_id": task.batch_id,
                     "connection_mode": task.connection_mode,
                     "is_deleted": task.is_deleted
-                })
+                }
+                # 过滤：completed 任务必须有媒体结果才展示
+                if task.status == "completed":
+                    result_data = task.result
+                    has_media = False
+                    if isinstance(result_data, dict):
+                        # 检查 result 中是否有图片/视频/音频 URL
+                        files = result_data.get("files")
+                        if isinstance(files, list) and len(files) > 0:
+                            has_media = True
+                        elif result_data.get("url") or result_data.get("image_url") or result_data.get("video_url") or result_data.get("audio_url"):
+                            has_media = True
+                        elif result_data.get("thumbnailUrl") or result_data.get("preview_url"):
+                            has_media = True
+                    if not has_media:
+                        continue
+                task_list.append(task_dict)
 
             return ListTasksOutput(result={
                 "success": True,
@@ -1325,7 +1361,9 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 "tasks": task_list,
                 "total": total,
                 "limit": limit,
-                "days": days
+                "days": days,
+                "has_more": has_more,
+                "next_before_time": next_before_time
             })
 
         finally:

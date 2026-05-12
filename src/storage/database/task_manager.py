@@ -122,6 +122,10 @@ class TaskManager:
         if end_time is not None:
             query = query.filter(Tasks.created_at <= str(end_time))
 
+        # 游标分页：统计早于 before_time 的记录
+        if before_time is not None:
+            query = query.filter(Tasks.created_at < str(before_time))
+
         # 状态筛选
         if status:
             query = query.filter(Tasks.status == status)
@@ -143,6 +147,7 @@ class TaskManager:
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
         limit: int = 50,
+        before_time: Optional[int] = None,
     ) -> List[tuple]:
         """灵活查询任务列表
 
@@ -154,6 +159,7 @@ class TaskManager:
             start_time: 查询开始时间戳（毫秒，可选）
             end_time: 查询结束时间戳（毫秒，可选）
             limit: 返回数量限制（默认50，最大1000）
+            before_time: 游标分页，查询早于该时间戳的记录（毫秒，可选）
 
         Returns:
             任务列表（按 created_at DESC 排序），每个元素是 (Task, username) 元组
@@ -184,6 +190,10 @@ class TaskManager:
             query = query.filter(Tasks.created_at >= str(start_time))
         if end_time is not None:
             query = query.filter(Tasks.created_at <= str(end_time))
+
+        # 游标分页：查询早于 before_time 的记录
+        if before_time is not None:
+            query = query.filter(Tasks.created_at < str(before_time))
 
         # 状态筛选
         if status:
@@ -326,7 +336,8 @@ class TaskManager:
         team_id: Optional[str] = None,
         status: Optional[str] = None,
         start_time: Optional[int] = None,
-        end_time: Optional[int] = None
+        end_time: Optional[int] = None,
+        before_time: Optional[int] = None
     ) -> int:
         """灵活统计任务数量（支持按用户ID、团队ID或两者统计）
 
@@ -337,6 +348,7 @@ class TaskManager:
             status: 任务状态筛选（可选）
             start_time: 查询开始时间戳（毫秒，可选）
             end_time: 查询结束时间戳（毫秒，可选）
+            before_time: 游标分页，统计早于该时间戳的记录（毫秒，可选）
 
         Returns:
             任务数量
