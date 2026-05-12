@@ -143,7 +143,7 @@ VALUES ('{10位随机数字}', '{姓名}', '{bcrypt哈希}', '{手机号}', 'Mar
 | upload | node.py | task | 文件上传 | - | - |
 | save | node.py | task | 保存历史记录 | - | - |
 | create_task | node.py | task | 创建任务 | - | - |
-| update_task | node.py | task | 更新任务 | - | - |
+| update_task | node.py | task | 更新任务（completed 时自动生成缩略图写入 result.previewUrl） | - | - |
 | delete_task | node.py | task | 删除任务 | - | - |
 | list_tasks | node.py | task | 查询任务列表（支持游标分页，过滤无媒体结果） | - | - |
 | check_need_tags | nodes/check_need_tags_node.py | task | 检查是否需要生成标签 | 需要标签→image_tagging, 不需要→format_response | - |
@@ -165,6 +165,7 @@ VALUES ('{10位随机数字}', '{姓名}', '{bcrypt哈希}', '{手机号}', 'Mar
 - 节点 `check_rate_limit`, `update_rate_limit`, `register_with_limit`, `get_user`, `update_user`, `delete_user`, `list_users`, `save`, `upload`, `create_task`, `update_task`, `delete_task`, `list_tasks` 使用数据库集成
 - 节点 `system_notification_handler` 使用数据库集成（系统通知表）
 - 节点 `team_init`, `team_manage`, `team_recharge`, `team_deduct`, `team_refund`, `team_records` 使用数据库集成（团队余额表）
+- 节点 `update_task` 使用对象存储集成（缩略图上传，StorageManager THUMBNAIL 分类）
 - 节点 `upload`, `save`, `update_user` 使用对象存储集成（使用 StorageManager 自动分类管理）
 - 节点 `reverse_image`, `translate_doubao`, `prompt_enhance` 使用大语言模型集成
 - 节点 `runninghub_error_analysis` 使用大语言模型集成
