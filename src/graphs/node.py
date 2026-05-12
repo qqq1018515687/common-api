@@ -1370,6 +1370,9 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     total = media_total
                 except Exception as e:
                     logging.getLogger(__name__).warning(f"count_tasks_with_media failed: {e}")
+                    # 临时：把错误信息放到返回里方便调试
+                    import sys
+                    total = f"ERROR: {e}"
 
             # 分页：从过滤后的列表中截取当前页
             has_more = len(task_list) > limit
