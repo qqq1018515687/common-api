@@ -1346,8 +1346,6 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                         continue
                 task_list.append(task_dict)
 
-            debug_count_result = "not_entered"
-            debug_status_value = repr(state.status)
             # 精确计算符合媒体过滤条件的总数
             total = task_mgr.count_tasks_flexible(
                 db,
@@ -1357,7 +1355,6 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 start_time=start_time,
                 end_time=end_time
             )
-            debug_count_result = f"flexible={total}"
 
             # 如果是 completed 状态查询，用 SQL 精确统计有媒体结果的任务数
             if state.status == "completed":
@@ -1370,10 +1367,8 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                         end_time=end_time,
                         before_time=before_time
                     )
-                    debug_count_result += f",media={media_total}"
                     total = media_total
                 except Exception as e:
-                    debug_count_result += f",error={e}"
                     logging.getLogger(__name__).warning(f"count_tasks_with_media failed: {e}")
 
             # 分页：从过滤后的列表中截取当前页
@@ -1397,11 +1392,7 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 "limit": limit,
                 "days": days,
                 "has_more": has_more,
-                "next_before_time": next_before_time,
-                "_debug_start_time": start_time,
-                "_debug_end_time": end_time,
-                "_debug_count_result": debug_count_result,
-                "_debug_status": debug_status_value
+                "next_before_time": next_before_time
             })
 
         finally:
