@@ -251,7 +251,12 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         reason=input_data.reason if input_data else None,
         filter_user_id=input_data.filter_user_id if input_data else None,
         # RunningHub 错误分析相关字段
-        error_response=input_data.error_response if input_data else None
+        error_response=input_data.error_response if input_data else None,
+        # Billing 资金扣费相关字段
+        credit_type=input_data.credit_type if input_data else None,
+        idempotency_key=input_data.idempotency_key if input_data else None,
+        service_secret=input_data.service_secret if input_data else None,
+        final_amount=input_data.final_amount if input_data else None,
     )
 
 from storage.s3.s3_storage import S3SyncStorage

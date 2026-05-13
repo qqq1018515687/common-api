@@ -70,6 +70,13 @@ class InputData(BaseModel):
     # RunningHub 错误分析相关字段
     error_response: Optional[dict] = Field(default=None, description="RunningHub 错误响应数据（runninghub_error_analysis 使用）")
 
+    # Billing 资金扣费相关字段
+    credit_type: Optional[str] = Field(default=None, description="资金类型：personal_gold/personal_silver/team_gold")
+    idempotency_key: Optional[str] = Field(default=None, description="幂等键（deduct/refund/settle 必传）")
+    service_secret: Optional[str] = Field(default=None, description="服务密钥（billing 操作必传）")
+    original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID（refund/settle 使用）")
+    final_amount: Optional[int] = Field(default=None, description="结算金额（settle 使用）")
+
 
 class GlobalState(BaseModel):
     """全局状态定义"""
@@ -134,6 +141,13 @@ class GlobalState(BaseModel):
 
     # RunningHub 错误分析相关字段
     error_response: Optional[dict] = Field(default=None, description="RunningHub 错误响应数据")
+
+    # Billing 资金扣费相关字段
+    credit_type: Optional[str] = Field(default=None, description="资金类型：personal_gold/personal_silver/team_gold")
+    idempotency_key: Optional[str] = Field(default=None, description="幂等键（deduct/refund/settle 必传）")
+    service_secret: Optional[str] = Field(default=None, description="服务密钥（billing 操作必传）")
+    original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID（refund/settle 使用）")
+    final_amount: Optional[int] = Field(default=None, description="结算金额（settle 使用）")
 
 
 class GraphInput(BaseModel):
@@ -223,8 +237,8 @@ class RegisterWithLimitOutput(BaseModel):
 # 查询用户节点（登录）
 class GetUserInput(BaseModel):
     """查询用户节点的输入"""
-    phone: str = Field(..., description="手机号")
-    password: str = Field(..., description="密码")
+    phone: Optional[str] = Field(default=None, description="手机号")
+    password: Optional[str] = Field(default=None, description="密码")
 
 
 class GetUserOutput(BaseModel):
@@ -500,12 +514,12 @@ class RouterInput(BaseModel):
 
 class OperationRouteInput(BaseModel):
     """操作路由节点的输入"""
-    operation_type: str = Field(..., description="操作类型")
+    operation_type: Optional[str] = Field(default=None, description="操作类型")
 
 
 class OperationRouteOutput(BaseModel):
     """操作路由节点的输出"""
-    operation_type: str = Field(..., description="操作类型")
+    operation_type: Optional[str] = Field(default=None, description="操作类型")
 
 
 # 数据解包节点
@@ -573,6 +587,13 @@ class UnpackInputDataOutput(BaseModel):
 
     # RunningHub 错误分析相关字段
     error_response: Optional[dict] = Field(default=None, description="RunningHub 错误响应数据")
+
+    # Billing 资金扣费相关字段
+    credit_type: Optional[str] = Field(default=None, description="资金类型：personal_gold/personal_silver/team_gold")
+    idempotency_key: Optional[str] = Field(default=None, description="幂等键")
+    service_secret: Optional[str] = Field(default=None, description="服务密钥")
+    original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID（refund/settle 使用）")
+    final_amount: Optional[int] = Field(default=None, description="结算金额（settle 使用）")
 
 
 # 工具路由节点
@@ -653,4 +674,89 @@ class RunningHubErrorAnalysisOutput(BaseModel):
     """RunningHub 错误分析节点的输出"""
     result: dict = Field(default={}, description="错误分析结果：包含用户友好的错误说明")
 
+
+# ============ Billing 资金扣费节点 ============
+
+class BillingRouteInput(BaseModel):
+    """Billing 路由节点的输入"""
+    operation_type: Optional[str] = Field(default=None, description="操作类型：get_balance/deduct/refund/settle")
+    user_id: Optional[str] = Field(default=None, description="用户ID")
+    credit_type: Optional[str] = Field(default=None, description="资金类型：personal_gold/personal_silver/team_gold")
+    amount: Optional[int] = Field(default=None, description="金额（deduct 使用）")
+    idempotency_key: Optional[str] = Field(default=None, description="幂等键（deduct/refund/settle 必传）")
+    service_secret: Optional[str] = Field(default=None, description="服务密钥（billing 操作必传）")
+    task_id: Optional[str] = Field(default=None, description="关联任务ID（deduct 可选）")
+    description: Optional[str] = Field(default=None, description="操作描述")
+    original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID（refund/settle 使用）")
+    final_amount: Optional[int] = Field(default=None, description="结算金额（settle 使用）")
+
+
+class BillingRouteOutput(BaseModel):
+    """Billing 路由节点的输出"""
+    operation_type: str = Field(..., description="操作类型")
+    user_id: Optional[str] = Field(default=None, description="用户ID")
+    credit_type: Optional[str] = Field(default=None, description="资金类型")
+    amount: Optional[int] = Field(default=None, description="金额")
+    idempotency_key: Optional[str] = Field(default=None, description="幂等键")
+    service_secret: Optional[str] = Field(default=None, description="服务密钥")
+    task_id: Optional[str] = Field(default=None, description="关联任务ID")
+    description: Optional[str] = Field(default=None, description="操作描述")
+    original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID")
+    final_amount: Optional[int] = Field(default=None, description="结算金额")
+
+
+class GetBalanceInput(BaseModel):
+    """查询余额节点的输入"""
+    user_id: str = Field(..., description="用户ID")
+
+
+class GetBalanceOutput(BaseModel):
+    """查询余额节点的输出"""
+    response_data: dict = Field(default={}, description="统一响应数据")
+
+
+class BillingDeductInput(BaseModel):
+    """扣费节点的输入"""
+    user_id: Optional[str] = Field(default=None, description="用户ID")
+    credit_type: Optional[str] = Field(default=None, description="资金类型：personal_gold/personal_silver/team_gold")
+    amount: Optional[int] = Field(default=None, description="扣费金额")
+    idempotency_key: Optional[str] = Field(default=None, description="幂等键")
+    service_secret: Optional[str] = Field(default=None, description="服务密钥")
+    task_id: Optional[str] = Field(default=None, description="关联任务ID")
+    description: Optional[str] = Field(default=None, description="操作描述")
+
+
+class BillingDeductOutput(BaseModel):
+    """扣费节点的输出"""
+    response_data: dict = Field(default={}, description="统一响应数据")
+
+
+class BillingRefundInput(BaseModel):
+    """退款节点的输入"""
+    user_id: Optional[str] = Field(default=None, description="用户ID")
+    original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID")
+    idempotency_key: Optional[str] = Field(default=None, description="幂等键")
+    service_secret: Optional[str] = Field(default=None, description="服务密钥")
+    amount: Optional[int] = Field(default=None, description="退款金额（不传则全额退款）")
+    description: Optional[str] = Field(default=None, description="退款描述")
+
+
+class BillingRefundOutput(BaseModel):
+    """退款节点的输出"""
+    response_data: dict = Field(default={}, description="统一响应数据")
+
+
+class BillingSettleInput(BaseModel):
+    """结算节点的输入"""
+    user_id: Optional[str] = Field(default=None, description="用户ID")
+    original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID")
+    final_amount: Optional[int] = Field(default=None, description="最终结算金额")
+    idempotency_key: Optional[str] = Field(default=None, description="幂等键")
+    service_secret: Optional[str] = Field(default=None, description="服务密钥")
+    description: Optional[str] = Field(default=None, description="结算描述")
+
+
+class BillingSettleOutput(BaseModel):
+    """结算节点的输出"""
+    response_data: dict = Field(default={}, description="统一响应数据")
 

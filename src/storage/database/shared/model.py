@@ -216,6 +216,36 @@ class Teams(Base):
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
 
 
+class BillingRecords(Base):
+    __tablename__ = 'billing_records'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='billing_records_pkey'),
+        UniqueConstraint('idempotency_key', name='billing_records_idempotency_key'),
+        Index('ix_billing_records_user_id', 'user_id'),
+        Index('ix_billing_records_team_id', 'team_id'),
+        Index('ix_billing_records_operation_type', 'operation_type'),
+        Index('ix_billing_records_related_id', 'related_id'),
+        Index('ix_billing_records_created_at', 'created_at'),
+        {'comment': '资金扣费记录表，支持幂等性、原子扣减、退款和结算'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='主键，UUID格式')
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, comment='幂等键，同一 key 只执行一次')
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='用户ID')
+    team_id: Mapped[Optional[str]] = mapped_column(String(64), comment='团队ID（team_gold 操作时必填）')
+    operation_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='操作类型：deduct/refund/settle')
+    credit_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='资金类型：personal_gold/personal_silver/team_gold')
+    amount: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='操作金额（正数）')
+    balance_before: Mapped[Optional[int]] = mapped_column(BigInteger, comment='操作前余额')
+    balance_after: Mapped[Optional[int]] = mapped_column(BigInteger, comment='操作后余额')
+    related_id: Mapped[Optional[str]] = mapped_column(String(64), comment='关联记录ID（退款/结算关联原扣费记录）')
+    task_id: Mapped[Optional[str]] = mapped_column(String(36), comment='关联任务ID')
+    description: Mapped[Optional[str]] = mapped_column(String(255), comment='描述')
+    extra_data: Mapped[Optional[dict]] = mapped_column(JSON, comment='扩展信息')
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'completed'"), comment='状态：completed/failed')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+
+
 class TeamConsumptionRecords(Base):
     __tablename__ = 'team_consumption_records'
     __table_args__ = (

@@ -67,6 +67,11 @@ from graphs.nodes.team_deduct_node import team_deduct_node
 from graphs.nodes.team_refund_node import team_refund_node
 from graphs.nodes.team_records_node import team_records_node
 from graphs.nodes.runninghub_error_analysis_node import runninghub_error_analysis_node
+from graphs.nodes.billing_route_node import billing_route_node, route_by_billing_operation_type
+from graphs.nodes.get_balance_node import get_balance_node
+from graphs.nodes.billing_deduct_node import billing_deduct_node
+from graphs.nodes.billing_refund_node import billing_refund_node
+from graphs.nodes.billing_settle_node import billing_settle_node
 
 
 def route_by_call_type(state: RouterOutput) -> str:
@@ -82,7 +87,7 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "文件上传"
     elif call_type == "save":
         return "保存历史"
-    elif call_type == "task_management" or call_type == "user_task_management":
+    elif call_type == "task_management" or call_type == "user_task_management" or call_type == "list_tasks":
         return "任务管理"
     elif call_type == "tool":
         return "工具中心"
@@ -92,6 +97,8 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "团队余额"
     elif call_type == "runninghub_error_analysis":
         return "RunningHub错误分析"
+    elif call_type == "billing":
+        return "资金扣费"
     else:
         return "账号管理"  # 默认
 
@@ -167,6 +174,11 @@ builder.add_node("team_deduct", team_deduct_node)
 builder.add_node("team_refund", team_refund_node)
 builder.add_node("team_records", team_records_node)
 builder.add_node("runninghub_error_analysis", runninghub_error_analysis_node, metadata={"type": "agent", "llm_cfg": "config/runninghub_error_analysis_cfg.json"})
+builder.add_node("billing_route", billing_route_node)
+builder.add_node("get_balance", get_balance_node)
+builder.add_node("billing_deduct", billing_deduct_node)
+builder.add_node("billing_refund", billing_refund_node)
+builder.add_node("billing_settle", billing_settle_node)
 
 # 设置入口点（先解包数据）
 builder.set_entry_point("unpack_input_data")
@@ -186,7 +198,8 @@ builder.add_conditional_edges(
         "工具中心": "tool_route",
         "通知管理": "system_notification_handler",
         "团队余额": "team_route",  # 路由到团队余额路由节点
-        "RunningHub错误分析": "runninghub_error_analysis"
+        "RunningHub错误分析": "runninghub_error_analysis",
+        "资金扣费": "billing_route"
     }
 )
 
@@ -241,6 +254,18 @@ builder.add_conditional_edges(
         "团队退款": "team_refund",
         "消费记录": "team_records"
     }
+    )
+
+# 添加资金扣费二级条件分支
+builder.add_conditional_edges(
+    source="billing_route",
+    path=route_by_billing_operation_type,
+    path_map={
+        "查询余额": "get_balance",
+        "扣费": "billing_deduct",
+        "退款": "billing_refund",
+        "结算": "billing_settle"
+    }
 )
 
 # 各业务分支汇聚到统一返回节点
@@ -269,6 +294,10 @@ builder.add_edge("team_deduct", "format_response")
 builder.add_edge("team_refund", "format_response")
 builder.add_edge("team_records", "format_response")
 builder.add_edge("runninghub_error_analysis", "format_response")
+builder.add_edge("get_balance", "format_response")
+builder.add_edge("billing_deduct", "format_response")
+builder.add_edge("billing_refund", "format_response")
+builder.add_edge("billing_settle", "format_response")
 
 # ============ 图像标签生成流程（暂时禁用）============
 # 启用图像自动打标时，取消下面的注释，并注释掉上面的 `builder.add_edge("update_task", "format_response")`
