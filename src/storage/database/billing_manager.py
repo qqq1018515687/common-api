@@ -13,6 +13,51 @@ logger = logging.getLogger(__name__)
 
 # 常量定义
 SERVICE_SECRET = os.getenv("BILLING_SERVICE_SECRET", "")
+
+
+def _build_consumption_title(billing_metadata: Optional[Dict[str, Any]]) -> str:
+    """
+    从 billing_metadata 构建团队消费记录标题
+    优先级：title → workflow_name + model_display_name → "团队消费扣费"
+    """
+    if not billing_metadata:
+        return "团队消费扣费"
+
+    # 优先使用 title
+    title = billing_metadata.get("title")
+    if title and isinstance(title, str) and title.strip():
+        return title.strip()
+
+    # fallback: workflow_name + model_display_name
+    workflow_name = billing_metadata.get("workflow_name")
+    model_display_name = billing_metadata.get("model_display_name")
+    parts: list = []
+    if workflow_name and isinstance(workflow_name, str) and workflow_name.strip():
+        parts.append(workflow_name.strip())
+    if model_display_name and isinstance(model_display_name, str) and model_display_name.strip():
+        parts.append(model_display_name.strip())
+    if parts:
+        return " · ".join(parts)
+
+    # 最终 fallback
+    return "团队消费扣费"
+
+
+def _extract_team_record_metadata(billing_metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """从 billing_metadata 提取需要存入 team_consumption_records.metadata 的字段"""
+    if not billing_metadata:
+        return {}
+    keys_to_extract = [
+        "task_id", "billing_task_id", "workflow", "workflow_id",
+        "workflow_name", "model_key", "model_display_name",
+        "source", "task_type", "currency", "number",
+    ]
+    result: Dict[str, Any] = {}
+    for key in keys_to_extract:
+        value = billing_metadata.get(key)
+        if value is not None:
+            result[key] = value
+    return result
 PERSONAL_SILVER_MIN = -50  # 银豆最低余额
 
 # 错误码
@@ -177,6 +222,7 @@ def deduct(
     task_id: Optional[str] = None,
     description: Optional[str] = None,
     extra_data: Optional[Dict[str, Any]] = None,
+    billing_metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     原子扣费
@@ -184,6 +230,7 @@ def deduct(
     - personal_silver: 最低到 -50
     - team_gold: 不能扣成负数，需同步写入 team_consumption_records
     - 幂等性：通过 idempotency_key 唯一约束保证
+    - billing_metadata: main 透传的元数据，用于生成团队消费记录标题
     """
     # 参数校验
     if not service_secret or not verify_service_secret(service_secret):
@@ -278,6 +325,8 @@ def deduct(
 
             # 同步写入 team_consumption_records
             consumption_record_id = str(uuid.uuid4())
+            consumption_title = _build_consumption_title(billing_metadata)
+            consumption_extra_data = _extract_team_record_metadata(billing_metadata)
             consumption_record = TeamConsumptionRecords(
                 id=consumption_record_id,
                 team_id=user.team_id,
@@ -288,7 +337,8 @@ def deduct(
                 balance_after=balance_after,
                 operation_type="consumption",
                 related_id=record_id,
-                description=description or "团队消费扣费",
+                description=consumption_title,
+                extra_data=consumption_extra_data if consumption_extra_data else None,
             )
             db.add(consumption_record)
 
@@ -333,12 +383,14 @@ def refund(
     service_secret: str,
     amount: Optional[int] = None,
     description: Optional[str] = None,
+    billing_metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     退款：必须找到原始 deduct 记录，不能重复退款
     - 退全款（amount=None）或部分退款（amount 指定）
     - 幂等性：通过 idempotency_key 唯一约束保证
     - 同时检查是否已有针对同一 original_record_id 的退款
+    - billing_metadata: main 透传的元数据，用于生成团队退款记录标题
     """
     if not service_secret or not verify_service_secret(service_secret):
         return _make_error(UNAUTHORIZED, "service_secret 无效")
@@ -435,6 +487,8 @@ def refund(
 
             # 同步写入 team_consumption_records
             consumption_record_id = str(uuid.uuid4())
+            refund_title = description or _build_consumption_title(billing_metadata).replace("扣费", "退款").replace("消费", "退款") if billing_metadata else (description or "团队退款")
+            consumption_extra_data = _extract_team_record_metadata(billing_metadata)
             consumption_record = TeamConsumptionRecords(
                 id=consumption_record_id,
                 team_id=user.team_id,
@@ -445,7 +499,8 @@ def refund(
                 balance_after=balance_after,
                 operation_type="refund",
                 related_id=original_record_id,
-                description=description or "团队退款",
+                description=refund_title,
+                extra_data=consumption_extra_data if consumption_extra_data else None,
             )
             db.add(consumption_record)
 

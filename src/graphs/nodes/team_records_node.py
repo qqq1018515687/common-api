@@ -116,7 +116,8 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
                     "amount": r.amount,
                     "balance_after": r.balance_after,
                     "description": r.description,
-                    "created_at": int(r.created_at.timestamp() * 1000)
+                    "created_at": int(r.created_at.timestamp() * 1000),
+                    "extra_data": r.extra_data,
                 }
                 for r in records
             ]

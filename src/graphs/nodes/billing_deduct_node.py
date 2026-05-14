@@ -52,6 +52,7 @@ def billing_deduct_node(state: BillingDeductInput, config: RunnableConfig, runti
             service_secret=state.service_secret,
             task_id=state.task_id,
             description=state.description,
+            billing_metadata=state.billing_metadata,
         )
         return BillingDeductOutput(response_data=result)
 
