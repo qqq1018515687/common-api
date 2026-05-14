@@ -76,6 +76,20 @@ import re
 import uuid
 
 from storage.database.db import get_session
+import datetime as _dt
+
+
+def _to_epoch_ms(dt_val: _dt.datetime) -> int:
+    """将 datetime 安全转为 13 位毫秒时间戳（修复 +8h 时区偏移）。
+
+    PostgreSQL 时区为 Asia/Shanghai，但 created_at 列是 timestamp without time zone，
+    存储的是 +08 本地时间但没有时区标记。
+    修复：将 naive datetime 视为 Asia/Shanghai 本地时间，再转 UTC 算 epoch。
+    """
+    if dt_val.tzinfo is None:
+        tz_shanghai = _dt.timezone(_dt.timedelta(hours=8))
+        dt_val = dt_val.replace(tzinfo=tz_shanghai)
+    return int(dt_val.timestamp() * 1000)
 
 # 延迟导入以避免潜在的模块加载问题
 def _get_user_manager():
@@ -395,8 +409,8 @@ def create_user_node(state: CreateUserInput, config: RunnableConfig, runtime: Ru
             "role": db_user.role,
             "tier": db_user.tier,
             "account_status": db_user.account_status,
-            "created_at": int(db_user.created_at.timestamp() * 1000),
-            "updated_at": int(db_user.updated_at.timestamp() * 1000) if db_user.updated_at else None
+            "created_at": _to_epoch_ms(db_user.created_at),
+            "updated_at": _to_epoch_ms(db_user.updated_at) if db_user.updated_at else None
         }
 
         return CreateUserOutput(
@@ -558,8 +572,8 @@ def get_user_node(state: GetUserInput, config: RunnableConfig, runtime: Runtime[
             "role": db_user.role,
             "tier": db_user.tier,
             "account_status": db_user.account_status,
-            "created_at": int(db_user.created_at.timestamp() * 1000),
-            "updated_at": int(db_user.updated_at.timestamp() * 1000) if db_user.updated_at else None
+            "created_at": _to_epoch_ms(db_user.created_at),
+            "updated_at": _to_epoch_ms(db_user.updated_at) if db_user.updated_at else None
         }
 
         return GetUserOutput(
@@ -607,8 +621,8 @@ def get_user_by_id_node(state: GetUserByIdInput, config: RunnableConfig, runtime
             "role": db_user.role,
             "tier": db_user.tier,
             "account_status": db_user.account_status,
-            "created_at": int(db_user.created_at.timestamp() * 1000),
-            "updated_at": int(db_user.updated_at.timestamp() * 1000) if db_user.updated_at else None
+            "created_at": _to_epoch_ms(db_user.created_at),
+            "updated_at": _to_epoch_ms(db_user.updated_at) if db_user.updated_at else None
         }
 
         return GetUserByIdOutput(
@@ -762,8 +776,8 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
             "role": db_user.role,
             "tier": db_user.tier,
             "account_status": db_user.account_status,
-            "created_at": int(db_user.created_at.timestamp() * 1000),
-            "updated_at": int(db_user.updated_at.timestamp() * 1000) if db_user.updated_at else None
+            "created_at": _to_epoch_ms(db_user.created_at),
+            "updated_at": _to_epoch_ms(db_user.updated_at) if db_user.updated_at else None
         }
 
         return UpdateUserOutput(
@@ -852,8 +866,8 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
                 "role": user.role,
                 "tier": user.tier,
                 "account_status": user.account_status,
-                "created_at": int(user.created_at.timestamp() * 1000),
-                "updated_at": int(user.updated_at.timestamp() * 1000) if user.updated_at else None
+                "created_at": _to_epoch_ms(user.created_at),
+                "updated_at": _to_epoch_ms(user.updated_at) if user.updated_at else None
             })
 
         return ListUsersOutput(

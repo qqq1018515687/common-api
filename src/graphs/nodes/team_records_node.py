@@ -9,6 +9,21 @@ from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
 
 from storage.database.db import get_session
+import datetime as _dt
+
+
+def _to_epoch_ms(dt_val: _dt.datetime) -> int:
+    """将 datetime 安全转为 13 位毫秒时间戳（修复 +8h 时区偏移）。
+
+    PostgreSQL 时区为 Asia/Shanghai，但 created_at 列是 timestamp without time zone，
+    存储的是 +08 本地时间（如 16:39:40）但没有时区标记。
+    EXTRACT(EPOCH FROM created_at) 会将其当成 UTC，导致 epoch 偏大 8 小时。
+    修复：将 naive datetime 视为 Asia/Shanghai 本地时间，再转 UTC 算 epoch。
+    """
+    if dt_val.tzinfo is None:
+        tz_shanghai = _dt.timezone(_dt.timedelta(hours=8))
+        dt_val = dt_val.replace(tzinfo=tz_shanghai)
+    return int(dt_val.timestamp() * 1000)
 from storage.database.shared.model import Teams, Users, TeamConsumptionRecords
 
 logger = logging.getLogger(__name__)
@@ -116,7 +131,7 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
                     "amount": r.amount,
                     "balance_after": r.balance_after,
                     "description": r.description,
-                    "created_at": int(r.created_at.timestamp() * 1000),
+                    "created_at": _to_epoch_ms(r.created_at),
                     "extra_data": r.extra_data,
                 }
                 for r in records
@@ -192,7 +207,7 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
                 "balance_after": record.balance_after,
                 "description": record.description,
                 "related_id": record.related_id,
-                "created_at": int(record.created_at.timestamp() * 1000),
+                "created_at": _to_epoch_ms(record.created_at),
                 "extra_data": record.extra_data
             }
 

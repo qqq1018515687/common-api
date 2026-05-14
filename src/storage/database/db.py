@@ -1,10 +1,27 @@
 import os
 import time
+import datetime
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError
 import logging
 logger = logging.getLogger(__name__)
+
+
+def to_epoch_ms(dt: datetime.datetime) -> int:
+    """将 datetime 安全转为 13 位毫秒时间戳。
+
+    修复时区偏移问题：
+    - PostgreSQL TIMESTAMPTZ 列在 Asia/Shanghai 时区下，
+      psycopg2 返回的是 +08:00 本地时间但 tzinfo=None (naive datetime)。
+    - 如果直接 .timestamp()，Python 会按系统时区(UTC)解释，
+      导致 +08 时间被当成 UTC，结果偏大 8 小时。
+    - 修复：naive datetime 统一视为 UTC，确保时间戳正确。
+    """
+    if dt.tzinfo is None:
+        # naive datetime: 视为 UTC，避免系统时区干扰
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
+    return int(dt.timestamp() * 1000)
 
 MAX_RETRY_TIME = 20  # 连接最大重试时间（秒）
 # Load environment variables from .env if present

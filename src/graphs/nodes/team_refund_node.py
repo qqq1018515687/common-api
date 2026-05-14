@@ -10,6 +10,15 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from storage.database.db import get_session
+import datetime as _dt
+
+
+def _to_epoch_ms(dt_val: _dt.datetime) -> int:
+    """将 datetime 安全转为 13 位毫秒时间戳（修复 +8h 时区偏移）。"""
+    if dt_val.tzinfo is None:
+        tz_shanghai = _dt.timezone(_dt.timedelta(hours=8))
+        dt_val = dt_val.replace(tzinfo=tz_shanghai)
+    return int(dt_val.timestamp() * 1000)
 from storage.database.shared.model import Teams, Users, TeamConsumptionRecords
 
 logger = logging.getLogger(__name__)
@@ -94,7 +103,7 @@ def team_refund_node(state: TeamRefundInput, config: RunnableConfig, runtime: Ru
                         "already_refunded": True,
                         "refund_record_id": existing_refund.id,
                         "refund_amount": existing_refund.amount,
-                        "refund_time": int(existing_refund.created_at.timestamp() * 1000)
+                        "refund_time": _to_epoch_ms(existing_refund.created_at)
                     }
                 }
             )
