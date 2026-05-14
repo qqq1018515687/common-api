@@ -47,6 +47,7 @@ def billing_refund_node(state: BillingRefundInput, config: RunnableConfig, runti
             amount=state.amount,
             description=state.description,
             billing_metadata=state.billing_metadata,
+            metadata=state.metadata,
         )
         return BillingRefundOutput(response_data=result)
 

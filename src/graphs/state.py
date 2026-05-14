@@ -77,6 +77,7 @@ class InputData(BaseModel):
     original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID（refund/settle 使用）")
     final_amount: Optional[int] = Field(default=None, description="结算金额（settle 使用）")
     billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（main 透传，含 title/workflow/model 等信息）")
+    metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
 
 
 class GlobalState(BaseModel):
@@ -150,6 +151,7 @@ class GlobalState(BaseModel):
     original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID（refund/settle 使用）")
     final_amount: Optional[int] = Field(default=None, description="结算金额（settle 使用）")
     billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（main 透传，含 title/workflow/model 等信息）")
+    metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
 
 
 class GraphInput(BaseModel):
@@ -597,6 +599,7 @@ class UnpackInputDataOutput(BaseModel):
     original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID（refund/settle 使用）")
     final_amount: Optional[int] = Field(default=None, description="结算金额（settle 使用）")
     billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（main 透传）")
+    metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
 
 
 # 工具路由节点
@@ -728,6 +731,7 @@ class BillingDeductInput(BaseModel):
     task_id: Optional[str] = Field(default=None, description="关联任务ID")
     description: Optional[str] = Field(default=None, description="操作描述")
     billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（含 title/workflow/model 等）")
+    metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
 
 
 class BillingDeductOutput(BaseModel):
@@ -744,6 +748,7 @@ class BillingRefundInput(BaseModel):
     amount: Optional[int] = Field(default=None, description="退款金额（不传则全额退款）")
     description: Optional[str] = Field(default=None, description="退款描述")
     billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（含 title/workflow/model 等）")
+    metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
 
 
 class BillingRefundOutput(BaseModel):

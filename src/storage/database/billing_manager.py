@@ -15,48 +15,86 @@ logger = logging.getLogger(__name__)
 SERVICE_SECRET = os.getenv("BILLING_SERVICE_SECRET", "")
 
 
-def _build_consumption_title(billing_metadata: Optional[Dict[str, Any]]) -> str:
+def _build_consumption_title(
+    billing_metadata: Optional[Dict[str, Any]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    description: Optional[str] = None,
+) -> str:
     """
-    从 billing_metadata 构建团队消费记录标题
-    优先级：title → workflow_name + model_display_name → "团队消费扣费"
+    从 billing_metadata / metadata / description 构建团队消费记录标题
+    优先级：
+      1. metadata.billing_metadata.title
+      2. billing_metadata.title
+      3. description
+      4. workflow_name + " · " + model_display_name
+      5. "团队消费扣费"
     """
-    if not billing_metadata:
-        return "团队消费扣费"
+    # 优先级1：metadata.billing_metadata.title
+    if metadata and isinstance(metadata, dict):
+        nested_bm = metadata.get("billing_metadata")
+        if nested_bm and isinstance(nested_bm, dict):
+            title = nested_bm.get("title")
+            if title and isinstance(title, str) and title.strip():
+                return title.strip()
 
-    # 优先使用 title
-    title = billing_metadata.get("title")
-    if title and isinstance(title, str) and title.strip():
-        return title.strip()
+    # 优先级2：billing_metadata.title
+    if billing_metadata and isinstance(billing_metadata, dict):
+        title = billing_metadata.get("title")
+        if title and isinstance(title, str) and title.strip():
+            return title.strip()
 
-    # fallback: workflow_name + model_display_name
-    workflow_name = billing_metadata.get("workflow_name")
-    model_display_name = billing_metadata.get("model_display_name")
-    parts: list = []
-    if workflow_name and isinstance(workflow_name, str) and workflow_name.strip():
-        parts.append(workflow_name.strip())
-    if model_display_name and isinstance(model_display_name, str) and model_display_name.strip():
-        parts.append(model_display_name.strip())
-    if parts:
-        return " · ".join(parts)
+    # 优先级3：description
+    if description and isinstance(description, str) and description.strip():
+        return description.strip()
 
-    # 最终 fallback
+    # 优先级4：workflow_name + model_display_name（从 billing_metadata 或 metadata.billing_metadata）
+    source_bm = billing_metadata
+    if (not source_bm or not isinstance(source_bm, dict)) and metadata and isinstance(metadata, dict):
+        source_bm = metadata.get("billing_metadata")
+    if source_bm and isinstance(source_bm, dict):
+        workflow_name = source_bm.get("workflow_name")
+        model_display_name = source_bm.get("model_display_name")
+        parts: list = []
+        if workflow_name and isinstance(workflow_name, str) and workflow_name.strip():
+            parts.append(workflow_name.strip())
+        if model_display_name and isinstance(model_display_name, str) and model_display_name.strip():
+            parts.append(model_display_name.strip())
+        if parts:
+            return " · ".join(parts)
+
+    # 优先级5：最终 fallback
     return "团队消费扣费"
 
 
-def _extract_team_record_metadata(billing_metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    """从 billing_metadata 提取需要存入 team_consumption_records.metadata 的字段"""
-    if not billing_metadata:
-        return {}
+def _extract_team_record_metadata(
+    billing_metadata: Optional[Dict[str, Any]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """从 billing_metadata / metadata.billing_metadata 提取需要存入 team_consumption_records.metadata 的字段"""
     keys_to_extract = [
         "task_id", "billing_task_id", "workflow", "workflow_id",
         "workflow_name", "model_key", "model_display_name",
         "source", "task_type", "currency", "number",
     ]
     result: Dict[str, Any] = {}
-    for key in keys_to_extract:
-        value = billing_metadata.get(key)
-        if value is not None:
-            result[key] = value
+
+    # 优先从 metadata.billing_metadata 提取
+    if metadata and isinstance(metadata, dict):
+        nested_bm = metadata.get("billing_metadata")
+        if nested_bm and isinstance(nested_bm, dict):
+            for key in keys_to_extract:
+                value = nested_bm.get(key)
+                if value is not None:
+                    result[key] = value
+
+    # 再从 billing_metadata 补充（不覆盖已有值）
+    if billing_metadata and isinstance(billing_metadata, dict):
+        for key in keys_to_extract:
+            if key not in result:
+                value = billing_metadata.get(key)
+                if value is not None:
+                    result[key] = value
+
     return result
 PERSONAL_SILVER_MIN = -50  # 银豆最低余额
 
@@ -223,6 +261,7 @@ def deduct(
     description: Optional[str] = None,
     extra_data: Optional[Dict[str, Any]] = None,
     billing_metadata: Optional[Dict[str, Any]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     原子扣费
@@ -231,6 +270,7 @@ def deduct(
     - team_gold: 不能扣成负数，需同步写入 team_consumption_records
     - 幂等性：通过 idempotency_key 唯一约束保证
     - billing_metadata: main 透传的元数据，用于生成团队消费记录标题
+    - metadata: 通用元数据（含 billing_metadata 嵌套结构），优先级高于 billing_metadata
     """
     # 参数校验
     if not service_secret or not verify_service_secret(service_secret):
@@ -325,8 +365,15 @@ def deduct(
 
             # 同步写入 team_consumption_records
             consumption_record_id = str(uuid.uuid4())
-            consumption_title = _build_consumption_title(billing_metadata)
-            consumption_extra_data = _extract_team_record_metadata(billing_metadata)
+            consumption_title = _build_consumption_title(
+                billing_metadata=billing_metadata,
+                metadata=metadata,
+                description=description,
+            )
+            consumption_extra_data = _extract_team_record_metadata(
+                billing_metadata=billing_metadata,
+                metadata=metadata,
+            )
             consumption_record = TeamConsumptionRecords(
                 id=consumption_record_id,
                 team_id=user.team_id,
@@ -384,6 +431,7 @@ def refund(
     amount: Optional[int] = None,
     description: Optional[str] = None,
     billing_metadata: Optional[Dict[str, Any]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     退款：必须找到原始 deduct 记录，不能重复退款
@@ -391,6 +439,7 @@ def refund(
     - 幂等性：通过 idempotency_key 唯一约束保证
     - 同时检查是否已有针对同一 original_record_id 的退款
     - billing_metadata: main 透传的元数据，用于生成团队退款记录标题
+    - metadata: 通用元数据（含 billing_metadata 嵌套结构），优先级高于 billing_metadata
     """
     if not service_secret or not verify_service_secret(service_secret):
         return _make_error(UNAUTHORIZED, "service_secret 无效")
@@ -487,8 +536,16 @@ def refund(
 
             # 同步写入 team_consumption_records
             consumption_record_id = str(uuid.uuid4())
-            refund_title = description or _build_consumption_title(billing_metadata).replace("扣费", "退款").replace("消费", "退款") if billing_metadata else (description or "团队退款")
-            consumption_extra_data = _extract_team_record_metadata(billing_metadata)
+            refund_base_title = _build_consumption_title(
+                billing_metadata=billing_metadata,
+                metadata=metadata,
+                description=description,
+            )
+            refund_title = refund_base_title.replace("扣费", "退款").replace("消费", "退款")
+            consumption_extra_data = _extract_team_record_metadata(
+                billing_metadata=billing_metadata,
+                metadata=metadata,
+            )
             consumption_record = TeamConsumptionRecords(
                 id=consumption_record_id,
                 team_id=user.team_id,

@@ -258,6 +258,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         service_secret=input_data.service_secret if input_data else None,
         final_amount=input_data.final_amount if input_data else None,
         billing_metadata=input_data.billing_metadata if input_data else None,
+        metadata=input_data.metadata if input_data else None,
     )
 
 from storage.s3.s3_storage import S3SyncStorage
