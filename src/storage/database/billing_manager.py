@@ -109,6 +109,7 @@ ORIGINAL_RECORD_NOT_FOUND = "ORIGINAL_RECORD_NOT_FOUND"
 ALREADY_REFUNDED = "ALREADY_REFUNDED"
 INTERNAL_ERROR = "INTERNAL_ERROR"
 IDEMPOTENCY_CONFLICT = "IDEMPOTENCY_CONFLICT"
+BLTCY_REFUND_NOT_ALLOWED = "BLTCY_REFUND_NOT_ALLOWED"
 
 
 def _make_error(code: str, message: str) -> Dict[str, Any]:
@@ -124,6 +125,48 @@ def _make_success(data: Dict[str, Any], msg: str = "操作成功") -> Dict[str, 
 def verify_service_secret(secret: str) -> bool:
     """验证 service_secret"""
     return secret == SERVICE_SECRET
+
+
+def _is_bltcy_record(
+    billing_metadata: Optional[Dict[str, Any]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    original_extra_data: Optional[Dict[str, Any]] = None,
+) -> bool:
+    """
+    检查是否为 bltcy 任务记录，bltcy 任务不可退款。
+    匹配规则：任一数据源中包含以下字段之一即为 bltcy：
+    - platform = "bltcy"
+    - selected_account = "bltcy"
+    - provider = "bltcy"
+    - model_name = "model6"
+    - model_key = "model6"
+    """
+    bltcy_keys = {"platform", "selected_account", "provider"}
+    model_keys = {"model_name", "model_key"}
+    bltcy_model_value = "model6"
+
+    sources: List[Dict[str, Any]] = []
+    if billing_metadata:
+        sources.append(billing_metadata)
+    if metadata:
+        # 优先检查 metadata.billing_metadata
+        nested_bm = metadata.get("billing_metadata")
+        if isinstance(nested_bm, dict):
+            sources.append(nested_bm)
+        sources.append(metadata)
+    if original_extra_data:
+        sources.append(original_extra_data)
+
+    for src in sources:
+        for key in bltcy_keys:
+            val = src.get(key)
+            if isinstance(val, str) and val.lower() == "bltcy":
+                return True
+        for key in model_keys:
+            val = src.get(key)
+            if isinstance(val, str) and val == bltcy_model_value:
+                return True
+    return False
 
 
 def _insert_billing_record(db, record_id: str, idempotency_key: str, user_id: str,
@@ -181,10 +224,20 @@ def _find_by_idempotency_key(db, idempotency_key: str) -> Optional[Dict[str, Any
 def _find_deduct_record(db, record_id: str) -> Optional[Dict[str, Any]]:
     """查找原始 deduct 记录"""
     row = db.execute(text(
-        "SELECT id, user_id, credit_type, amount, task_id, status "
+        "SELECT id, user_id, credit_type, amount, task_id, status, extra_data "
         "FROM billing_records WHERE id = :id AND operation_type = 'deduct'"
     ), {"id": record_id}).fetchone()
     if row:
+        raw_extra = row[6]
+        if isinstance(raw_extra, str):
+            try:
+                parsed_extra = json.loads(raw_extra)
+            except Exception:
+                parsed_extra = None
+        elif isinstance(raw_extra, dict):
+            parsed_extra = raw_extra
+        else:
+            parsed_extra = None
         return {
             "id": row[0],
             "user_id": row[1],
@@ -192,6 +245,7 @@ def _find_deduct_record(db, record_id: str) -> Optional[Dict[str, Any]]:
             "amount": row[3],
             "task_id": row[4],
             "status": row[5],
+            "extra_data": parsed_extra,
         }
     return None
 
@@ -389,7 +443,20 @@ def deduct(
             )
             db.add(consumption_record)
 
-        # 写入 billing_records
+        # 写入 billing_records（将 billing_metadata 关键字段存入 extra_data，供 refund 时校验）
+        billing_extra_data = extra_data or {}
+        if billing_metadata:
+            for _bk in ("platform", "selected_account", "provider", "model_name", "model_key",
+                        "workflow", "workflow_name", "model_display_name", "title"):
+                _bv = billing_metadata.get(_bk)
+                if _bv is not None:
+                    billing_extra_data[_bk] = _bv
+        if metadata and isinstance(metadata.get("billing_metadata"), dict):
+            for _bk in ("platform", "selected_account", "provider", "model_name", "model_key",
+                        "workflow", "workflow_name", "model_display_name", "title"):
+                _bv = metadata["billing_metadata"].get(_bk)
+                if _bv is not None:
+                    billing_extra_data[_bk] = _bv
         _insert_billing_record(
             db=db,
             record_id=record_id,
@@ -403,7 +470,7 @@ def deduct(
             balance_after=balance_after,
             task_id=task_id,
             description=description,
-            extra_data=extra_data,
+            extra_data=billing_extra_data if billing_extra_data else None,
         )
         db.commit()
 
@@ -472,6 +539,17 @@ def refund(
         # 检查是否已退款
         if _has_existing_refund(db, original_record_id):
             return _make_error(ALREADY_REFUNDED, "该记录已退款，不能重复退款")
+
+        # bltcy 任务退款保护
+        original_extra = original.get("extra_data")
+        if not isinstance(original_extra, dict):
+            original_extra = None
+        if _is_bltcy_record(
+            billing_metadata=billing_metadata,
+            metadata=metadata,
+            original_extra_data=original_extra,
+        ):
+            return _make_error(BLTCY_REFUND_NOT_ALLOWED, "bltcy tasks are non-refundable")
 
         # 退款金额：默认全额
         refund_amount_val = amount if amount is not None else original["amount"]
