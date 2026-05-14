@@ -3,6 +3,8 @@
 set -e
 # 导出环境变量
 
+export BILLING_SERVICE_SECRET="${BILLING_SERVICE_SECRET:-mars_billing_2024}"
+
 WORK_DIR="${COZE_WORKSPACE_PATH:-.}"
 PORT=8000
 

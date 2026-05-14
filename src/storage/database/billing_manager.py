@@ -1,4 +1,5 @@
 import logging
+import os
 import uuid
 import time
 from typing import Optional, Dict, Any, List
@@ -11,7 +12,7 @@ from storage.database.shared.model import Users, Teams, TeamConsumptionRecords
 logger = logging.getLogger(__name__)
 
 # 常量定义
-SERVICE_SECRET = "mars_billing_2024"
+SERVICE_SECRET = os.getenv("BILLING_SERVICE_SECRET", "")
 PERSONAL_SILVER_MIN = -50  # 银豆最低余额
 
 # 错误码
