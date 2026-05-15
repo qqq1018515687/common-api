@@ -4,6 +4,7 @@ set -e
 # 导出环境变量
 
 export BILLING_SERVICE_SECRET="${BILLING_SERVICE_SECRET:-mars_billing_2024}"
+export GITHUB_TOKEN="${GITHUB_TOKEN:-}"  # 填写你的 GitHub Personal Access Token，用于推送代码
 
 WORK_DIR="${COZE_WORKSPACE_PATH:-.}"
 PORT=8000
