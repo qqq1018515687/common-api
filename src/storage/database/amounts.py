@@ -3,6 +3,17 @@ from typing import Any, Optional
 
 
 GOLD_AMOUNT_QUANT = Decimal("0.01")
+GOLD_DECIMAL_COLUMNS = (
+    ("users", "gold_credits"),
+    ("teams", "balance"),
+    ("teams", "total_consumed"),
+    ("team_consumption_records", "amount"),
+    ("team_consumption_records", "balance_before"),
+    ("team_consumption_records", "balance_after"),
+    ("billing_records", "amount"),
+    ("billing_records", "balance_before"),
+    ("billing_records", "balance_after"),
+)
 
 
 def normalize_gold_amount(value: Any, *, allow_zero: bool = False) -> Decimal:
@@ -66,3 +77,48 @@ def amount_to_response_number(credit_type: str, value: Optional[Any]) -> float |
     if credit_type in ("personal_gold", "team_gold"):
         return gold_amount_to_number(value)
     return silver_amount_to_number(value)
+
+
+def gold_amount_schema_mismatches(db: Any) -> list[str]:
+    from sqlalchemy import text
+
+    rows = db.execute(text(
+        """
+        SELECT table_name, column_name, data_type, numeric_scale
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND (
+            (table_name = 'users' AND column_name = 'gold_credits')
+            OR (table_name = 'teams' AND column_name IN ('balance', 'total_consumed'))
+            OR (table_name = 'team_consumption_records' AND column_name IN ('amount', 'balance_before', 'balance_after'))
+            OR (table_name = 'billing_records' AND column_name IN ('amount', 'balance_before', 'balance_after'))
+          )
+        """
+    )).mappings().all()
+    actual = {
+        (row["table_name"], row["column_name"]): row
+        for row in rows
+    }
+
+    mismatches: list[str] = []
+    for table_name, column_name in GOLD_DECIMAL_COLUMNS:
+        row = actual.get((table_name, column_name))
+        if row is None:
+            mismatches.append(f"{table_name}.{column_name}: missing")
+            continue
+        if row["data_type"] != "numeric" or row["numeric_scale"] != 2:
+            mismatches.append(
+                f"{table_name}.{column_name}: {row['data_type']} scale={row['numeric_scale']}"
+            )
+
+    return mismatches
+
+
+def assert_gold_amount_schema(db: Any) -> None:
+    mismatches = gold_amount_schema_mismatches(db)
+    if mismatches:
+        joined = ", ".join(mismatches)
+        raise RuntimeError(
+            "Gold amount schema mismatch. Run migration a1b2c3d4e5f7 before billing writes: "
+            f"{joined}"
+        )

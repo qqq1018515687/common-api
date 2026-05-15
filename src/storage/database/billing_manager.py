@@ -12,6 +12,7 @@ from storage.database.db import get_session
 from storage.database.shared.model import BillingRecords, Users, Teams, TeamConsumptionRecords
 from storage.database.amounts import (
     amount_to_response_number,
+    assert_gold_amount_schema,
     gold_amount_to_number,
     normalize_amount_for_credit_type,
     normalize_gold_amount,
@@ -120,6 +121,7 @@ ALREADY_REFUNDED = "ALREADY_REFUNDED"
 INTERNAL_ERROR = "INTERNAL_ERROR"
 IDEMPOTENCY_CONFLICT = "IDEMPOTENCY_CONFLICT"
 BLTCY_REFUND_NOT_ALLOWED = "BLTCY_REFUND_NOT_ALLOWED"
+SCHEMA_MISMATCH = "SCHEMA_MISMATCH"
 
 
 def _make_error(code: str, message: str) -> Dict[str, Any]:
@@ -130,6 +132,19 @@ def _make_error(code: str, message: str) -> Dict[str, Any]:
 def _make_success(data: Dict[str, Any], msg: str = "操作成功") -> Dict[str, Any]:
     """构造标准成功响应"""
     return {"code": 0, "msg": msg, "data": data}
+
+
+def _validate_gold_schema_for_credit_type(db, credit_type: str) -> Optional[Dict[str, Any]]:
+    if credit_type not in ("personal_gold", "team_gold"):
+        return None
+
+    try:
+        assert_gold_amount_schema(db)
+    except RuntimeError as exc:
+        logger.error("Gold amount schema mismatch before billing write: %s", exc)
+        return _make_error(SCHEMA_MISMATCH, str(exc))
+
+    return None
 
 
 def _to_epoch_ms(dt_val: Optional[datetime]) -> Optional[int]:
@@ -468,6 +483,10 @@ def deduct(
         if not user:
             return _make_error(USER_NOT_FOUND, "用户不存在")
 
+        schema_error = _validate_gold_schema_for_credit_type(db, credit_type)
+        if schema_error:
+            return schema_error
+
         record_id = str(uuid.uuid4())
 
         if credit_type == "personal_gold":
@@ -663,6 +682,10 @@ def refund(
 
         credit_type = original["credit_type"]
 
+        schema_error = _validate_gold_schema_for_credit_type(db, credit_type)
+        if schema_error:
+            return schema_error
+
         try:
             original_amount = normalize_amount_for_credit_type(credit_type, original["amount"])
             refund_amount_val = normalize_amount_for_credit_type(credit_type, amount) if amount is not None else original_amount
@@ -845,6 +868,10 @@ def settle(
             return _make_error(USER_NOT_FOUND, "用户不存在")
 
         credit_type = original["credit_type"]
+        schema_error = _validate_gold_schema_for_credit_type(db, credit_type)
+        if schema_error:
+            return schema_error
+
         try:
             original_amount = normalize_amount_for_credit_type(credit_type, original["amount"])
         except ValueError as exc:

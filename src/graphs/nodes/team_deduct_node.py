@@ -11,7 +11,7 @@ from datetime import datetime
 
 from storage.database.db import get_session
 from storage.database.shared.model import Teams, Users, TeamConsumptionRecords
-from storage.database.amounts import gold_amount_to_number, normalize_gold_amount
+from storage.database.amounts import assert_gold_amount_schema, gold_amount_to_number, normalize_gold_amount
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,8 @@ def team_deduct_node(state: TeamDeductInput, config: RunnableConfig, runtime: Ru
     db = get_session()
     
     try:
+        assert_gold_amount_schema(db)
+
         if not state.user_id:
             return TeamDeductOutput(
                 response_data={"code": 400, "msg": "用户ID不能为空", "data": None}

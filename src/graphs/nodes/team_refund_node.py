@@ -11,7 +11,7 @@ from datetime import datetime
 
 from storage.database.db import get_session
 import datetime as _dt
-from storage.database.amounts import gold_amount_to_number
+from storage.database.amounts import assert_gold_amount_schema, gold_amount_to_number
 
 
 def _to_epoch_ms(dt_val: _dt.datetime) -> int:
@@ -50,6 +50,8 @@ def team_refund_node(state: TeamRefundInput, config: RunnableConfig, runtime: Ru
     db = get_session()
     
     try:
+        assert_gold_amount_schema(db)
+
         if not state.user_id:
             return TeamRefundOutput(
                 response_data={"code": 400, "msg": "用户ID不能为空", "data": None}
