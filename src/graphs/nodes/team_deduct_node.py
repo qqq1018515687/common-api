@@ -11,6 +11,7 @@ from datetime import datetime
 
 from storage.database.db import get_session
 from storage.database.shared.model import Teams, Users, TeamConsumptionRecords
+from storage.database.amounts import gold_amount_to_number, normalize_gold_amount
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class TeamDeductInput(BaseModel):
     """团队扣费节点的输入"""
     operation_type: Optional[str] = Field(default=None, description="操作类型")
     user_id: Optional[str] = Field(default=None, description="用户ID")
-    amount: Optional[int] = Field(default=None, description="扣费金额")
+    amount: Optional[float] = Field(default=None, description="扣费金额")
     description: Optional[str] = Field(default=None, description="扣费描述")
 
 
@@ -45,9 +46,15 @@ def team_deduct_node(state: TeamDeductInput, config: RunnableConfig, runtime: Ru
                 response_data={"code": 400, "msg": "用户ID不能为空", "data": None}
             )
         
-        if not state.amount or state.amount <= 0:
+        if state.amount is None:
             return TeamDeductOutput(
                 response_data={"code": 400, "msg": "扣费金额必须大于0", "data": None}
+            )
+        try:
+            amount = normalize_gold_amount(state.amount)
+        except ValueError as exc:
+            return TeamDeductOutput(
+                response_data={"code": 400, "msg": str(exc), "data": None}
             )
         
         # 通过 users 表查找用户及其团队
@@ -64,15 +71,15 @@ def team_deduct_node(state: TeamDeductInput, config: RunnableConfig, runtime: Ru
         
         # 检查团队余额
         team = db.query(Teams).filter(Teams.id == user.team_id).first()
-        if team.balance < state.amount:
+        if team.balance < amount:
             return TeamDeductOutput(
                 response_data={"code": 400, "msg": "团队余额不足", "data": None}
             )
         
         # 扣除余额
         balance_before = team.balance
-        team.balance -= state.amount
-        team.total_consumed += state.amount
+        team.balance -= amount
+        team.total_consumed += amount
         team.updated_at = datetime.utcnow()
         
         # 记录消费
@@ -83,7 +90,7 @@ def team_deduct_node(state: TeamDeductInput, config: RunnableConfig, runtime: Ru
             user_id=state.user_id,
             username=user.username,
             operation_type="consumption",
-            amount=-state.amount,  # 消费为负数
+            amount=-amount,  # 消费为负数
             balance_before=balance_before,
             balance_after=team.balance,
             description=state.description or "团队消费"
@@ -96,8 +103,8 @@ def team_deduct_node(state: TeamDeductInput, config: RunnableConfig, runtime: Ru
                 "code": 0,
                 "msg": "扣费成功",
                 "data": {
-                    "balance": team.balance,
-                    "amount": state.amount,
+                    "balance": gold_amount_to_number(team.balance),
+                    "amount": gold_amount_to_number(amount),
                     "record_id": record_id
                 }
             }

@@ -22,7 +22,7 @@ def update_users_table():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(11) UNIQUE",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar VARCHAR(256)",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS team_id VARCHAR(64)",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS gold_credits INTEGER DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS gold_credits NUMERIC(12, 2) DEFAULT 0.00",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS silver_credits INTEGER DEFAULT 999999999",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS tier VARCHAR(20) DEFAULT 'standard'",

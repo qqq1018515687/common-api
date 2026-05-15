@@ -76,6 +76,7 @@ import re
 import uuid
 
 from storage.database.db import get_session
+from storage.database.amounts import gold_amount_to_number
 import datetime as _dt
 
 
@@ -404,7 +405,7 @@ def create_user_node(state: CreateUserInput, config: RunnableConfig, runtime: Ru
             "username": db_user.username,
             "avatar": db_user.avatar,
             "team_id": db_user.team_id,
-            "gold_credits": db_user.gold_credits,
+            "gold_credits": gold_amount_to_number(db_user.gold_credits),
             "silver_credits": db_user.silver_credits,
             "role": db_user.role,
             "tier": db_user.tier,
@@ -567,7 +568,7 @@ def get_user_node(state: GetUserInput, config: RunnableConfig, runtime: Runtime[
             "username": db_user.username,
             "avatar": db_user.avatar,
             "team_id": db_user.team_id,
-            "gold_credits": db_user.gold_credits,
+            "gold_credits": gold_amount_to_number(db_user.gold_credits),
             "silver_credits": db_user.silver_credits,
             "role": db_user.role,
             "tier": db_user.tier,
@@ -616,7 +617,7 @@ def get_user_by_id_node(state: GetUserByIdInput, config: RunnableConfig, runtime
             "username": db_user.username,
             "avatar": db_user.avatar,
             "team_id": db_user.team_id,
-            "gold_credits": db_user.gold_credits,
+            "gold_credits": gold_amount_to_number(db_user.gold_credits),
             "silver_credits": db_user.silver_credits,
             "role": db_user.role,
             "tier": db_user.tier,
@@ -771,7 +772,7 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
             "username": db_user.username,
             "avatar": db_user.avatar,
             "team_id": db_user.team_id,
-            "gold_credits": db_user.gold_credits,
+            "gold_credits": gold_amount_to_number(db_user.gold_credits),
             "silver_credits": db_user.silver_credits,
             "role": db_user.role,
             "tier": db_user.tier,
@@ -861,7 +862,7 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
                 "username": user.username,
                 "avatar": user.avatar,
                 "team_id": user.team_id,
-                "gold_credits": user.gold_credits,
+                "gold_credits": gold_amount_to_number(user.gold_credits),
                 "silver_credits": user.silver_credits,
                 "role": user.role,
                 "tier": user.tier,

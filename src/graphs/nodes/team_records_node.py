@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 
 from storage.database.db import get_session
 import datetime as _dt
+from storage.database.amounts import gold_amount_to_number
 
 
 def _to_epoch_ms(dt_val: _dt.datetime) -> int:
@@ -128,8 +129,8 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
                     "user_id": r.user_id,
                     "username": r.username,
                     "operation_type": r.operation_type,
-                    "amount": r.amount,
-                    "balance_after": r.balance_after,
+                    "amount": gold_amount_to_number(r.amount),
+                    "balance_after": gold_amount_to_number(r.balance_after),
                     "description": r.description,
                     "created_at": _to_epoch_ms(r.created_at),
                     "extra_data": r.extra_data,
@@ -153,7 +154,7 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
                     "user_id": m.user_id,
                     "username": m.username,
                     "role": m.role,
-                    "gold_credits": m.gold_credits
+                    "gold_credits": gold_amount_to_number(m.gold_credits)
                 }
                 for m in members
             ]
@@ -165,8 +166,8 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
                     "data": {
                         "team_id": team.id,
                         "name": team.name,
-                        "balance": team.balance,
-                        "total_consumed": team.total_consumed,
+                        "balance": gold_amount_to_number(team.balance),
+                        "total_consumed": gold_amount_to_number(team.total_consumed),
                         "members": member_stats
                     }
                 }
@@ -202,9 +203,9 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
                 "user_id": record.user_id,
                 "username": record.username,
                 "operation_type": record.operation_type,
-                "amount": record.amount,
-                "balance_before": record.balance_before,
-                "balance_after": record.balance_after,
+                "amount": gold_amount_to_number(record.amount),
+                "balance_before": gold_amount_to_number(record.balance_before),
+                "balance_after": gold_amount_to_number(record.balance_after),
                 "description": record.description,
                 "related_id": record.related_id,
                 "created_at": _to_epoch_ms(record.created_at),

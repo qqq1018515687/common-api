@@ -72,6 +72,7 @@ from graphs.nodes.get_balance_node import get_balance_node
 from graphs.nodes.billing_deduct_node import billing_deduct_node
 from graphs.nodes.billing_refund_node import billing_refund_node
 from graphs.nodes.billing_settle_node import billing_settle_node
+from graphs.nodes.billing_records_node import billing_records_node
 
 
 def route_by_call_type(state: RouterOutput) -> str:
@@ -179,6 +180,7 @@ builder.add_node("get_balance", get_balance_node)
 builder.add_node("billing_deduct", billing_deduct_node)
 builder.add_node("billing_refund", billing_refund_node)
 builder.add_node("billing_settle", billing_settle_node)
+builder.add_node("billing_records", billing_records_node)
 
 # 设置入口点（先解包数据）
 builder.set_entry_point("unpack_input_data")
@@ -264,7 +266,8 @@ builder.add_conditional_edges(
         "查询余额": "get_balance",
         "扣费": "billing_deduct",
         "退款": "billing_refund",
-        "结算": "billing_settle"
+        "结算": "billing_settle",
+        "账单记录": "billing_records"
     }
 )
 
@@ -298,6 +301,7 @@ builder.add_edge("get_balance", "format_response")
 builder.add_edge("billing_deduct", "format_response")
 builder.add_edge("billing_refund", "format_response")
 builder.add_edge("billing_settle", "format_response")
+builder.add_edge("billing_records", "format_response")
 
 # ============ 图像标签生成流程（暂时禁用）============
 # 启用图像自动打标时，取消下面的注释，并注释掉上面的 `builder.add_edge("update_task", "format_response")`

@@ -11,6 +11,7 @@ from datetime import datetime
 
 from storage.database.db import get_session
 import datetime as _dt
+from storage.database.amounts import gold_amount_to_number
 
 
 def _to_epoch_ms(dt_val: _dt.datetime) -> int:
@@ -102,7 +103,7 @@ def team_refund_node(state: TeamRefundInput, config: RunnableConfig, runtime: Ru
                     "data": {
                         "already_refunded": True,
                         "refund_record_id": existing_refund.id,
-                        "refund_amount": existing_refund.amount,
+                        "refund_amount": gold_amount_to_number(existing_refund.amount),
                         "refund_time": _to_epoch_ms(existing_refund.created_at)
                     }
                 }
@@ -140,8 +141,8 @@ def team_refund_node(state: TeamRefundInput, config: RunnableConfig, runtime: Ru
                 "code": 0,
                 "msg": "退款成功",
                 "data": {
-                    "balance": team.balance,
-                    "refund_amount": refund_amount,
+                    "balance": gold_amount_to_number(team.balance),
+                    "refund_amount": gold_amount_to_number(refund_amount),
                     "record_id": record_id
                 }
             }

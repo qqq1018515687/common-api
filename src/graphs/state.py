@@ -13,7 +13,7 @@ class InputData(BaseModel):
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
-    operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/register/login/update_user/delete_user/list_users)、任务管理(create_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、RunningHub错误分析(runninghub_error_analysis)")
+    operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/register/login/update_user/delete_user/list_users)、任务管理(create_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、RunningHub错误分析(runninghub_error_analysis)")
 
     # 用户管理相关字段
     phone: Optional[str] = Field(default=None, description="手机号")
@@ -21,7 +21,7 @@ class InputData(BaseModel):
     password_hash: Optional[str] = Field(default=None, description="密码哈希")
     avatar: Optional[str] = Field(default=None, description="头像URL")
     team_id: Optional[str] = Field(default=None, description="团队ID")
-    gold_credits: Optional[int] = Field(default=None, description="金豆余额")
+    gold_credits: Optional[float] = Field(default=None, description="金豆余额")
     silver_credits: Optional[int] = Field(default=None, description="银豆余额")
     role: Optional[str] = Field(default=None, description="用户角色")
     tier: Optional[str] = Field(default=None, description="用户等级")
@@ -56,7 +56,7 @@ class InputData(BaseModel):
     current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效通知）")
 
     # 团队余额相关字段
-    amount: Optional[int] = Field(default=None, description="金额（充值/扣费/退款使用）")
+    amount: Optional[float] = Field(default=None, description="金额（充值/扣费/退款使用）")
     description: Optional[str] = Field(default=None, description="操作描述")
     days: Optional[int] = Field(default=None, description="查询天数")
     name: Optional[str] = Field(default=None, description="团队名称（创建团队使用）")
@@ -75,14 +75,14 @@ class InputData(BaseModel):
     idempotency_key: Optional[str] = Field(default=None, description="幂等键（deduct/refund/settle 必传）")
     service_secret: Optional[str] = Field(default=None, description="服务密钥（billing 操作必传）")
     original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID（refund/settle 使用）")
-    final_amount: Optional[int] = Field(default=None, description="结算金额（settle 使用）")
+    final_amount: Optional[float] = Field(default=None, description="结算金额（settle 使用）")
     billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（main 透传，含 title/workflow/model 等信息）")
     metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
 
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management/notification_management/team_balance")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management/notification_management/team_balance/billing")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
@@ -102,7 +102,7 @@ class GlobalState(BaseModel):
     password_hash: Optional[str] = Field(default=None, description="密码哈希")
     avatar: Optional[str] = Field(default=None, description="头像URL")
     team_id: Optional[str] = Field(default=None, description="团队ID")
-    gold_credits: Optional[int] = Field(default=None, description="金豆余额")
+    gold_credits: Optional[float] = Field(default=None, description="金豆余额")
     silver_credits: Optional[int] = Field(default=None, description="银豆余额")
     role: Optional[str] = Field(default=None, description="用户角色")
     tier: Optional[str] = Field(default=None, description="用户等级")
@@ -130,7 +130,7 @@ class GlobalState(BaseModel):
     current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效通知）")
 
     # 团队余额相关字段（用于团队余额操作）
-    amount: Optional[int] = Field(default=None, description="金额（充值/扣费/退款使用）")
+    amount: Optional[float] = Field(default=None, description="金额（充值/扣费/退款使用）")
     description: Optional[str] = Field(default=None, description="操作描述")
     days: Optional[int] = Field(default=None, description="查询天数")
     name: Optional[str] = Field(default=None, description="团队名称（创建团队使用）")
@@ -149,14 +149,14 @@ class GlobalState(BaseModel):
     idempotency_key: Optional[str] = Field(default=None, description="幂等键（deduct/refund/settle 必传）")
     service_secret: Optional[str] = Field(default=None, description="服务密钥（billing 操作必传）")
     original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID（refund/settle 使用）")
-    final_amount: Optional[int] = Field(default=None, description="结算金额（settle 使用）")
+    final_amount: Optional[float] = Field(default=None, description="结算金额（settle 使用）")
     billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（main 透传，含 title/workflow/model 等信息）")
     metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
 
 
 class GraphInput(BaseModel):
     """工作流的输入"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool/task_management/notification_management/team_balance")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool/task_management/notification_management/team_balance/billing")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
 
@@ -191,7 +191,7 @@ class CreateUserInput(BaseModel):
     username: str = Field(..., description="用户名")
     avatar: str = Field(..., description="头像URL")
     team_id: Optional[str] = Field(default=None, description="团队ID")
-    gold_credits: int = Field(default=0, description="金豆余额")
+    gold_credits: float = Field(default=0, description="金豆余额")
     silver_credits: int = Field(default=10000, description="银豆余额")
     role: str = Field(default="user", description="用户角色")
     tier: str = Field(default="standard", description="用户等级")
@@ -329,7 +329,7 @@ class UpdateUserInput(BaseModel):
     username: Optional[str] = Field(default=None, description="用户名")
     avatar: Optional[str] = Field(default=None, description="头像URL")
     team_id: Optional[str] = Field(default=None, description="团队ID")
-    gold_credits: Optional[int] = Field(default=None, description="金豆余额")
+    gold_credits: Optional[float] = Field(default=None, description="金豆余额")
     silver_credits: Optional[int] = Field(default=None, description="银豆余额")
     role: Optional[str] = Field(default=None, description="用户角色")
     tier: Optional[str] = Field(default=None, description="用户等级")
@@ -552,7 +552,7 @@ class UnpackInputDataOutput(BaseModel):
     password_hash: Optional[str] = Field(default=None, description="密码哈希")
     avatar: Optional[str] = Field(default=None, description="头像URL")
     team_id: Optional[str] = Field(default=None, description="团队ID")
-    gold_credits: Optional[int] = Field(default=None, description="金豆余额")
+    gold_credits: Optional[float] = Field(default=None, description="金豆余额")
     silver_credits: Optional[int] = Field(default=None, description="银豆余额")
     role: Optional[str] = Field(default=None, description="用户角色")
     tier: Optional[str] = Field(default=None, description="用户等级")
@@ -578,7 +578,7 @@ class UnpackInputDataOutput(BaseModel):
     notification_data: Optional[dict] = Field(default=None, description="通知数据")
     current_time: Optional[int] = Field(default=None, description="当前时间戳")
     # 团队余额相关字段
-    amount: Optional[int] = Field(default=None, description="金额（充值/扣费/退款使用）")
+    amount: Optional[float] = Field(default=None, description="金额（充值/扣费/退款使用）")
     description: Optional[str] = Field(default=None, description="操作描述")
     days: Optional[int] = Field(default=None, description="查询天数")
     name: Optional[str] = Field(default=None, description="团队名称（创建团队使用）")
@@ -597,7 +597,7 @@ class UnpackInputDataOutput(BaseModel):
     idempotency_key: Optional[str] = Field(default=None, description="幂等键")
     service_secret: Optional[str] = Field(default=None, description="服务密钥")
     original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID（refund/settle 使用）")
-    final_amount: Optional[int] = Field(default=None, description="结算金额（settle 使用）")
+    final_amount: Optional[float] = Field(default=None, description="结算金额（settle 使用）")
     billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（main 透传）")
     metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
 
@@ -685,30 +685,46 @@ class RunningHubErrorAnalysisOutput(BaseModel):
 
 class BillingRouteInput(BaseModel):
     """Billing 路由节点的输入"""
-    operation_type: Optional[str] = Field(default=None, description="操作类型：get_balance/deduct/refund/settle")
+    operation_type: Optional[str] = Field(default=None, description="操作类型：get_balance/deduct/refund/settle/list_records/get_records")
     user_id: Optional[str] = Field(default=None, description="用户ID")
+    filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID")
+    team_id: Optional[str] = Field(default=None, description="团队ID")
     credit_type: Optional[str] = Field(default=None, description="资金类型：personal_gold/personal_silver/team_gold")
-    amount: Optional[int] = Field(default=None, description="金额（deduct 使用）")
+    amount: Optional[float] = Field(default=None, description="金额（deduct 使用）")
+    days: Optional[int] = Field(default=None, description="查询最近N天")
+    limit: Optional[int] = Field(default=None, description="返回数量上限")
     idempotency_key: Optional[str] = Field(default=None, description="幂等键（deduct/refund/settle 必传）")
     service_secret: Optional[str] = Field(default=None, description="服务密钥（billing 操作必传）")
     task_id: Optional[str] = Field(default=None, description="关联任务ID（deduct 可选）")
     description: Optional[str] = Field(default=None, description="操作描述")
     original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID（refund/settle 使用）")
-    final_amount: Optional[int] = Field(default=None, description="结算金额（settle 使用）")
+    final_amount: Optional[float] = Field(default=None, description="结算金额（settle 使用）")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（含 title/workflow/model 等）")
+    metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
 
 
 class BillingRouteOutput(BaseModel):
     """Billing 路由节点的输出"""
     operation_type: str = Field(..., description="操作类型")
     user_id: Optional[str] = Field(default=None, description="用户ID")
+    filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID")
+    team_id: Optional[str] = Field(default=None, description="团队ID")
     credit_type: Optional[str] = Field(default=None, description="资金类型")
-    amount: Optional[int] = Field(default=None, description="金额")
+    amount: Optional[float] = Field(default=None, description="金额")
+    days: Optional[int] = Field(default=None, description="查询最近N天")
+    limit: Optional[int] = Field(default=None, description="返回数量上限")
     idempotency_key: Optional[str] = Field(default=None, description="幂等键")
     service_secret: Optional[str] = Field(default=None, description="服务密钥")
     task_id: Optional[str] = Field(default=None, description="关联任务ID")
     description: Optional[str] = Field(default=None, description="操作描述")
     original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID")
-    final_amount: Optional[int] = Field(default=None, description="结算金额")
+    final_amount: Optional[float] = Field(default=None, description="结算金额")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（含 title/workflow/model 等）")
+    metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
 
 
 class GetBalanceInput(BaseModel):
@@ -725,7 +741,7 @@ class BillingDeductInput(BaseModel):
     """扣费节点的输入"""
     user_id: Optional[str] = Field(default=None, description="用户ID")
     credit_type: Optional[str] = Field(default=None, description="资金类型：personal_gold/personal_silver/team_gold")
-    amount: Optional[int] = Field(default=None, description="扣费金额")
+    amount: Optional[float] = Field(default=None, description="扣费金额")
     idempotency_key: Optional[str] = Field(default=None, description="幂等键")
     service_secret: Optional[str] = Field(default=None, description="服务密钥")
     task_id: Optional[str] = Field(default=None, description="关联任务ID")
@@ -745,7 +761,7 @@ class BillingRefundInput(BaseModel):
     original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID")
     idempotency_key: Optional[str] = Field(default=None, description="幂等键")
     service_secret: Optional[str] = Field(default=None, description="服务密钥")
-    amount: Optional[int] = Field(default=None, description="退款金额（不传则全额退款）")
+    amount: Optional[float] = Field(default=None, description="退款金额（不传则全额退款）")
     description: Optional[str] = Field(default=None, description="退款描述")
     billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（含 title/workflow/model 等）")
     metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
@@ -760,7 +776,7 @@ class BillingSettleInput(BaseModel):
     """结算节点的输入"""
     user_id: Optional[str] = Field(default=None, description="用户ID")
     original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID")
-    final_amount: Optional[int] = Field(default=None, description="最终结算金额")
+    final_amount: Optional[float] = Field(default=None, description="最终结算金额")
     idempotency_key: Optional[str] = Field(default=None, description="幂等键")
     service_secret: Optional[str] = Field(default=None, description="服务密钥")
     description: Optional[str] = Field(default=None, description="结算描述")

@@ -11,6 +11,7 @@ from datetime import datetime
 
 from storage.database.db import get_session
 from storage.database.shared.model import Teams, Users
+from storage.database.amounts import gold_amount_to_number
 
 logger = logging.getLogger(__name__)
 
@@ -76,8 +77,8 @@ def team_manage_node(state: TeamManageInput, config: RunnableConfig, runtime: Ru
                     "data": {
                         "team_id": team.id,
                         "name": team.name,
-                        "balance": team.balance,
-                        "total_consumed": team.total_consumed
+                        "balance": gold_amount_to_number(team.balance),
+                        "total_consumed": gold_amount_to_number(team.total_consumed)
                     }
                 }
             )
@@ -145,7 +146,7 @@ def team_manage_node(state: TeamManageInput, config: RunnableConfig, runtime: Ru
                     "user_id": m.user_id,
                     "username": m.username,
                     "role": m.role,
-                    "gold_credits": m.gold_credits
+                    "gold_credits": gold_amount_to_number(m.gold_credits)
                 }
                 for m in members
             ]

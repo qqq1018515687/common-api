@@ -8,6 +8,7 @@ import random
 from datetime import datetime, timedelta, timezone
 
 from storage.database.shared.model import Users, RateLimits
+from storage.database.amounts import normalize_gold_amount
 
 
 class UserCreate(BaseModel):
@@ -16,7 +17,7 @@ class UserCreate(BaseModel):
     username: str = Field(..., description="用户名")
     avatar: str = Field(..., description="头像URL")
     team_id: Optional[str] = Field(default=None, description="团队ID")
-    gold_credits: int = Field(default=0, description="金豆余额")
+    gold_credits: float = Field(default=0, description="金豆余额")
     silver_credits: int = Field(default=10000, description="银豆余额")
     role: str = Field(default="user", description="用户角色")
     tier: str = Field(default="standard", description="用户等级")
@@ -27,7 +28,7 @@ class UserUpdate(BaseModel):
     username: Optional[str] = Field(default=None, description="用户名")
     avatar: Optional[str] = Field(default=None, description="头像URL")
     team_id: Optional[str] = Field(default=None, description="团队ID")
-    gold_credits: Optional[int] = Field(default=None, description="金豆余额")
+    gold_credits: Optional[float] = Field(default=None, description="金豆余额")
     silver_credits: Optional[int] = Field(default=None, description="银豆余额")
     role: Optional[str] = Field(default=None, description="用户角色")
     tier: Optional[str] = Field(default=None, description="用户等级")
@@ -85,6 +86,7 @@ class UserManager:
         # 创建新用户
         user_data = user_in.model_dump()
         user_data["user_id"] = self._generate_user_id()
+        user_data["gold_credits"] = normalize_gold_amount(user_data.get("gold_credits", 0), allow_zero=True)
         db_user = Users(**user_data)
         db.add(db_user)
         try:
@@ -110,6 +112,8 @@ class UserManager:
             return None
 
         update_data = user_in.model_dump(exclude_unset=True)
+        if "gold_credits" in update_data:
+            update_data["gold_credits"] = normalize_gold_amount(update_data["gold_credits"], allow_zero=True)
         for field, value in update_data.items():
             if hasattr(db_user, field):
                 setattr(db_user, field, value)

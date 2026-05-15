@@ -1,13 +1,23 @@
 import logging
+import json
 import os
 import uuid
 import time
+from decimal import Decimal
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import text
 from storage.database.db import get_session
-from storage.database.shared.model import Users, Teams, TeamConsumptionRecords
+from storage.database.shared.model import BillingRecords, Users, Teams, TeamConsumptionRecords
+from storage.database.amounts import (
+    amount_to_response_number,
+    gold_amount_to_number,
+    normalize_amount_for_credit_type,
+    normalize_gold_amount,
+    normalize_silver_amount,
+    silver_amount_to_number,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +132,15 @@ def _make_success(data: Dict[str, Any], msg: str = "操作成功") -> Dict[str, 
     return {"code": 0, "msg": msg, "data": data}
 
 
+def _to_epoch_ms(dt_val: Optional[datetime]) -> Optional[int]:
+    """将 datetime 转成前端统一使用的 13 位毫秒时间戳。"""
+    if not dt_val:
+        return None
+    if dt_val.tzinfo is None:
+        dt_val = dt_val.replace(tzinfo=timezone(timedelta(hours=8)))
+    return int(dt_val.timestamp() * 1000)
+
+
 def verify_service_secret(secret: str) -> bool:
     """验证 service_secret"""
     return secret == SERVICE_SECRET
@@ -171,7 +190,7 @@ def _is_bltcy_record(
 
 def _insert_billing_record(db, record_id: str, idempotency_key: str, user_id: str,
                            team_id: Optional[str], operation_type: str, credit_type: str,
-                           amount: int, balance_before: int, balance_after: int,
+                           amount: Decimal | int, balance_before: Decimal | int, balance_after: Decimal | int,
                            related_id: Optional[str] = None, task_id: Optional[str] = None,
                            description: Optional[str] = None, extra_data: Optional[Dict[str, Any]] = None,
                            status: str = "completed") -> None:
@@ -280,21 +299,21 @@ def get_balance(user_id: str) -> Dict[str, Any]:
 
         result_data: Dict[str, Any] = {
             "user_id": user_id,
-            "personal_gold": user.gold_credits or 0,
-            "personal_silver": user.silver_credits or 0,
+            "personal_gold": gold_amount_to_number(user.gold_credits),
+            "personal_silver": silver_amount_to_number(user.silver_credits),
         }
 
         # 查询团队余额
         if user.team_id:
             team = db.query(Teams).filter(Teams.id == user.team_id).first()
             if team:
-                result_data["team_gold"] = team.balance or 0
+                result_data["team_gold"] = gold_amount_to_number(team.balance)
                 result_data["team_id"] = user.team_id
             else:
-                result_data["team_gold"] = 0
+                result_data["team_gold"] = 0.0
                 result_data["team_id"] = user.team_id
         else:
-            result_data["team_gold"] = 0
+            result_data["team_gold"] = 0.0
 
         return _make_success(result_data, "查询成功")
 
@@ -305,10 +324,99 @@ def get_balance(user_id: str) -> Dict[str, Any]:
         db.close()
 
 
+def list_records(
+    user_id: Optional[str] = None,
+    team_id: Optional[str] = None,
+    credit_type: Optional[str] = None,
+    days: Optional[int] = None,
+    limit: Optional[int] = None,
+    operator_role: Optional[str] = None,
+    service_secret: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    查询 billing_records 明细。
+    - 管理后台可通过 operator_role=admin 查询
+    - 服务端也可通过 service_secret 查询
+    - 只读操作，不修改余额或账单状态
+    """
+    is_admin = (operator_role or "").lower() == "admin"
+    has_service_access = bool(service_secret) and verify_service_secret(service_secret)
+    if not is_admin and not has_service_access:
+        return _make_error(UNAUTHORIZED, "无权查询账单记录")
+
+    try:
+        safe_days = min(max(1, int(days or 30)), 365)
+    except (TypeError, ValueError):
+        safe_days = 30
+
+    try:
+        safe_limit = min(max(1, int(limit or 200)), 500)
+    except (TypeError, ValueError):
+        safe_limit = 200
+
+    start_time = datetime.utcnow() - timedelta(days=safe_days)
+    db = get_session()
+    try:
+        query = (
+            db.query(BillingRecords, Users.username)
+            .outerjoin(Users, BillingRecords.user_id == Users.user_id)
+            .filter(BillingRecords.created_at >= start_time)
+        )
+
+        if user_id:
+            query = query.filter(BillingRecords.user_id == user_id)
+        if team_id:
+            query = query.filter(BillingRecords.team_id == team_id)
+        if credit_type:
+            query = query.filter(BillingRecords.credit_type == credit_type)
+
+        rows = (
+            query
+            .order_by(BillingRecords.created_at.desc())
+            .limit(safe_limit)
+            .all()
+        )
+
+        records = [
+            {
+                "record_id": record.id,
+                "id": record.id,
+                "user_id": record.user_id,
+                "username": username,
+                "team_id": record.team_id,
+                "operation_type": record.operation_type,
+                "credit_type": record.credit_type,
+                "amount": amount_to_response_number(record.credit_type, record.amount),
+                "balance_before": amount_to_response_number(record.credit_type, record.balance_before),
+                "balance_after": amount_to_response_number(record.credit_type, record.balance_after),
+                "related_id": record.related_id,
+                "task_id": record.task_id,
+                "description": record.description,
+                "status": record.status,
+                "created_at": _to_epoch_ms(record.created_at),
+                "extra_data": record.extra_data,
+            }
+            for record, username in rows
+        ]
+
+        return _make_success({
+            "records": records,
+            "total": len(records),
+            "days": safe_days,
+            "limit": safe_limit,
+        }, "查询成功")
+
+    except Exception as e:
+        logger.error(f"查询账单记录失败: {e}")
+        return _make_error(INTERNAL_ERROR, f"查询账单记录失败: {str(e)}")
+    finally:
+        db.close()
+
+
 def deduct(
     user_id: str,
     credit_type: str,
-    amount: int,
+    amount: Decimal | int | float,
     idempotency_key: str,
     service_secret: str,
     task_id: Optional[str] = None,
@@ -333,11 +441,13 @@ def deduct(
     if not idempotency_key:
         return _make_error(MISSING_IDEMPOTENCY_KEY, "idempotency_key 不能为空")
 
-    if amount <= 0:
-        return _make_error(INVALID_AMOUNT, "扣费金额必须大于0")
-
     if credit_type not in ("personal_gold", "personal_silver", "team_gold"):
         return _make_error(INVALID_AMOUNT, f"不支持的 credit_type: {credit_type}")
+
+    try:
+        amount = normalize_amount_for_credit_type(credit_type, amount)
+    except ValueError as exc:
+        return _make_error(INVALID_AMOUNT, str(exc))
 
     db = get_session()
     try:
@@ -348,9 +458,9 @@ def deduct(
                 "record_id": existing["id"],
                 "already_processed": True,
                 "credit_type": existing["credit_type"],
-                "amount": existing["amount"],
-                "balance_before": existing["balance_before"],
-                "balance_after": existing["balance_after"],
+                "amount": amount_to_response_number(existing["credit_type"], existing["amount"]),
+                "balance_before": amount_to_response_number(existing["credit_type"], existing["balance_before"]),
+                "balance_after": amount_to_response_number(existing["credit_type"], existing["balance_after"]),
             }, "已处理（幂等）")
 
         # 查询用户
@@ -477,9 +587,9 @@ def deduct(
         return _make_success({
             "record_id": record_id,
             "credit_type": credit_type,
-            "amount": amount,
-            "balance_before": balance_before,
-            "balance_after": balance_after,
+            "amount": amount_to_response_number(credit_type, amount),
+            "balance_before": amount_to_response_number(credit_type, balance_before),
+            "balance_after": amount_to_response_number(credit_type, balance_after),
         }, "扣费成功")
 
     except Exception as e:
@@ -495,7 +605,7 @@ def refund(
     original_record_id: str,
     idempotency_key: str,
     service_secret: str,
-    amount: Optional[int] = None,
+    amount: Optional[Decimal | int | float] = None,
     description: Optional[str] = None,
     billing_metadata: Optional[Dict[str, Any]] = None,
     metadata: Optional[Dict[str, Any]] = None,
@@ -517,9 +627,6 @@ def refund(
     if not original_record_id:
         return _make_error(ORIGINAL_RECORD_NOT_FOUND, "原扣费记录ID不能为空")
 
-    if amount is not None and amount <= 0:
-        return _make_error(INVALID_AMOUNT, "退款金额必须大于0")
-
     db = get_session()
     try:
         # 幂等性检查
@@ -528,7 +635,10 @@ def refund(
             return _make_success({
                 "record_id": existing["id"],
                 "already_processed": True,
-                "amount": existing["amount"],
+                "credit_type": existing["credit_type"],
+                "amount": amount_to_response_number(existing["credit_type"], existing["amount"]),
+                "balance_before": amount_to_response_number(existing["credit_type"], existing["balance_before"]),
+                "balance_after": amount_to_response_number(existing["credit_type"], existing["balance_after"]),
             }, "已处理（幂等）")
 
         # 查找原始 deduct 记录
@@ -551,9 +661,15 @@ def refund(
         ):
             return _make_error(BLTCY_REFUND_NOT_ALLOWED, "bltcy tasks are non-refundable")
 
-        # 退款金额：默认全额
-        refund_amount_val = amount if amount is not None else original["amount"]
-        if refund_amount_val > original["amount"]:
+        credit_type = original["credit_type"]
+
+        try:
+            original_amount = normalize_amount_for_credit_type(credit_type, original["amount"])
+            refund_amount_val = normalize_amount_for_credit_type(credit_type, amount) if amount is not None else original_amount
+        except ValueError as exc:
+            return _make_error(INVALID_AMOUNT, str(exc))
+
+        if refund_amount_val > original_amount:
             return _make_error(INVALID_AMOUNT,
                 f"退款金额 {refund_amount_val} 超过原扣费金额 {original['amount']}")
 
@@ -562,7 +678,6 @@ def refund(
         if not user:
             return _make_error(USER_NOT_FOUND, "用户不存在")
 
-        credit_type = original["credit_type"]
         record_id = str(uuid.uuid4())
 
         if credit_type == "personal_gold":
@@ -663,9 +778,9 @@ def refund(
         return _make_success({
             "record_id": record_id,
             "credit_type": credit_type,
-            "amount": refund_amount_val,
-            "balance_before": balance_before,
-            "balance_after": balance_after,
+            "amount": amount_to_response_number(credit_type, refund_amount_val),
+            "balance_before": amount_to_response_number(credit_type, balance_before),
+            "balance_after": amount_to_response_number(credit_type, balance_after),
             "original_record_id": original_record_id,
         }, "退款成功")
 
@@ -681,7 +796,7 @@ def settle(
     user_id: str,
     original_record_id: str,
     idempotency_key: str,
-    final_amount: int,
+    final_amount: Decimal | int | float,
     service_secret: str,
     description: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -701,9 +816,6 @@ def settle(
     if not original_record_id:
         return _make_error(ORIGINAL_RECORD_NOT_FOUND, "原扣费记录ID不能为空")
 
-    if final_amount < 0:
-        return _make_error(INVALID_AMOUNT, "结算金额不能为负数")
-
     db = get_session()
     try:
         # 幂等性检查
@@ -712,7 +824,10 @@ def settle(
             return _make_success({
                 "record_id": existing["id"],
                 "already_processed": True,
-                "amount": existing["amount"],
+                "credit_type": existing["credit_type"],
+                "amount": amount_to_response_number(existing["credit_type"], existing["amount"]),
+                "balance_before": amount_to_response_number(existing["credit_type"], existing["balance_before"]),
+                "balance_after": amount_to_response_number(existing["credit_type"], existing["balance_after"]),
             }, "已处理（幂等）")
 
         # 查找原始 deduct 记录
@@ -729,8 +844,51 @@ def settle(
         if not user:
             return _make_error(USER_NOT_FOUND, "用户不存在")
 
-        original_amount = original["amount"]
         credit_type = original["credit_type"]
+        try:
+            original_amount = normalize_amount_for_credit_type(credit_type, original["amount"])
+        except ValueError as exc:
+            return _make_error(INVALID_AMOUNT, str(exc))
+
+        if credit_type != "personal_silver":
+            record_id = str(uuid.uuid4())
+            if credit_type == "team_gold" and user.team_id:
+                team = db.query(Teams).filter(Teams.id == user.team_id).first()
+                current_balance = team.balance if team else 0
+            else:
+                current_balance = user.gold_credits or 0
+
+            _insert_billing_record(
+                db=db,
+                record_id=record_id,
+                idempotency_key=idempotency_key,
+                user_id=user_id,
+                team_id=user.team_id if credit_type == "team_gold" else None,
+                operation_type="settle",
+                credit_type=credit_type,
+                amount=normalize_gold_amount(0, allow_zero=True),
+                balance_before=current_balance,
+                balance_after=current_balance,
+                related_id=original_record_id,
+                task_id=original.get("task_id"),
+                description=description or "结算：金豆预扣即最终",
+            )
+            db.commit()
+
+            return _make_success({
+                "record_id": record_id,
+                "original_amount": amount_to_response_number(credit_type, original_amount),
+                "final_amount": amount_to_response_number(credit_type, original_amount),
+                "refund_amount": 0.0,
+                "credit_type": credit_type,
+                "balance_before": amount_to_response_number(credit_type, current_balance),
+                "balance_after": amount_to_response_number(credit_type, current_balance),
+            }, "结算成功（金豆预扣即最终）")
+
+        try:
+            final_amount = normalize_silver_amount(final_amount, allow_zero=True)
+        except ValueError as exc:
+            return _make_error(INVALID_AMOUNT, str(exc))
 
         # 计算差额
         diff = original_amount - final_amount
@@ -756,12 +914,12 @@ def settle(
 
             return _make_success({
                 "record_id": record_id,
-                "original_amount": original_amount,
-                "final_amount": final_amount,
+                "original_amount": amount_to_response_number(credit_type, original_amount),
+                "final_amount": amount_to_response_number(credit_type, final_amount),
                 "refund_amount": 0,
                 "credit_type": credit_type,
-                "balance_before": user.silver_credits or 0,
-                "balance_after": user.silver_credits or 0,
+                "balance_before": amount_to_response_number(credit_type, user.silver_credits or 0),
+                "balance_after": amount_to_response_number(credit_type, user.silver_credits or 0),
             }, "结算成功（无差额）")
 
         # 有差额，退回到 personal_silver
@@ -798,13 +956,13 @@ def settle(
 
         return _make_success({
             "record_id": record_id,
-            "original_amount": original_amount,
-            "final_amount": final_amount,
-            "refund_amount": diff,
+            "original_amount": amount_to_response_number(credit_type, original_amount),
+            "final_amount": amount_to_response_number(credit_type, final_amount),
+            "refund_amount": amount_to_response_number(credit_type, diff),
             "refund_to": "personal_silver",
             "credit_type": credit_type,
-            "balance_before": balance_before,
-            "balance_after": balance_after,
+            "balance_before": amount_to_response_number(credit_type, balance_before),
+            "balance_after": amount_to_response_number(credit_type, balance_after),
         }, "结算成功")
 
     except Exception as e:

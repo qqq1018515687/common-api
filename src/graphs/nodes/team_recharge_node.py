@@ -11,6 +11,7 @@ from datetime import datetime
 
 from storage.database.db import get_session
 from storage.database.shared.model import Teams, Users, TeamConsumptionRecords
+from storage.database.amounts import gold_amount_to_number, normalize_gold_amount
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class TeamRechargeInput(BaseModel):
     """团队充值节点的输入"""
     operation_type: Optional[str] = Field(default=None, description="操作类型")
     user_id: Optional[str] = Field(default=None, description="操作用户ID")
-    amount: Optional[int] = Field(default=None, description="充值金额")
+    amount: Optional[float] = Field(default=None, description="充值金额")
     description: Optional[str] = Field(default=None, description="充值描述")
 
 
@@ -45,9 +46,15 @@ def team_recharge_node(state: TeamRechargeInput, config: RunnableConfig, runtime
                 response_data={"code": 400, "msg": "用户ID不能为空", "data": None}
             )
         
-        if not state.amount or state.amount <= 0:
+        if state.amount is None:
             return TeamRechargeOutput(
                 response_data={"code": 400, "msg": "充值金额必须大于0", "data": None}
+            )
+        try:
+            amount = normalize_gold_amount(state.amount)
+        except ValueError as exc:
+            return TeamRechargeOutput(
+                response_data={"code": 400, "msg": str(exc), "data": None}
             )
         
         # 通过 users 表查找用户及其团队
@@ -71,7 +78,7 @@ def team_recharge_node(state: TeamRechargeInput, config: RunnableConfig, runtime
         # 更新团队余额
         team = db.query(Teams).filter(Teams.id == user.team_id).first()
         balance_before = team.balance
-        team.balance += state.amount
+        team.balance += amount
         team.updated_at = datetime.utcnow()
         
         # 记录充值
@@ -82,7 +89,7 @@ def team_recharge_node(state: TeamRechargeInput, config: RunnableConfig, runtime
             user_id=state.user_id,
             username=user.username,
             operation_type="recharge",
-            amount=state.amount,
+            amount=amount,
             balance_before=balance_before,
             balance_after=team.balance,
             description=state.description or "团队充值"
@@ -95,8 +102,8 @@ def team_recharge_node(state: TeamRechargeInput, config: RunnableConfig, runtime
                 "code": 0,
                 "msg": "充值成功",
                 "data": {
-                    "balance": team.balance,
-                    "amount": state.amount
+                    "balance": gold_amount_to_number(team.balance),
+                    "amount": gold_amount_to_number(amount)
                 }
             }
         )

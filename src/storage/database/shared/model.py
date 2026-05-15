@@ -1,6 +1,7 @@
 from coze_coding_dev_sdk.database import Base
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Index, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text
+from decimal import Decimal
+from sqlalchemy import BigInteger, Boolean, DateTime, Index, Integer, JSON, Numeric, PrimaryKeyConstraint, String, Text, UniqueConstraint, text
 from typing import Optional
 import datetime
 
@@ -80,7 +81,7 @@ class Users(Base):
     phone: Mapped[Optional[str]] = mapped_column(String(11))
     avatar: Mapped[Optional[str]] = mapped_column(String(256))
     team_id: Mapped[Optional[str]] = mapped_column(String(64))
-    gold_credits: Mapped[Optional[int]] = mapped_column(Integer, server_default=text('0'))
+    gold_credits: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), server_default=text('0.00'))
     silver_credits: Mapped[Optional[int]] = mapped_column(Integer, server_default=text('999999999'))
     role: Mapped[Optional[str]] = mapped_column(String(20), server_default=text("'user'::character varying"))
     tier: Mapped[Optional[str]] = mapped_column(String(20), server_default=text("'standard'::character varying"))
@@ -207,8 +208,8 @@ class Teams(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='团队ID')
     name: Mapped[str] = mapped_column(String(100), nullable=False, comment='团队名称')
     description: Mapped[Optional[str]] = mapped_column(String(255), comment='团队描述')
-    balance: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='团队金豆余额')
-    total_consumed: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='团队总消费金额')
+    balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, server_default=text('0.00'), comment='团队金豆余额')
+    total_consumed: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, server_default=text('0.00'), comment='团队总消费金额')
     member_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='成员数量')
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'active'"), comment='状态：active/disabled')
     settings: Mapped[Optional[dict]] = mapped_column(JSON, comment='团队配置（限额、预警等）')
@@ -235,9 +236,9 @@ class BillingRecords(Base):
     team_id: Mapped[Optional[str]] = mapped_column(String(64), comment='团队ID（team_gold 操作时必填）')
     operation_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='操作类型：deduct/refund/settle')
     credit_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='资金类型：personal_gold/personal_silver/team_gold')
-    amount: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='操作金额（正数）')
-    balance_before: Mapped[Optional[int]] = mapped_column(BigInteger, comment='操作前余额')
-    balance_after: Mapped[Optional[int]] = mapped_column(BigInteger, comment='操作后余额')
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, comment='操作金额（正数）')
+    balance_before: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), comment='操作前余额')
+    balance_after: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), comment='操作后余额')
     related_id: Mapped[Optional[str]] = mapped_column(String(64), comment='关联记录ID（退款/结算关联原扣费记录）')
     task_id: Mapped[Optional[str]] = mapped_column(String(36), comment='关联任务ID')
     description: Mapped[Optional[str]] = mapped_column(String(255), comment='描述')
@@ -260,9 +261,9 @@ class TeamConsumptionRecords(Base):
     team_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='团队ID')
     user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='消费的用户ID')
     username: Mapped[Optional[str]] = mapped_column(String(50), comment='用户名（冗余字段）')
-    amount: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='消费金额（正数表示消费，负数表示退款/充值）')
-    balance_before: Mapped[Optional[int]] = mapped_column(BigInteger, comment='变动前余额')
-    balance_after: Mapped[Optional[int]] = mapped_column(BigInteger, comment='变动后余额')
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, comment='变动金额（消费为负数，充值/退款为正数）')
+    balance_before: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), comment='变动前余额')
+    balance_after: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), comment='变动后余额')
     operation_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='操作类型：consumption/refund/recharge')
     related_id: Mapped[Optional[str]] = mapped_column(String(64), comment='关联ID（任务ID/订单ID）')
     description: Mapped[Optional[str]] = mapped_column(String(255), comment='描述说明')
