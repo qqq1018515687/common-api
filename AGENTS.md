@@ -1,6 +1,8 @@
 ## 项目概述
 - **名称**: Coze Coding 工作流
 - **功能**: 基于 LangGraph 的工作流项目，包含用户管理、文件上传、历史保存、任务管理、图像自动打标、标签池管理、团队余额管理、RunningHub错误分析、资金扣费系统等功能
+- **仓库地址**: https://github.com/qqq1018515687/common-api
+- **推送认证**: 需要在 remote URL 中附带 GitHub Personal Access Token，或通过其他方式认证
 
 ### 关键业务标识
 - **团队 team_id**: `Mars`（注意：Mars 是 team_id 字段，不是 name 字段，查询时用 `WHERE id = 'Mars'`）
