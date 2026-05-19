@@ -51,6 +51,8 @@ def billing_settle_node(state: BillingSettleInput, config: RunnableConfig, runti
             final_amount=state.final_amount,
             service_secret=state.service_secret,
             description=state.description,
+            billing_metadata=state.billing_metadata,
+            metadata=state.metadata,
         )
         return BillingSettleOutput(response_data=result)
 

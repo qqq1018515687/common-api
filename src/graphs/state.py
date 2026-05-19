@@ -16,6 +16,7 @@ class InputData(BaseModel):
     operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/register/login/update_user/delete_user/list_users)、任务管理(create_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、RunningHub错误分析(runninghub_error_analysis)")
     assets: Optional[List[dict]] = Field(default=None, description="Agent 意图判断素材摘要列表")
     current_target: Optional[dict] = Field(default=None, description="Agent 意图判断当前已选目标")
+    agent_preferences: Optional[dict] = Field(default=None, description="Agent 生成偏好与模型偏好")
     capability_hash: Optional[str] = Field(default=None, description="Agent 能力表哈希")
     capability_manifest_url: Optional[str] = Field(default=None, description="Agent 能力表获取地址")
     capability_manifest: Optional[dict] = Field(default=None, description="Agent 能力表快照")
@@ -100,6 +101,7 @@ class GlobalState(BaseModel):
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
     assets: Optional[List[dict]] = Field(default=None, description="Agent 意图判断素材摘要列表")
     current_target: Optional[dict] = Field(default=None, description="Agent 意图判断当前已选目标")
+    agent_preferences: Optional[dict] = Field(default=None, description="Agent 生成偏好与模型偏好")
     capability_hash: Optional[str] = Field(default=None, description="Agent 能力表哈希")
     capability_manifest_url: Optional[str] = Field(default=None, description="Agent 能力表获取地址")
     capability_manifest: Optional[dict] = Field(default=None, description="Agent 能力表快照")
@@ -558,6 +560,7 @@ class UnpackInputDataOutput(BaseModel):
     prompt: Optional[str] = Field(default=None, description="提示词")
     assets: Optional[List[dict]] = Field(default=None, description="Agent 意图判断素材摘要列表")
     current_target: Optional[dict] = Field(default=None, description="Agent 意图判断当前已选目标")
+    agent_preferences: Optional[dict] = Field(default=None, description="Agent 生成偏好与模型偏好")
     capability_hash: Optional[str] = Field(default=None, description="Agent 能力表哈希")
     capability_manifest_url: Optional[str] = Field(default=None, description="Agent 能力表获取地址")
     capability_manifest: Optional[dict] = Field(default=None, description="Agent 能力表快照")
@@ -795,6 +798,8 @@ class BillingSettleInput(BaseModel):
     idempotency_key: Optional[str] = Field(default=None, description="幂等键")
     service_secret: Optional[str] = Field(default=None, description="服务密钥")
     description: Optional[str] = Field(default=None, description="结算描述")
+    billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（含 title/workflow/model 等）")
+    metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
 
 
 class BillingSettleOutput(BaseModel):

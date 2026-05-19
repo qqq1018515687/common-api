@@ -28,6 +28,7 @@ class AgentIntentInput(BaseModel):
     prompt: Optional[str] = Field(default=None, description="用户原始需求")
     assets: list[dict] = Field(default_factory=list, description="用户已上传素材摘要列表")
     current_target: Optional[dict] = Field(default=None, description="前端当前已选目标")
+    agent_preferences: Optional[dict] = Field(default=None, description="Agent 生成偏好与模型偏好")
     capability_hash: Optional[str] = Field(default=None, description="前端当前能力表哈希")
     capability_manifest_url: Optional[str] = Field(default=None, description="能力表获取地址")
     capability_manifest: Optional[dict] = Field(default=None, description="能力表快照")
@@ -366,6 +367,56 @@ def _merge_missing_requirements(llm_missing: object, computed_missing: list[str]
     return result
 
 
+def _as_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes")
+    return False
+
+
+def _normalise_step(
+    raw_step: object,
+    index: int,
+    capabilities_by_id: dict[str, dict],
+    state: AgentIntentInput,
+    fallback_reason: str = "",
+) -> Optional[dict]:
+    step_data = _as_dict(raw_step)
+    step_target = _as_dict(step_data.get("target"))
+    workflow_id = _normalise_workflow_id(
+        step_target.get("workflowId") or step_target.get("workflow_id") or step_data.get("workflowId") or step_data.get("workflow_id"),
+        capabilities_by_id,
+    )
+    if not workflow_id:
+        return None
+
+    capability = capabilities_by_id[workflow_id]
+    missing_requirements = _merge_missing_requirements(
+        step_data.get("missing_requirements"),
+        _computed_missing_requirements(capability, state.assets),
+    )
+
+    step = {
+        "id": step_data.get("id") if isinstance(step_data.get("id"), str) and step_data.get("id").strip() else f"step_{index + 1}",
+        "title": step_data.get("title") if isinstance(step_data.get("title"), str) and step_data.get("title").strip() else capability.get("name") or f"Step {index + 1}",
+        "target": {
+            "intent": capability.get("intent"),
+            "workflowId": workflow_id,
+        },
+        "reason": step_data.get("reason") if isinstance(step_data.get("reason"), str) else fallback_reason,
+        "parameter_overrides": _filter_parameter_overrides(step_data.get("parameter_overrides"), capability),
+        "tool_input_overrides": _filter_tool_input_overrides(step_data.get("tool_input_overrides"), capability),
+        "missing_requirements": missing_requirements,
+        "requires_confirmation": _as_bool(step_data.get("requires_confirmation")),
+    }
+
+    if isinstance(step_data.get("prompt"), str) and step_data["prompt"].strip():
+        step["prompt"] = step_data["prompt"].strip()
+
+    return step
+
+
 def _normalise_plan(parsed: dict, manifest: dict, state: AgentIntentInput) -> dict:
     capabilities = [
         capability for capability in manifest.get("capabilities", [])
@@ -373,7 +424,28 @@ def _normalise_plan(parsed: dict, manifest: dict, state: AgentIntentInput) -> di
     ]
     capabilities_by_id = {capability["workflowId"]: capability for capability in capabilities}
     target = _as_dict(parsed.get("target"))
-    workflow_id = _normalise_workflow_id(target.get("workflowId"), capabilities_by_id)
+    workflow_id = _normalise_workflow_id(
+        target.get("workflowId") or target.get("workflow_id"),
+        capabilities_by_id,
+    )
+
+    parsed_steps = parsed.get("steps")
+    steps: list[dict] = []
+    if isinstance(parsed_steps, list):
+        for index, raw_step in enumerate(parsed_steps):
+            step = _normalise_step(
+                raw_step,
+                index,
+                capabilities_by_id,
+                state,
+                parsed.get("reason") if isinstance(parsed.get("reason"), str) else "",
+            )
+            if step:
+                steps.append(step)
+
+    if not workflow_id and steps:
+        workflow_id = steps[0]["target"]["workflowId"]
+
     if not workflow_id:
         raise ValueError("Agent 返回的 workflowId 不在能力表中")
 
@@ -386,24 +458,70 @@ def _normalise_plan(parsed: dict, manifest: dict, state: AgentIntentInput) -> di
         parsed.get("missing_requirements"),
         _computed_missing_requirements(capability, state.assets),
     )
+    parameter_overrides = _filter_parameter_overrides(parsed.get("parameter_overrides"), capability)
+    tool_input_overrides = _filter_tool_input_overrides(parsed.get("tool_input_overrides"), capability)
+
+    if not steps:
+        steps = [
+            {
+                "id": "step_1",
+                "title": capability.get("name") if isinstance(capability.get("name"), str) else "执行任务",
+                "target": {
+                    "intent": capability.get("intent"),
+                    "workflowId": workflow_id,
+                },
+                "reason": parsed.get("reason") if isinstance(parsed.get("reason"), str) else "",
+                "parameter_overrides": parameter_overrides,
+                "tool_input_overrides": tool_input_overrides,
+                "missing_requirements": missing_requirements,
+                "requires_confirmation": _as_bool(parsed.get("requires_confirmation")),
+            }
+        ]
+
+    for step in steps:
+        for missing in step.get("missing_requirements", []):
+            if missing not in missing_requirements:
+                missing_requirements.append(missing)
+
+    explicit_plan_type = parsed.get("plan_type")
+    plan_type = "multi_step" if len(steps) > 1 or explicit_plan_type == "multi_step" else "single"
+    requires_confirmation = _as_bool(parsed.get("requires_confirmation")) or any(
+        _as_bool(step.get("requires_confirmation")) for step in steps
+    )
 
     plan = {
         "plan_id": parsed.get("plan_id") if isinstance(parsed.get("plan_id"), str) else f"agent_intent_{int(time.time() * 1000)}",
+        "plan_type": plan_type,
         "target": {
             "intent": capability.get("intent"),
             "workflowId": workflow_id,
         },
         "confidence": max(0, min(1, float(confidence))),
         "reason": parsed.get("reason") if isinstance(parsed.get("reason"), str) else "",
-        "parameter_overrides": _filter_parameter_overrides(parsed.get("parameter_overrides"), capability),
-        "tool_input_overrides": _filter_tool_input_overrides(parsed.get("tool_input_overrides"), capability),
+        "parameter_overrides": parameter_overrides,
+        "tool_input_overrides": tool_input_overrides,
         "missing_requirements": missing_requirements,
+        "steps": steps,
+        "requires_confirmation": requires_confirmation,
         "should_execute": False,
+        "recovery": {
+            "can_resume": False,
+            "completed_steps": [],
+            "current_step": steps[0]["id"] if steps else None,
+        },
         "capability_hash": manifest.get("capabilityHash") or state.capability_hash,
     }
 
     if isinstance(parsed.get("prompt"), str) and parsed["prompt"].strip():
         plan["prompt"] = parsed["prompt"].strip()
+    if isinstance(parsed.get("payment_notice"), str) and parsed["payment_notice"].strip():
+        plan["payment_notice"] = parsed["payment_notice"].strip()
+    if isinstance(parsed.get("recovery"), dict):
+        plan["recovery"] = {
+            "can_resume": _as_bool(parsed["recovery"].get("can_resume")),
+            "completed_steps": _as_string_list(parsed["recovery"].get("completed_steps")),
+            "current_step": parsed["recovery"].get("current_step") if isinstance(parsed["recovery"].get("current_step"), str) else steps[0]["id"],
+        }
 
     return plan
 
@@ -447,6 +565,11 @@ def agent_intent_node(
             "capability_hash": manifest.get("capabilityHash") or state.capability_hash or "",
             "capabilities_json": json.dumps(_compact_capabilities(manifest), ensure_ascii=False, indent=2),
         })
+        if isinstance(state.agent_preferences, dict) and state.agent_preferences:
+            user_prompt = (
+                f"{user_prompt}\n\nAgent 生成偏好与模型偏好：\n"
+                f"{json.dumps(state.agent_preferences, ensure_ascii=False, indent=2)}"
+            )
 
         client = LLMClient(ctx=ctx)
         response = client.invoke(

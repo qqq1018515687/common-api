@@ -86,6 +86,8 @@ def _extract_team_record_metadata(
         "task_id", "billing_task_id", "workflow", "workflow_id",
         "workflow_name", "model_key", "model_display_name",
         "source", "task_type", "currency", "number",
+        "agent_run_id", "agent_step_id", "agent_step_index",
+        "agent_plan_type", "agent_model_preference",
     ]
     result: Dict[str, Any] = {}
 
@@ -576,13 +578,17 @@ def deduct(
         billing_extra_data = extra_data or {}
         if billing_metadata:
             for _bk in ("platform", "selected_account", "provider", "model_name", "model_key",
-                        "workflow", "workflow_name", "model_display_name", "title"):
+                        "workflow", "workflow_name", "model_display_name", "title",
+                        "agent_run_id", "agent_step_id", "agent_step_index",
+                        "agent_plan_type", "agent_model_preference"):
                 _bv = billing_metadata.get(_bk)
                 if _bv is not None:
                     billing_extra_data[_bk] = _bv
         if metadata and isinstance(metadata.get("billing_metadata"), dict):
             for _bk in ("platform", "selected_account", "provider", "model_name", "model_key",
-                        "workflow", "workflow_name", "model_display_name", "title"):
+                        "workflow", "workflow_name", "model_display_name", "title",
+                        "agent_run_id", "agent_step_id", "agent_step_index",
+                        "agent_plan_type", "agent_model_preference"):
                 _bv = metadata["billing_metadata"].get(_bk)
                 if _bv is not None:
                     billing_extra_data[_bk] = _bv
@@ -822,6 +828,8 @@ def settle(
     final_amount: Decimal | int | float,
     service_secret: str,
     description: Optional[str] = None,
+    billing_metadata: Optional[Dict[str, Any]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     结算：只对 personal_silver 退差额
@@ -877,6 +885,18 @@ def settle(
         except ValueError as exc:
             return _make_error(INVALID_AMOUNT, str(exc))
 
+        settle_title = description
+        if not settle_title and (billing_metadata or metadata):
+            settle_title = _build_consumption_title(
+                billing_metadata=billing_metadata,
+                metadata=metadata,
+                description=description,
+            )
+        settle_extra_data = _extract_team_record_metadata(
+            billing_metadata=billing_metadata,
+            metadata=metadata,
+        )
+
         if credit_type != "personal_silver":
             record_id = str(uuid.uuid4())
             if credit_type == "team_gold" and user.team_id:
@@ -898,7 +918,8 @@ def settle(
                 balance_after=current_balance,
                 related_id=original_record_id,
                 task_id=original.get("task_id"),
-                description=description or "结算：金豆预扣即最终",
+                description=settle_title or "结算：金豆预扣即最终",
+                extra_data=settle_extra_data if settle_extra_data else None,
             )
             db.commit()
 
@@ -935,7 +956,8 @@ def settle(
                 balance_after=user.silver_credits or 0,
                 related_id=original_record_id,
                 task_id=original.get("task_id"),
-                description=description or "结算：无差额可退",
+                description=settle_title or "结算：无差额可退",
+                extra_data=settle_extra_data if settle_extra_data else None,
             )
             db.commit()
 
@@ -977,7 +999,8 @@ def settle(
             balance_after=balance_after,
             related_id=original_record_id,
             task_id=original.get("task_id"),
-            description=description or f"结算：退差额 {diff} 到银豆",
+            description=settle_title or f"结算：退差额 {diff} 到银豆",
+            extra_data=settle_extra_data if settle_extra_data else None,
         )
         db.commit()
 
