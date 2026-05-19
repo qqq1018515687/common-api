@@ -68,6 +68,7 @@ from graphs.nodes.team_refund_node import team_refund_node
 from graphs.nodes.team_records_node import team_records_node
 from graphs.nodes.runninghub_error_analysis_node import runninghub_error_analysis_node
 from graphs.nodes.agent_intent_node import agent_intent_node
+from graphs.nodes.agent_run_node import agent_run_node
 from graphs.nodes.billing_route_node import billing_route_node, route_by_billing_operation_type
 from graphs.nodes.get_balance_node import get_balance_node
 from graphs.nodes.billing_deduct_node import billing_deduct_node
@@ -101,6 +102,8 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "RunningHub错误分析"
     elif call_type == "agent_intent":
         return "Agent意图判断"
+    elif call_type == "agent_run":
+        return "Agent Run"
     elif call_type == "billing":
         return "资金扣费"
     else:
@@ -179,6 +182,7 @@ builder.add_node("team_refund", team_refund_node)
 builder.add_node("team_records", team_records_node)
 builder.add_node("runninghub_error_analysis", runninghub_error_analysis_node, metadata={"type": "agent", "llm_cfg": "config/runninghub_error_analysis_cfg.json"})
 builder.add_node("agent_intent", agent_intent_node, metadata={"type": "agent", "llm_cfg": "config/agent_intent_cfg.json"})
+builder.add_node("agent_run", agent_run_node)
 builder.add_node("billing_route", billing_route_node)
 builder.add_node("get_balance", get_balance_node)
 builder.add_node("billing_deduct", billing_deduct_node)
@@ -206,6 +210,7 @@ builder.add_conditional_edges(
         "团队余额": "team_route",  # 路由到团队余额路由节点
         "RunningHub错误分析": "runninghub_error_analysis",
         "Agent意图判断": "agent_intent",
+        "Agent Run": "agent_run",
         "资金扣费": "billing_route"
     }
 )
@@ -303,6 +308,7 @@ builder.add_edge("team_refund", "format_response")
 builder.add_edge("team_records", "format_response")
 builder.add_edge("runninghub_error_analysis", "format_response")
 builder.add_edge("agent_intent", "format_response")
+builder.add_edge("agent_run", "format_response")
 builder.add_edge("get_balance", "format_response")
 builder.add_edge("billing_deduct", "format_response")
 builder.add_edge("billing_refund", "format_response")

@@ -20,6 +20,13 @@ class InputData(BaseModel):
     capability_hash: Optional[str] = Field(default=None, description="Agent 能力表哈希")
     capability_manifest_url: Optional[str] = Field(default=None, description="Agent 能力表获取地址")
     capability_manifest: Optional[dict] = Field(default=None, description="Agent 能力表快照")
+    agent_run_id: Optional[str] = Field(default=None, description="Agent Run ID")
+    agent_step_id: Optional[str] = Field(default=None, description="Agent Step ID")
+    agent_plan_type: Optional[str] = Field(default=None, description="Agent 计划类型")
+    agent_plan: Optional[dict] = Field(default=None, description="Agent 执行计划")
+    agent_steps: Optional[List[dict]] = Field(default=None, description="Agent 执行步骤")
+    agent_run_updates: Optional[dict] = Field(default=None, description="Agent Run 更新字段")
+    agent_step_updates: Optional[dict] = Field(default=None, description="Agent Step 更新字段")
 
     # 用户管理相关字段
     phone: Optional[str] = Field(default=None, description="手机号")
@@ -88,7 +95,7 @@ class InputData(BaseModel):
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management/notification_management/team_balance/billing/agent_intent")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management/notification_management/team_balance/billing/agent_intent/agent_run")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
@@ -105,6 +112,13 @@ class GlobalState(BaseModel):
     capability_hash: Optional[str] = Field(default=None, description="Agent 能力表哈希")
     capability_manifest_url: Optional[str] = Field(default=None, description="Agent 能力表获取地址")
     capability_manifest: Optional[dict] = Field(default=None, description="Agent 能力表快照")
+    agent_run_id: Optional[str] = Field(default=None, description="Agent Run ID")
+    agent_step_id: Optional[str] = Field(default=None, description="Agent Step ID")
+    agent_plan_type: Optional[str] = Field(default=None, description="Agent 计划类型")
+    agent_plan: Optional[dict] = Field(default=None, description="Agent 执行计划")
+    agent_steps: Optional[List[dict]] = Field(default=None, description="Agent 执行步骤")
+    agent_run_updates: Optional[dict] = Field(default=None, description="Agent Run 更新字段")
+    agent_step_updates: Optional[dict] = Field(default=None, description="Agent Step 更新字段")
     result: dict = Field(default={}, description="各节点的结果")
     response_data: Optional[dict] = Field(default=None, description="统一响应数据")
 
@@ -168,7 +182,7 @@ class GlobalState(BaseModel):
 
 class GraphInput(BaseModel):
     """工作流的输入"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool/task_management/notification_management/team_balance/billing/agent_intent")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool/task_management/notification_management/team_balance/billing/agent_intent/agent_run")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
 
@@ -564,6 +578,13 @@ class UnpackInputDataOutput(BaseModel):
     capability_hash: Optional[str] = Field(default=None, description="Agent 能力表哈希")
     capability_manifest_url: Optional[str] = Field(default=None, description="Agent 能力表获取地址")
     capability_manifest: Optional[dict] = Field(default=None, description="Agent 能力表快照")
+    agent_run_id: Optional[str] = Field(default=None, description="Agent Run ID")
+    agent_step_id: Optional[str] = Field(default=None, description="Agent Step ID")
+    agent_plan_type: Optional[str] = Field(default=None, description="Agent 计划类型")
+    agent_plan: Optional[dict] = Field(default=None, description="Agent 执行计划")
+    agent_steps: Optional[List[dict]] = Field(default=None, description="Agent 执行步骤")
+    agent_run_updates: Optional[dict] = Field(default=None, description="Agent Run 更新字段")
+    agent_step_updates: Optional[dict] = Field(default=None, description="Agent Step 更新字段")
     # 用户管理相关字段
     phone: Optional[str] = Field(default=None, description="手机号")
     ip: Optional[str] = Field(default=None, description="IP地址")
