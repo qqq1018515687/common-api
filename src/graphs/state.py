@@ -14,6 +14,11 @@ class InputData(BaseModel):
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
     operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/register/login/update_user/delete_user/list_users)、任务管理(create_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、RunningHub错误分析(runninghub_error_analysis)")
+    assets: Optional[List[dict]] = Field(default=None, description="Agent 意图判断素材摘要列表")
+    current_target: Optional[dict] = Field(default=None, description="Agent 意图判断当前已选目标")
+    capability_hash: Optional[str] = Field(default=None, description="Agent 能力表哈希")
+    capability_manifest_url: Optional[str] = Field(default=None, description="Agent 能力表获取地址")
+    capability_manifest: Optional[dict] = Field(default=None, description="Agent 能力表快照")
 
     # 用户管理相关字段
     phone: Optional[str] = Field(default=None, description="手机号")
@@ -82,7 +87,7 @@ class InputData(BaseModel):
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management/notification_management/team_balance/billing")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management/notification_management/team_balance/billing/agent_intent")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
@@ -93,6 +98,11 @@ class GlobalState(BaseModel):
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     operation_type: Optional[str] = Field(default=None, description="操作类型")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
+    assets: Optional[List[dict]] = Field(default=None, description="Agent 意图判断素材摘要列表")
+    current_target: Optional[dict] = Field(default=None, description="Agent 意图判断当前已选目标")
+    capability_hash: Optional[str] = Field(default=None, description="Agent 能力表哈希")
+    capability_manifest_url: Optional[str] = Field(default=None, description="Agent 能力表获取地址")
+    capability_manifest: Optional[dict] = Field(default=None, description="Agent 能力表快照")
     result: dict = Field(default={}, description="各节点的结果")
     response_data: Optional[dict] = Field(default=None, description="统一响应数据")
 
@@ -156,7 +166,7 @@ class GlobalState(BaseModel):
 
 class GraphInput(BaseModel):
     """工作流的输入"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool/task_management/notification_management/team_balance/billing")
+    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool/task_management/notification_management/team_balance/billing/agent_intent")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
 
@@ -546,6 +556,11 @@ class UnpackInputDataOutput(BaseModel):
     tool_type: Optional[str] = Field(default=None, description="工具类型")
     operation_type: Optional[str] = Field(default=None, description="操作类型")
     prompt: Optional[str] = Field(default=None, description="提示词")
+    assets: Optional[List[dict]] = Field(default=None, description="Agent 意图判断素材摘要列表")
+    current_target: Optional[dict] = Field(default=None, description="Agent 意图判断当前已选目标")
+    capability_hash: Optional[str] = Field(default=None, description="Agent 能力表哈希")
+    capability_manifest_url: Optional[str] = Field(default=None, description="Agent 能力表获取地址")
+    capability_manifest: Optional[dict] = Field(default=None, description="Agent 能力表快照")
     # 用户管理相关字段
     phone: Optional[str] = Field(default=None, description="手机号")
     ip: Optional[str] = Field(default=None, description="IP地址")
