@@ -1,3 +1,49 @@
+## 项目规则
+
+### 🔴 Coze/LangGraph 节点开发约束：保证画布可渲染
+
+**适用范围**：新增或修改节点、状态模型、图编排和 LLM 配置时必须遵守。
+
+**节点函数签名**：节点函数必须严格使用三参数签名，入参/出参都使用该节点独立定义的 Pydantic 模型，禁止直接使用 `GlobalState` 作为节点入参或出参，禁止返回 `dict`/`str` 等裸结构。
+
+```python
+def my_node(
+    state: MyNodeInput,
+    config: RunnableConfig,
+    runtime: Runtime[Context],
+) -> MyNodeOutput:
+    """
+    title: 节点标题
+    desc: 节点描述
+    integrations: 使用的技能名
+    """
+    ctx = runtime.context
+    return MyNodeOutput(result="value")
+```
+
+**状态定义**：
+1. 每个节点必须独立定义 `Input`/`Output`，并最小化字段范围
+2. `Input` 和 `Output` 不能是同一个类
+3. 每个 `Field(...)` 必须填写 `description`
+4. 上传文件/图片等文件对象参数必须使用 `File` 类型；如果前端传入的是可访问 URL，则按现有接口约定使用 `str`
+
+**Import 规则**：
+1. import 必须放在文件顶部，禁止函数体内 import
+2. 禁止使用 `src.` 前缀导入，使用 `from graphs...`、`from utils...` 等项目内导入方式
+
+**图编排规则**：
+1. `add_node`/`add_edge`/`path_map` 中的节点引用使用节点名字符串
+2. 禁止在 `graph.py` 中用 `lambda` 临时拼节点逻辑
+3. 条件路由 `path` 使用路由函数对象，`path_map` 的 key 必须与路由函数返回值一致，优先使用画布可读的中文 key
+4. 并行汇聚使用 `builder.add_edge(["并行分支1", "并行分支2"], "汇聚节点")`
+
+**文件位置和配置**：
+1. 新增节点放在 `src/graphs/nodes/xxx_node.py`，`src/graphs/node.py` 只维护老节点
+2. LLM 配置文件只能放在 `config/` 下，且必须包含 `config`、`sp`、`up`、`tools` 四个字段；无工具时 `tools` 必须是空数组
+3. `config.model` 禁止编造，必须来自技能文档、已有配置或用户明确指定
+4. 价格、映射表等非 LLM 配置放在 `assets/`
+
+**外部调用**：禁止用虚构结果冒充外部 API 响应；必须真实调用服务并处理真实响应。已真实完成任务后，为兼容下游节点而构造的适配字段不属于 Mock，但必须在注释或节点说明中明确其兼容目的。
 ## 项目概述
 - **名称**: Coze Coding 工作流
 - **功能**: 基于 LangGraph 的工作流项目，包含用户管理、文件上传、历史保存、任务管理、图像自动打标、标签池管理、团队余额管理、RunningHub错误分析、资金扣费系统等功能

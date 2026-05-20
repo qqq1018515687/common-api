@@ -343,7 +343,10 @@ def update_run(run_id: str, updates: dict, user_id: Optional[str] = None) -> Opt
 
     for input_key, column in json_fields.items():
         if input_key in updates:
-            assignments.append(f"{column} = CAST(:{input_key} AS JSONB)")
+            if input_key == "metadata":
+                assignments.append(f"{column} = COALESCE({column}, '{{}}'::jsonb) || CAST(:{input_key} AS JSONB)")
+            else:
+                assignments.append(f"{column} = CAST(:{input_key} AS JSONB)")
             params[input_key] = _json_dumps(updates[input_key])
 
     if not assignments:
@@ -453,7 +456,10 @@ def update_step(
 
     for input_key, column in json_fields.items():
         if input_key in updates:
-            assignments.append(f"{column} = CAST(:{input_key} AS JSONB)")
+            if input_key == "metadata":
+                assignments.append(f"{column} = COALESCE({column}, '{{}}'::jsonb) || CAST(:{input_key} AS JSONB)")
+            else:
+                assignments.append(f"{column} = CAST(:{input_key} AS JSONB)")
             params[input_key] = _json_dumps(updates[input_key])
 
     status = updates.get("status")

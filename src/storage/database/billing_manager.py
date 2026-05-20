@@ -832,10 +832,10 @@ def settle(
     metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
-    结算：只对 personal_silver 退差额
+    结算：只对 personal_silver 做差额处理
     - gold 和 team_gold 预扣即最终，不退差额
     - final_amount < 原扣费金额时，差额退回 personal_silver
-    - final_amount >= 原扣费金额时，不做操作
+    - final_amount > 原扣费金额时，补扣 personal_silver 差额
     - 幂等性：通过 idempotency_key 唯一约束保证
     """
     if not service_secret or not verify_service_secret(service_secret):
@@ -938,9 +938,9 @@ def settle(
         except ValueError as exc:
             return _make_error(INVALID_AMOUNT, str(exc))
 
-        # 计算差额
+        # 计算差额。diff > 0 退差额；diff < 0 补扣差额。
         diff = original_amount - final_amount
-        if diff <= 0:
+        if diff == 0:
             # 无差额可退
             record_id = str(uuid.uuid4())
             _insert_billing_record(
@@ -970,6 +970,58 @@ def settle(
                 "balance_before": amount_to_response_number(credit_type, user.silver_credits or 0),
                 "balance_after": amount_to_response_number(credit_type, user.silver_credits or 0),
             }, "结算成功（无差额）")
+
+        if diff < 0:
+            extra_amount = abs(diff)
+            result_row = db.execute(text(
+                "UPDATE users SET silver_credits = silver_credits - :amount "
+                "WHERE user_id = :user_id AND silver_credits - :amount >= :min_val "
+                "RETURNING silver_credits + :amount AS before_val, silver_credits AS after_val"
+            ), {
+                "amount": extra_amount,
+                "user_id": user_id,
+                "min_val": PERSONAL_SILVER_MIN,
+            }).fetchone()
+
+            if not result_row:
+                db.rollback()
+                current_balance = user.silver_credits or 0
+                return _make_error(
+                    INSUFFICIENT_BALANCE,
+                    f"银豆余额不足，无法补扣结算差额。当前余额：{current_balance}，需补扣：{extra_amount}"
+                )
+
+            balance_before = result_row[0]
+            balance_after = result_row[1]
+
+            record_id = str(uuid.uuid4())
+            _insert_billing_record(
+                db=db,
+                record_id=record_id,
+                idempotency_key=idempotency_key,
+                user_id=user_id,
+                team_id=None,
+                operation_type="settle",
+                credit_type=credit_type,
+                amount=extra_amount,
+                balance_before=balance_before,
+                balance_after=balance_after,
+                related_id=original_record_id,
+                task_id=original.get("task_id"),
+                description=settle_title or f"结算：补扣差额 {extra_amount} 银豆",
+                extra_data=settle_extra_data if settle_extra_data else None,
+            )
+            db.commit()
+
+            return _make_success({
+                "record_id": record_id,
+                "original_amount": amount_to_response_number(credit_type, original_amount),
+                "final_amount": amount_to_response_number(credit_type, final_amount),
+                "extra_deduct_amount": amount_to_response_number(credit_type, extra_amount),
+                "credit_type": credit_type,
+                "balance_before": amount_to_response_number(credit_type, balance_before),
+                "balance_after": amount_to_response_number(credit_type, balance_after),
+            }, "结算成功（补扣差额）")
 
         # 有差额，退回到 personal_silver
         result_row = db.execute(text(
