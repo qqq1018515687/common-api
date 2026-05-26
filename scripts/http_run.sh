@@ -37,5 +37,10 @@ export PYTHONPATH="${WORK_DIR}:${WORK_DIR}/src:${PYTHONPATH}"
 # 切换到工作目录
 cd "${WORK_DIR}"
 
+# Run database migrations before starting the HTTP service. Alembic skips
+# already-applied revisions, so this is safe to run on every deployment.
+echo "[DB] Running Alembic migrations..."
+python -m alembic upgrade head
+
 # 使用 -m 参数运行模块，确保 Python 能正确解析导入
 python -m src.main -m http -p $PORT
