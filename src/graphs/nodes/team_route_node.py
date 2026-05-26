@@ -96,5 +96,7 @@ def route_by_team_operation_type(state: TeamRouteOutput) -> str:
         return "消费记录"
     elif operation_type == "get_stats":
         return "消费记录"
+    elif operation_type == "get_member_stats":
+        return "消费记录"
     else:
         return "初始化团队"  # 默认

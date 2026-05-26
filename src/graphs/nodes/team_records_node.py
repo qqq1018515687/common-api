@@ -2,6 +2,7 @@ import os
 import json
 import logging
 from typing import Optional
+from sqlalchemy import text
 from langchain_core.runnables import RunnableConfig
 from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
@@ -32,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 class TeamRecordsInput(BaseModel):
     """消费记录查询节点的输入"""
-    operation_type: Optional[str] = Field(default=None, description="操作类型: get_records/get_stats/get_record")
+    operation_type: Optional[str] = Field(default=None, description="操作类型: get_records/get_stats/get_record/get_member_stats")
     user_id: Optional[str] = Field(default=None, description="用户ID")
     filter_user_id: Optional[str] = Field(default=None, description="筛选用户ID（可选）")
     days: Optional[int] = Field(default=None, description="查询天数")
@@ -42,6 +43,95 @@ class TeamRecordsInput(BaseModel):
 class TeamRecordsOutput(BaseModel):
     """消费记录查询节点的输出"""
     response_data: dict = Field(default={}, description="统一响应数据")
+
+
+def _safe_days(days: Optional[int]) -> Optional[int]:
+    if days is None:
+        return None
+    try:
+        parsed = int(days)
+    except (TypeError, ValueError):
+        return None
+    if parsed <= 0:
+        return None
+    return min(parsed, 3650)
+
+
+def _query_member_stats(db, team_id: str, request_user_id: str, is_admin: bool, days: Optional[int]) -> list[dict]:
+    safe_days = _safe_days(days)
+    params = {
+        "team_id": team_id,
+        "request_user_id": request_user_id,
+    }
+    records_time_filter = ""
+    if safe_days:
+        params["start_time"] = datetime.utcnow() - timedelta(days=safe_days)
+        records_time_filter = "and r.created_at >= :start_time"
+
+    member_scope_filter = "" if is_admin else "and u.user_id = :request_user_id"
+
+    rows = db.execute(text(f"""
+        select
+            u.user_id,
+            u.username,
+            u.role,
+            count(r.id) as record_count,
+            coalesce(sum(case
+                when r.operation_type = 'consumption' and r.amount <> 0 then abs(r.amount)
+                when r.operation_type = 'consumption' and r.amount = 0
+                    and r.balance_before is not null and r.balance_after is not null
+                    and r.balance_before > r.balance_after
+                    then r.balance_before - r.balance_after
+                else 0
+            end), 0) as gross_consumption,
+            coalesce(sum(case
+                when r.operation_type = 'refund' and r.amount <> 0 then r.amount
+                when r.operation_type = 'refund' and r.amount = 0
+                    and r.balance_before is not null and r.balance_after is not null
+                    and r.balance_after > r.balance_before
+                    then r.balance_after - r.balance_before
+                else 0
+            end), 0) as refund_amount,
+            coalesce(sum(case
+                when r.operation_type = 'consumption' and r.amount <> 0 then abs(r.amount)
+                when r.operation_type = 'consumption' and r.amount = 0
+                    and r.balance_before is not null and r.balance_after is not null
+                    and r.balance_before > r.balance_after
+                    then r.balance_before - r.balance_after
+                when r.operation_type = 'refund' and r.amount <> 0 then -r.amount
+                when r.operation_type = 'refund' and r.amount = 0
+                    and r.balance_before is not null and r.balance_after is not null
+                    and r.balance_after > r.balance_before
+                    then -(r.balance_after - r.balance_before)
+                else 0
+            end), 0) as net_consumption,
+            min(r.created_at) as first_record_at,
+            max(r.created_at) as last_record_at
+        from users u
+        left join team_consumption_records r
+            on r.team_id = u.team_id
+            and r.user_id = u.user_id
+            {records_time_filter}
+        where u.team_id = :team_id
+            {member_scope_filter}
+        group by u.user_id, u.username, u.role
+        order by net_consumption desc, u.username asc
+    """), params).all()
+
+    return [
+        {
+            "user_id": row.user_id,
+            "username": row.username,
+            "role": row.role,
+            "consumption": gold_amount_to_number(row.net_consumption),
+            "gross_consumption": gold_amount_to_number(row.gross_consumption),
+            "refund_amount": gold_amount_to_number(row.refund_amount),
+            "record_count": int(row.record_count or 0),
+            "first_record_at": _to_epoch_ms(row.first_record_at) if row.first_record_at else None,
+            "last_record_at": _to_epoch_ms(row.last_record_at) if row.last_record_at else None,
+        }
+        for row in rows
+    ]
 
 
 def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: Runtime[Context]) -> TeamRecordsOutput:
@@ -130,6 +220,7 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
                     "username": r.username,
                     "operation_type": r.operation_type,
                     "amount": gold_amount_to_number(r.amount),
+                    "balance_before": gold_amount_to_number(r.balance_before),
                     "balance_after": gold_amount_to_number(r.balance_after),
                     "description": r.description,
                     "created_at": _to_epoch_ms(r.created_at),
@@ -148,13 +239,18 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
 
             # 查询所有该团队的成员
             members = db.query(Users).filter(Users.team_id == user.team_id).all()
+            member_consumption_map = {
+                item["user_id"]: item
+                for item in _query_member_stats(db, user.team_id, state.user_id, True, None)
+            }
 
             member_stats = [
                 {
                     "user_id": m.user_id,
                     "username": m.username,
                     "role": m.role,
-                    "gold_credits": gold_amount_to_number(m.gold_credits)
+                    "gold_credits": gold_amount_to_number(m.gold_credits),
+                    "total_consumed": member_consumption_map.get(m.user_id, {}).get("consumption", 0)
                 }
                 for m in members
             ]
@@ -214,6 +310,27 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
 
             return TeamRecordsOutput(
                 response_data={"code": 0, "msg": "查询成功", "data": record_detail}
+            )
+
+        elif operation_type == "get_member_stats":
+            member_stats = _query_member_stats(
+                db=db,
+                team_id=user.team_id,
+                request_user_id=state.user_id,
+                is_admin=(user.role == "admin"),
+                days=state.days,
+            )
+
+            return TeamRecordsOutput(
+                response_data={
+                    "code": 0,
+                    "msg": "查询成功",
+                    "data": {
+                        "team_id": user.team_id,
+                        "days": _safe_days(state.days),
+                        "members": member_stats
+                    }
+                }
             )
 
         else:
