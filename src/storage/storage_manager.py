@@ -60,7 +60,8 @@ class StorageManager:
         file_name: str,
         category: str,
         content_type: str = "application/octet-stream",
-        acl: Optional[str] = None
+        acl: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         上传文件并自动分类管理
@@ -97,13 +98,21 @@ class StorageManager:
             acl = 'public-read' if category == StorageCategory.AVATAR else None
         
         # 添加元数据
-        metadata = {
+        object_metadata = {
             'category': category,
             'created_at': str(int(time.time())),  # 创建时间（秒）
             'expires_in': str(StorageCategory.get_expiry_days(category) * 86400),
             'original_filename': original_name,
             'is_permanent': str(StorageCategory.is_permanent(category))
         }
+        if metadata:
+            for key, value in metadata.items():
+                if value is None:
+                    continue
+                clean_key = str(key).strip().lower().replace('_', '-')
+                if not clean_key:
+                    continue
+                object_metadata[clean_key] = str(value)
         
         try:
             # 上传文件（需要修改 storage.upload_file 支持元数据）
@@ -112,7 +121,7 @@ class StorageManager:
                 file_name=full_key,
                 content_type=content_type,
                 acl=acl,
-                metadata=metadata
+                metadata=object_metadata
             )
             
             # 计算 URL 过期时间
@@ -194,6 +203,7 @@ class StorageManager:
             # 解析元数据
             return {
                 'category': metadata.get('category'),
+                'source': metadata.get('source'),
                 'created_at': int(metadata.get('created_at', 0)),
                 'expires_in': int(metadata.get('expires_in', 0)),
                 'original_filename': metadata.get('original_filename'),

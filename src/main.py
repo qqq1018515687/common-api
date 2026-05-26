@@ -313,6 +313,39 @@ from api.tasks import router as tasks_router
 app.include_router(tasks_router)
 
 
+SENSITIVE_LOG_KEYS = {
+    "password",
+    "password_hash",
+    "code",
+    "access_key",
+    "access_key_id",
+    "access_key_secret",
+    "token",
+}
+
+
+def redact_sensitive_payload(value: Any) -> Any:
+    if isinstance(value, dict):
+        redacted = {}
+        for key, item in value.items():
+            if str(key).lower() in SENSITIVE_LOG_KEYS:
+                redacted[key] = "***"
+            else:
+                redacted[key] = redact_sensitive_payload(item)
+        return redacted
+    if isinstance(value, list):
+        return [redact_sensitive_payload(item) for item in value]
+    return value
+
+
+def safe_body_for_log(body_text: str) -> str:
+    try:
+        data = json.loads(body_text)
+    except Exception:
+        return "<invalid-json body omitted>"
+    return json.dumps(redact_sensitive_payload(data), ensure_ascii=False)
+
+
 @app.post("/run")
 async def http_run(request: Request) -> Dict[str, Any]:
     global result
@@ -322,17 +355,18 @@ async def http_run(request: Request) -> Dict[str, Any]:
     except Exception as e:
         body_text = str(raw_body)
         raise HTTPException(status_code=400,
-                            detail=f"Invalid JSON format: {body_text}, traceback: {traceback.format_exc()}, error: {e}")
+                            detail=f"Invalid JSON format, traceback: {traceback.format_exc()}, error: {e}")
 
     ctx = new_context(method="run", headers=request.headers)
     run_id = ctx.run_id
     request_context.set(ctx)
+    safe_body_text = safe_body_for_log(body_text)
 
     logger.info(
         f"Received request for /run: "
         f"run_id={run_id}, "
         f"query={dict(request.query_params)}, "
-        f"body={body_text}"
+        f"body={safe_body_text}"
     )
 
     try:
@@ -388,14 +422,15 @@ async def http_stream_run(request: Request):
     except Exception as e:
         body_text = str(raw_body)
         raise HTTPException(status_code=400,
-                            detail=f"Invalid JSON format: {body_text}, traceback: {extract_core_stack()}, error: {e}")
+                            detail=f"Invalid JSON format, traceback: {extract_core_stack()}, error: {e}")
 
     run_id = ctx.run_id
+    safe_body_text = safe_body_for_log(body_text)
     logger.info(
         f"Received request for /stream_run: "
         f"run_id={run_id}, "
         f"query={dict(request.query_params)}, "
-        f"body={body_text}"
+        f"body={safe_body_text}"
     )
 
     try:
@@ -472,13 +507,14 @@ async def http_node_run(node_id: str, request: Request):
         body_text = raw_body.decode("utf-8")
     except UnicodeDecodeError:
         body_text = str(raw_body)
-        raise HTTPException(status_code=400, detail=f"Invalid JSON format: {body_text}")
+        raise HTTPException(status_code=400, detail="Invalid JSON format")
     ctx = new_context(method="node_run", headers=request.headers)
     request_context.set(ctx)
+    safe_body_text = safe_body_for_log(body_text)
     logger.info(
         f"Received request for /node_run/{node_id}: "
         f"query={dict(request.query_params)}, "
-        f"body={body_text}",
+        f"body={safe_body_text}",
     )
 
     try:

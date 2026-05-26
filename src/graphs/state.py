@@ -7,13 +7,17 @@ class InputData(BaseModel):
     """输入数据对象，包含所有业务字段"""
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
+    code: Optional[str] = Field(default=None, description="验证码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表（提示词增强使用）")
+    file_key: Optional[str] = Field(default=None, description="对象存储文件键（delete_upload 使用）")
+    category: Optional[str] = Field(default=None, description="文件分类：avatar/upload/temp")
+    source: Optional[str] = Field(default=None, description="文件来源标记")
     user_id: Optional[str] = Field(default=None, description="用户 ID（save/history/update_user/delete_user 使用）")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
-    operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/register/login/update_user/delete_user/list_users)、任务管理(create_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、RunningHub错误分析(runninghub_error_analysis)")
+    operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/register/register_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、RunningHub错误分析(runninghub_error_analysis)")
     assets: Optional[List[dict]] = Field(default=None, description="Agent 意图判断素材摘要列表")
     current_target: Optional[dict] = Field(default=None, description="Agent 意图判断当前已选目标")
     agent_preferences: Optional[dict] = Field(default=None, description="Agent 生成偏好与模型偏好")
@@ -95,12 +99,16 @@ class InputData(BaseModel):
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/tool/user_task_management/notification_management/team_balance/billing/agent_intent/agent_run")
+    call_type: str = Field(..., description="调用类型：account_management/upload/delete_upload/save/tool/user_task_management/notification_management/team_balance/billing/agent_intent/agent_run")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
+    code: Optional[str] = Field(default=None, description="验证码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表（提示词增强使用）")
+    file_key: Optional[str] = Field(default=None, description="对象存储文件键（delete_upload 使用）")
+    category: Optional[str] = Field(default=None, description="文件分类：avatar/upload/temp")
+    source: Optional[str] = Field(default=None, description="文件来源标记")
     user_id: Optional[str] = Field(default=None, description="用户 ID（save/update_user/delete_user/create_task/list_tasks 使用）")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
@@ -182,7 +190,7 @@ class GlobalState(BaseModel):
 
 class GraphInput(BaseModel):
     """工作流的输入"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/save/history/tool/task_management/notification_management/team_balance/billing/agent_intent/agent_run")
+    call_type: str = Field(..., description="调用类型：account_management/upload/delete_upload/save/history/tool/task_management/notification_management/team_balance/billing/agent_intent/agent_run")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
 
@@ -246,6 +254,19 @@ class UpdateRateLimitOutput(BaseModel):
     blocked: bool = Field(default=False, description="是否被封禁")
 
 
+class SendRegisterCodeInput(BaseModel):
+    """发送注册验证码节点的输入"""
+    phone: Optional[str] = Field(default=None, description="手机号")
+    ip: Optional[str] = Field(default=None, description="IP地址")
+
+
+class SendRegisterCodeOutput(BaseModel):
+    """发送注册验证码节点的输出"""
+    result: dict = Field(default={}, description="发送结果")
+    success: bool = Field(default=True, description="是否成功")
+    error: Optional[str] = Field(default=None, description="错误信息")
+
+
 # 注册组合节点
 class RegisterWithLimitInput(BaseModel):
     """注册组合节点的输入"""
@@ -258,6 +279,24 @@ class RegisterWithLimitInput(BaseModel):
 
 class RegisterWithLimitOutput(BaseModel):
     """注册组合节点的输出"""
+    result: dict = Field(default={}, description="注册结果")
+    success: bool = Field(default=True, description="是否成功")
+    user: Optional[dict] = Field(default=None, description="用户数据")
+    error: Optional[str] = Field(default=None, description="错误信息")
+
+
+class RegisterWithCodeInput(BaseModel):
+    """验证码注册节点的输入"""
+    phone: Optional[str] = Field(default=None, description="手机号")
+    ip: Optional[str] = Field(default=None, description="IP地址")
+    password: Optional[str] = Field(default=None, description="明文密码")
+    code: Optional[str] = Field(default=None, description="验证码")
+    username: Optional[str] = Field(default=None, description="用户名")
+    avatar: Optional[str] = Field(default=None, description="头像URL")
+
+
+class RegisterWithCodeOutput(BaseModel):
+    """验证码注册节点的输出"""
     result: dict = Field(default={}, description="注册结果")
     success: bool = Field(default=True, description="是否成功")
     user: Optional[dict] = Field(default=None, description="用户数据")
@@ -409,11 +448,25 @@ class ListUsersOutput(BaseModel):
 class UploadInput(BaseModel):
     """文件上传节点的输入"""
     file: Optional[File] = Field(default=None, description="上传的文件")
+    category: Optional[str] = Field(default=None, description="文件分类：avatar/upload/temp")
+    metadata: Optional[dict] = Field(default=None, description="文件元数据")
 
 
 class UploadOutput(BaseModel):
     """文件上传节点的输出"""
     result: dict = Field(default={}, description="上传结果：包含公开 URL")
+
+
+class DeleteUploadInput(BaseModel):
+    """删除上传文件节点的输入"""
+    file_key: Optional[str] = Field(default=None, description="对象存储文件键")
+    category: Optional[str] = Field(default=None, description="文件分类")
+    source: Optional[str] = Field(default=None, description="文件来源标记")
+
+
+class DeleteUploadOutput(BaseModel):
+    """删除上传文件节点的输出"""
+    result: dict = Field(default={}, description="删除结果")
 
 
 # 保存历史节点
@@ -565,8 +618,12 @@ class UnpackInputDataOutput(BaseModel):
     call_type: str = Field(..., description="调用类型")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
+    code: Optional[str] = Field(default=None, description="验证码")
     file: Optional[File] = Field(default=None, description="上传的文件")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表")
+    file_key: Optional[str] = Field(default=None, description="对象存储文件键")
+    category: Optional[str] = Field(default=None, description="文件分类")
+    source: Optional[str] = Field(default=None, description="文件来源标记")
     user_id: Optional[str] = Field(default=None, description="用户ID")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub链接")
     tool_type: Optional[str] = Field(default=None, description="工具类型")

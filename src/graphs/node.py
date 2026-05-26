@@ -30,11 +30,11 @@ from coze_coding_dev_sdk import LLMClient
 from jinja2 import Template
 import json
 import time
-from typing import Optional, List
+from typing import Any, Dict, Optional, List
 from datetime import datetime
 
 from graphs.state import (
-    UploadInput, UploadOutput,
+    UploadInput, UploadOutput, DeleteUploadInput, DeleteUploadOutput,
     SaveInput, SaveOutput,
     FormatResponseInput, FormatResponseOutput,
     GlobalState,
@@ -55,7 +55,9 @@ from graphs.state import (
     CheckRateLimitInput, CheckRateLimitOutput,
     CreateUserInput, CreateUserOutput,
     UpdateRateLimitInput, UpdateRateLimitOutput,
+    SendRegisterCodeInput, SendRegisterCodeOutput,
     RegisterWithLimitInput, RegisterWithLimitOutput,
+    RegisterWithCodeInput, RegisterWithCodeOutput,
     GetUserInput, GetUserOutput,
     GetUserByIdInput, GetUserByIdOutput,
     UpdateUserInput, UpdateUserOutput,
@@ -74,9 +76,12 @@ import io
 import base64
 import re
 import uuid
+import secrets
 
 from storage.database.db import get_session
 from storage.database.amounts import gold_amount_to_number
+from storage.storage_manager import get_storage_manager, StorageCategory
+from utils.aliyun_sms import send_sms_verify_code
 import datetime as _dt
 
 
@@ -96,6 +101,11 @@ def _to_epoch_ms(dt_val: _dt.datetime) -> int:
 def _get_user_manager():
     from storage.database.user_manager import UserManager, UserCreate, UserUpdate, RateLimitManager
     return UserManager, UserCreate, UserUpdate, RateLimitManager
+
+
+def _get_register_code_manager():
+    from storage.database.user_manager import RegisterCodeManager
+    return RegisterCodeManager
 
 
 def router_node(state: RouterInput, config: RunnableConfig, runtime: Runtime[Context]) -> RouterOutput:
@@ -125,8 +135,12 @@ def route_by_operation_type(state: OperationRouteInput) -> str:
         return "限流检查"
     elif operation_type == "update_rate_limit":
         return "更新限流"
+    elif operation_type == "send_register_code":
+        return "发送注册验证码"
     elif operation_type == "register":
-        return "用户注册"
+        return "验证码注册"
+    elif operation_type == "register_with_code":
+        return "验证码注册"
     elif operation_type == "login":
         return "用户登录"
     elif operation_type == "get_user_by_id":
@@ -220,8 +234,12 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         operation_type=input_data.operation_type if input_data else None,
         username=input_data.username if input_data else None,
         password=input_data.password if input_data else None,
+        code=input_data.code if input_data else None,
         file=processed_file,
         file_list=processed_file_list,
+        file_key=input_data.file_key if input_data else None,
+        category=input_data.category if input_data else None,
+        source=input_data.source if input_data else None,
         user_id=input_data.user_id if input_data else None,
         runninghub_link=input_data.runninghub_link if input_data else None,
         prompt=input_data.prompt if input_data else None,
@@ -479,6 +497,127 @@ def update_rate_limit_node(state: UpdateRateLimitInput, config: RunnableConfig, 
         db.close()
 
 
+def _mask_phone(phone: Optional[str]) -> str:
+    if not phone or len(phone) < 7:
+        return "***"
+    return f"{phone[:3]}****{phone[-4:]}"
+
+
+def _failure_result(message: str) -> dict:
+    return {"success": False, "error": message}
+
+
+def send_register_code_node(state: SendRegisterCodeInput, config: RunnableConfig, runtime: Runtime[Context]) -> SendRegisterCodeOutput:
+    """
+    title: 发送注册验证码
+    desc: 检查手机号、限流、发送短信并持久化验证码哈希
+    integrations: 数据库
+    """
+    phone = (state.phone or "").strip()
+    ip = (state.ip or "unknown").strip() or "unknown"
+    masked_phone = _mask_phone(phone)
+
+    if not re.fullmatch(r"1[3-9]\d{9}", phone):
+        return SendRegisterCodeOutput(
+            result=_failure_result("手机号格式不正确"),
+            success=False,
+            error="手机号格式不正确",
+        )
+
+    logger.info("[注册验证码] 开始发送: phone=%s, ip=%s", masked_phone, ip)
+
+    check_result = check_rate_limit_node(
+        CheckRateLimitInput(phone=phone, ip=ip),
+        config,
+        runtime,
+    )
+    if not check_result.allowed:
+        reason = check_result.reason or "发送过于频繁,请稍后再试"
+        logger.info("[注册验证码] 限流或重复手机号拦截: phone=%s, reason=%s", masked_phone, reason)
+        return SendRegisterCodeOutput(
+            result=_failure_result(reason),
+            success=False,
+            error=reason,
+        )
+
+    code = str(secrets.randbelow(900000) + 100000)
+    RegisterCodeManager = _get_register_code_manager()
+    code_mgr = RegisterCodeManager()
+    record_id = None
+
+    db = get_session()
+    try:
+        record = code_mgr.save_code(db, phone, code, ip)
+        record_id = record.id
+    except RuntimeError as exc:
+        logger.error("[注册验证码] 验证码服务配置错误: phone=%s, error=%s", masked_phone, exc)
+        return SendRegisterCodeOutput(
+            result=_failure_result("验证码服务未配置"),
+            success=False,
+            error="验证码服务未配置",
+        )
+    except Exception as exc:
+        logger.exception("[注册验证码] 验证码保存失败: phone=%s, error=%s", masked_phone, exc)
+        return SendRegisterCodeOutput(
+            result=_failure_result("验证码保存失败,请稍后重试"),
+            success=False,
+            error="验证码保存失败,请稍后重试",
+        )
+    finally:
+        db.close()
+
+    send_result = send_sms_verify_code(phone, code)
+    if not send_result.success:
+        if record_id:
+            cleanup_db = get_session()
+            try:
+                code_mgr.delete_code(cleanup_db, record_id)
+            except Exception as exc:
+                logger.warning("[注册验证码] 短信失败后的验证码清理失败: phone=%s, error=%s", masked_phone, exc)
+            finally:
+                cleanup_db.close()
+        logger.info("[注册验证码] 短信发送失败: phone=%s, reason=%s", masked_phone, send_result.message)
+        return SendRegisterCodeOutput(
+            result=_failure_result(send_result.message or "发送失败,请稍后重试"),
+            success=False,
+            error=send_result.message or "发送失败,请稍后重试",
+        )
+
+    cleanup_db = get_session()
+    try:
+        code_mgr.mark_other_unused_codes_used(cleanup_db, phone, record_id)
+    except Exception as exc:
+        logger.warning("[注册验证码] 旧验证码废弃失败: phone=%s, error=%s", masked_phone, exc)
+    finally:
+        cleanup_db.close()
+
+    try:
+        update_result = update_rate_limit_node(
+            UpdateRateLimitInput(phone=phone, ip=ip),
+            config,
+            runtime,
+        )
+        blocked = update_result.blocked
+    except Exception as exc:
+        logger.warning("[注册验证码] 限流记录更新失败: phone=%s, error=%s", masked_phone, exc)
+        blocked = False
+    logger.info(
+        "[注册验证码] 发送成功: phone=%s, blocked=%s",
+        masked_phone,
+        blocked,
+    )
+
+    return SendRegisterCodeOutput(
+        result={
+            "success": True,
+            "message": "验证码已发送",
+            "countdown": 60,
+            "expires_in": RegisterCodeManager.code_ttl_seconds,
+        },
+        success=True,
+    )
+
+
 def register_with_limit_node(state: RegisterWithLimitInput, config: RunnableConfig, runtime: Runtime[Context]) -> RegisterWithLimitOutput:
     """
     title: 用户注册
@@ -539,6 +678,89 @@ def register_with_limit_node(state: RegisterWithLimitInput, config: RunnableConf
         result={"success": True, "user": create_result.user},
         success=True,
         user=create_result.user
+    )
+
+
+def register_with_code_node(state: RegisterWithCodeInput, config: RunnableConfig, runtime: Runtime[Context]) -> RegisterWithCodeOutput:
+    """
+    title: 验证码注册
+    desc: 在事务中校验并消费验证码、哈希密码、创建用户
+    integrations: 数据库
+    """
+    phone = (state.phone or "").strip()
+    ip = (state.ip or "unknown").strip() or "unknown"
+    username = (state.username or "").strip()
+    password = state.password or ""
+    code = (state.code or "").strip()
+    masked_phone = _mask_phone(phone)
+
+    if not re.fullmatch(r"1[3-9]\d{9}", phone):
+        return RegisterWithCodeOutput(
+            result=_failure_result("手机号格式不正确"),
+            success=False,
+            error="手机号格式不正确",
+        )
+    if len(username) < 2 or len(username) > 20:
+        return RegisterWithCodeOutput(
+            result=_failure_result("用户名长度为2-20字符"),
+            success=False,
+            error="用户名长度为2-20字符",
+        )
+    if len(password) < 7:
+        return RegisterWithCodeOutput(
+            result=_failure_result("密码至少需要7个字符"),
+            success=False,
+            error="密码至少需要7个字符",
+        )
+    if not re.fullmatch(r"\d{6}", code):
+        return RegisterWithCodeOutput(
+            result=_failure_result("验证码格式不正确"),
+            success=False,
+            error="验证码格式不正确",
+        )
+
+    logger.info("[验证码注册] 开始处理: phone=%s, username=%s, ip=%s", masked_phone, username, ip)
+
+    RegisterCodeManager = _get_register_code_manager()
+    code_mgr = RegisterCodeManager()
+    db = get_session()
+    try:
+        success, message, user = code_mgr.register_user_with_code(
+            db=db,
+            phone=phone,
+            username=username,
+            password=password,
+            code=code,
+            ip_address=ip,
+            avatar=state.avatar,
+        )
+    except Exception as exc:
+        logger.exception("[验证码注册] 处理异常: phone=%s, error=%s", masked_phone, exc)
+        return RegisterWithCodeOutput(
+            result=_failure_result("注册失败,请稍后重试"),
+            success=False,
+            error="注册失败,请稍后重试",
+        )
+    finally:
+        db.close()
+
+    if not success:
+        logger.info("[验证码注册] 注册失败: phone=%s, reason=%s", masked_phone, message)
+        return RegisterWithCodeOutput(
+            result=_failure_result(message),
+            success=False,
+            error=message,
+        )
+
+    logger.info("[验证码注册] 注册成功: phone=%s, user_id=%s", masked_phone, user.get("user_id") if user else None)
+    return RegisterWithCodeOutput(
+        result={
+            "success": True,
+            "message": "注册成功",
+            "user": user,
+        },
+        success=True,
+        user=user,
     )
 
 
@@ -897,6 +1119,24 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
         db.close()
 
 
+def _normalize_upload_category(category: Optional[str]) -> str:
+    if category == StorageCategory.TEMP:
+        return StorageCategory.TEMP
+    if category == StorageCategory.AVATAR:
+        return StorageCategory.AVATAR
+    return StorageCategory.UPLOAD
+
+
+def _normalize_upload_metadata(metadata: Optional[dict]) -> Dict[str, Any]:
+    if not isinstance(metadata, dict):
+        return {}
+    return {
+        str(key): value
+        for key, value in metadata.items()
+        if value is not None and isinstance(key, str)
+    }
+
+
 def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Context]) -> UploadOutput:
     """
     title: 文件上传
@@ -992,15 +1232,16 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
                 filename = f"upload.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
 
             # 使用存储管理器上传（自动分类）
-            from storage.storage_manager import get_storage_manager, StorageCategory
             storage_mgr = get_storage_manager()
+            category = _normalize_upload_category(state.category)
 
             upload_result = storage_mgr.upload_with_category(
                 file_content=file_content,
                 file_name=filename,
-                category=StorageCategory.UPLOAD,  # 用户上传归类为 upload
+                category=category,
                 content_type=mime_type,
-                acl=None
+                acl=None,
+                metadata=_normalize_upload_metadata(state.metadata)
             )
 
             return UploadOutput(result={
@@ -1020,15 +1261,16 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
                 filename = os.path.basename(clean_path)
                 
                 # 使用存储管理器上传
-                from storage.storage_manager import get_storage_manager, StorageCategory
                 storage_mgr = get_storage_manager()
+                category = _normalize_upload_category(state.category)
 
                 upload_result = storage_mgr.upload_with_category(
                     file_content=file_content,
                     file_name=filename,
-                    category=StorageCategory.UPLOAD,
+                    category=category,
                     content_type="application/octet-stream",
-                    acl=None
+                    acl=None,
+                    metadata=_normalize_upload_metadata(state.metadata)
                 )
 
                 return UploadOutput(result={
@@ -1042,6 +1284,50 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
 
     except Exception as e:
         return UploadOutput(result={"success": False, "message": f"文件上传失败: {str(e)}"})
+
+
+def delete_upload_node(state: DeleteUploadInput, config: RunnableConfig, runtime: Runtime[Context]) -> DeleteUploadOutput:
+    """
+    title: 删除上传文件
+    desc: 仅允许删除文生图模式生成的临时白底参考图
+    integrations: 对象存储
+    """
+    file_key = (state.file_key or "").strip()
+    category = (state.category or "").strip()
+    source = (state.source or "").strip()
+
+    if not file_key:
+        return DeleteUploadOutput(result={"success": False, "message": "缺少 file_key"})
+
+    if not file_key.startswith("temp/") or category != StorageCategory.TEMP or source != "text_to_image_white_reference":
+        return DeleteUploadOutput(result={"success": False, "message": "只允许删除临时白底参考图"})
+
+    try:
+        storage_mgr = get_storage_manager()
+        metadata = storage_mgr.get_file_metadata(file_key)
+        if not metadata:
+            exists = storage_mgr.storage.file_exists(file_key=file_key)
+            if not exists:
+                return DeleteUploadOutput(result={
+                    "success": True,
+                    "message": "文件不存在或已删除",
+                    "file_key": file_key,
+                    "deleted": False,
+                })
+            return DeleteUploadOutput(result={"success": False, "message": "文件元数据缺失，拒绝删除"})
+
+        if metadata.get("category") != StorageCategory.TEMP or metadata.get("source") != "text_to_image_white_reference":
+            return DeleteUploadOutput(result={"success": False, "message": "文件来源校验失败，拒绝删除"})
+
+        deleted = storage_mgr.storage.delete_file(file_key=file_key)
+        return DeleteUploadOutput(result={
+            "success": bool(deleted),
+            "message": "临时白底参考图已删除" if deleted else "删除失败",
+            "file_key": file_key,
+            "deleted": bool(deleted),
+        })
+    except Exception as e:
+        return DeleteUploadOutput(result={"success": False, "message": f"删除失败: {str(e)}"})
 
 
 def save_node(state: SaveInput, config: RunnableConfig, runtime: Runtime[Context]) -> SaveOutput:

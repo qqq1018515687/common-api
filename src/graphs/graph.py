@@ -29,6 +29,7 @@ from graphs.state import (
 )
 from graphs.node import (
     upload_node,
+    delete_upload_node,
     save_node,
     format_response_node,
     router_node,
@@ -42,7 +43,9 @@ from graphs.node import (
     check_rate_limit_node,
     create_user_node,
     update_rate_limit_node,
+    send_register_code_node,
     register_with_limit_node,
+    register_with_code_node,
     get_user_node,
     get_user_by_id_node,
     update_user_node,
@@ -88,6 +91,8 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "账号管理"
     elif call_type == "upload":
         return "文件上传"
+    elif call_type == "delete_upload":
+        return "删除上传文件"
     elif call_type == "save":
         return "保存历史"
     elif call_type == "task_management" or call_type == "user_task_management" or call_type == "list_tasks":
@@ -151,13 +156,16 @@ builder.add_node("call_type_router", router_node)
 builder.add_node("operation_route", operation_route_node)
 builder.add_node("check_rate_limit", check_rate_limit_node)
 builder.add_node("update_rate_limit", update_rate_limit_node)
+builder.add_node("send_register_code", send_register_code_node)
 builder.add_node("register_with_limit", register_with_limit_node)
+builder.add_node("register_with_code", register_with_code_node)
 builder.add_node("get_user", get_user_node)
 builder.add_node("get_user_by_id", get_user_by_id_node)
 builder.add_node("update_user", update_user_node)
 builder.add_node("delete_user", delete_user_node)
 builder.add_node("list_users", list_users_node)
 builder.add_node("upload", upload_node)
+builder.add_node("delete_upload", delete_upload_node)
 builder.add_node("save", save_node)
 builder.add_node("task_route", task_route_node)
 builder.add_node("create_task", create_task_node)
@@ -203,6 +211,7 @@ builder.add_conditional_edges(
     path_map={
         "账号管理": "operation_route",
         "文件上传": "upload",
+        "删除上传文件": "delete_upload",
         "保存历史": "save",
         "任务管理": "task_route",
         "工具中心": "tool_route",
@@ -233,7 +242,9 @@ builder.add_conditional_edges(
     path_map={
         "限流检查": "check_rate_limit",
         "更新限流": "update_rate_limit",
+        "发送注册验证码": "send_register_code",
         "用户注册": "register_with_limit",
+        "验证码注册": "register_with_code",
         "用户登录": "get_user",
         "查询单个用户": "get_user_by_id",
         "更新用户": "update_user",
@@ -284,13 +295,16 @@ builder.add_conditional_edges(
 # 各业务分支汇聚到统一返回节点
 builder.add_edge("check_rate_limit", "format_response")
 builder.add_edge("update_rate_limit", "format_response")
+builder.add_edge("send_register_code", "format_response")
 builder.add_edge("register_with_limit", "format_response")
+builder.add_edge("register_with_code", "format_response")
 builder.add_edge("get_user", "format_response")
 builder.add_edge("get_user_by_id", "format_response")
 builder.add_edge("update_user", "format_response")
 builder.add_edge("delete_user", "format_response")
 builder.add_edge("list_users", "format_response")
 builder.add_edge("upload", "format_response")
+builder.add_edge("delete_upload", "format_response")
 builder.add_edge("save", "format_response")
 builder.add_edge("create_task", "format_response")
 builder.add_edge("update_task", "format_response")  # 暂时禁用图像自动打标，直接返回

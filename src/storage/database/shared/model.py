@@ -27,6 +27,25 @@ class RateLimits(Base):
     blocked_until: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='封禁到期时间')
 
 
+class RegisterVerificationCodes(Base):
+    __tablename__ = 'register_verification_codes'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='register_verification_codes_pkey'),
+        Index('ix_register_codes_phone_created_at', 'phone', 'created_at'),
+        Index('ix_register_codes_phone_used_expires', 'phone', 'used_at', 'expires_at'),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='记录唯一标识')
+    phone: Mapped[str] = mapped_column(String(11), nullable=False, comment='手机号')
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False, comment='验证码哈希')
+    ip_address: Mapped[Optional[str]] = mapped_column(String(64), comment='请求 IP')
+    expires_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, comment='过期时间')
+    used_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='使用时间')
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='校验失败次数')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
+
+
 class Tasks(Base):
     __tablename__ = 'tasks'
     __table_args__ = (
