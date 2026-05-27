@@ -17,7 +17,7 @@ class InputData(BaseModel):
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
-    operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/register/register_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、RunningHub错误分析(runninghub_error_analysis)")
+    operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/register/register_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、公告管理(get_active_popup/get_all/create/update/disable)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、RunningHub错误分析(runninghub_error_analysis)")
     assets: Optional[List[dict]] = Field(default=None, description="Agent 意图判断素材摘要列表")
     current_target: Optional[dict] = Field(default=None, description="Agent 意图判断当前已选目标")
     agent_preferences: Optional[dict] = Field(default=None, description="Agent 生成偏好与模型偏好")
@@ -72,6 +72,11 @@ class InputData(BaseModel):
     notification_data: Optional[dict] = Field(default=None, description="通知数据（create_notification/update_notification 使用）")
     current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效通知）")
 
+    # 更新公告相关字段
+    announcement_id: Optional[str] = Field(default=None, description="公告ID（update/disable 使用）")
+    announcement_data: Optional[dict] = Field(default=None, description="公告数据（create/update 使用）")
+    target_audience: Optional[str] = Field(default=None, description="目标用户：all/logged_in/guest/admin")
+
     # 团队余额相关字段
     amount: Optional[float] = Field(default=None, description="金额（充值/扣费/退款使用）")
     description: Optional[str] = Field(default=None, description="操作描述")
@@ -99,7 +104,7 @@ class InputData(BaseModel):
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/delete_upload/save/tool/user_task_management/notification_management/team_balance/billing/agent_intent/agent_run")
+    call_type: str = Field(..., description="调用类型：account_management/upload/delete_upload/save/tool/user_task_management/notification_management/announcement_management/team_balance/billing/agent_intent/agent_run")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
@@ -163,6 +168,11 @@ class GlobalState(BaseModel):
     notification_data: Optional[dict] = Field(default=None, description="通知数据（create_notification/update_notification 使用）")
     current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效通知）")
 
+    # 更新公告相关字段
+    announcement_id: Optional[str] = Field(default=None, description="公告ID（update/disable 使用）")
+    announcement_data: Optional[dict] = Field(default=None, description="公告数据（create/update 使用）")
+    target_audience: Optional[str] = Field(default=None, description="目标用户：all/logged_in/guest/admin")
+
     # 团队余额相关字段（用于团队余额操作）
     amount: Optional[float] = Field(default=None, description="金额（充值/扣费/退款使用）")
     description: Optional[str] = Field(default=None, description="操作描述")
@@ -190,7 +200,7 @@ class GlobalState(BaseModel):
 
 class GraphInput(BaseModel):
     """工作流的输入"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/delete_upload/save/history/tool/task_management/notification_management/team_balance/billing/agent_intent/agent_run")
+    call_type: str = Field(..., description="调用类型：account_management/upload/delete_upload/save/history/tool/task_management/notification_management/announcement_management/team_balance/billing/agent_intent/agent_run")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
 
@@ -673,6 +683,12 @@ class UnpackInputDataOutput(BaseModel):
     notification_id: Optional[str] = Field(default=None, description="通知ID")
     notification_data: Optional[dict] = Field(default=None, description="通知数据")
     current_time: Optional[int] = Field(default=None, description="当前时间戳")
+
+    # 更新公告相关字段
+    announcement_id: Optional[str] = Field(default=None, description="公告ID")
+    announcement_data: Optional[dict] = Field(default=None, description="公告数据")
+    target_audience: Optional[str] = Field(default=None, description="目标用户")
+
     # 团队余额相关字段
     amount: Optional[float] = Field(default=None, description="金额（充值/扣费/退款使用）")
     description: Optional[str] = Field(default=None, description="操作描述")
@@ -762,6 +778,23 @@ class SystemNotificationInput(BaseModel):
 
 class SystemNotificationOutput(BaseModel):
     """系统通知处理节点的输出"""
+    result: dict = Field(..., description="操作结果")
+
+
+# ============ 更新公告节点 ============
+
+class AnnouncementInput(BaseModel):
+    """更新公告处理节点的输入"""
+    operation_type: str = Field(..., description="操作类型：get_active_popup/get_all/create/update/disable")
+    current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效公告）")
+    target_audience: Optional[str] = Field(default="all", description="目标用户：all/logged_in/guest/admin")
+    announcement_id: Optional[str] = Field(default=None, description="公告ID（update/disable 使用）")
+    announcement_data: Optional[dict] = Field(default=None, description="公告数据（create/update 使用）")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+
+
+class AnnouncementOutput(BaseModel):
+    """更新公告处理节点的输出"""
     result: dict = Field(..., description="操作结果")
 
 

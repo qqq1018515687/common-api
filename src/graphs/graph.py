@@ -25,6 +25,8 @@ from graphs.state import (
     UnpackInputDataOutput,
     SystemNotificationInput,
     SystemNotificationOutput,
+    AnnouncementInput,
+    AnnouncementOutput,
     CheckNeedTagsOutput
 )
 from graphs.node import (
@@ -59,6 +61,7 @@ from graphs.node import (
     list_tasks_node
 )
 from graphs.nodes.system_notification_handler_node import system_notification_handler_node
+from graphs.nodes.announcement_handler_node import announcement_handler_node
 from graphs.nodes.image_tagging_node import image_tagging_node
 from graphs.nodes.save_image_tags_node import save_image_tags_node
 from graphs.nodes.check_need_tags_node import check_need_tags_node
@@ -101,6 +104,8 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "工具中心"
     elif call_type == "notification_management":
         return "通知管理"
+    elif call_type == "announcement_management":
+        return "公告管理"
     elif call_type == "team_balance":
         return "团队余额"
     elif call_type == "runninghub_error_analysis":
@@ -173,6 +178,7 @@ builder.add_node("update_task", update_task_node)
 builder.add_node("delete_task", delete_task_node)
 builder.add_node("list_tasks", list_tasks_node)
 builder.add_node("system_notification_handler", system_notification_handler_node)
+builder.add_node("announcement_handler", announcement_handler_node)
 builder.add_node("format_response", format_response_node)
 builder.add_node("check_need_tags", check_need_tags_node)
 builder.add_node("image_tagging", image_tagging_node, metadata={"type": "agent", "llm_cfg": "config/image_tagging_cfg.json"})
@@ -216,6 +222,7 @@ builder.add_conditional_edges(
         "任务管理": "task_route",
         "工具中心": "tool_route",
         "通知管理": "system_notification_handler",
+        "公告管理": "announcement_handler",
         "团队余额": "team_route",  # 路由到团队余额路由节点
         "RunningHub错误分析": "runninghub_error_analysis",
         "Agent意图判断": "agent_intent",
@@ -311,6 +318,7 @@ builder.add_edge("update_task", "format_response")  # 暂时禁用图像自动�
 builder.add_edge("delete_task", "format_response")
 builder.add_edge("list_tasks", "format_response")
 builder.add_edge("system_notification_handler", "format_response")
+builder.add_edge("announcement_handler", "format_response")
 builder.add_edge("reverse_image", "format_response")
 builder.add_edge("translate_doubao", "format_response")
 builder.add_edge("prompt_enhance", "format_response")

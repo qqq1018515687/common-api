@@ -135,6 +135,34 @@ class SystemNotifications(Base):
     created_by: Mapped[str] = mapped_column(String(36), nullable=False, comment='创建者用户ID')
 
 
+class UpdateAnnouncements(Base):
+    __tablename__ = 'update_announcements'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='update_announcements_pkey'),
+        Index('ix_update_announcements_is_active', 'is_active'),
+        Index('ix_update_announcements_target_audience', 'target_audience'),
+        Index('ix_update_announcements_priority', 'priority'),
+        Index('ix_update_announcements_time_range', 'start_time', 'end_time'),
+        {'comment': '更新公告表，用于首页弹窗公告'}
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, comment='公告ID')
+    title: Mapped[str] = mapped_column(String(200), nullable=False, comment='公告标题')
+    summary: Mapped[Optional[str]] = mapped_column(Text, comment='公告摘要')
+    items: Mapped[Optional[list]] = mapped_column(JSON, comment='公告条目数组')
+    cta_text: Mapped[Optional[str]] = mapped_column(String(120), comment='行动按钮文案')
+    cta_url: Mapped[Optional[str]] = mapped_column(String(500), comment='行动按钮链接')
+    target_audience: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'all'"), comment='目标用户：all/logged_in/guest/admin')
+    priority: Mapped[str] = mapped_column(String(10), nullable=False, server_default=text("'medium'"), comment='优先级：low/medium/high/urgent')
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text('true'), comment='是否启用')
+    start_time: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='生效时间戳（毫秒）')
+    end_time: Mapped[Optional[int]] = mapped_column(BigInteger, comment='失效时间戳（毫秒，null表示永久）')
+    version: Mapped[Optional[str]] = mapped_column(String(64), comment='公告版本')
+    created_at: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='创建时间（毫秒）')
+    updated_at: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='更新时间（毫秒）')
+    created_by: Mapped[str] = mapped_column(String(36), nullable=False, comment='创建者用户ID')
+
+
 class TagPoolVersions(Base):
     __tablename__ = 'tag_pool_versions'
     __table_args__ = (

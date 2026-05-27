@@ -285,6 +285,10 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         notification_id=input_data.notification_id if input_data else None,
         notification_data=input_data.notification_data if input_data else None,
         current_time=input_data.current_time if input_data else None,
+        # 更新公告相关字段
+        announcement_id=input_data.announcement_id if input_data else None,
+        announcement_data=input_data.announcement_data if input_data else None,
+        target_audience=input_data.target_audience if input_data else None,
         # 团队余额相关字段
         amount=input_data.amount if input_data else None,
         description=input_data.description if input_data else None,
