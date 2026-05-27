@@ -124,6 +124,7 @@ INTERNAL_ERROR = "INTERNAL_ERROR"
 IDEMPOTENCY_CONFLICT = "IDEMPOTENCY_CONFLICT"
 BLTCY_REFUND_NOT_ALLOWED = "BLTCY_REFUND_NOT_ALLOWED"
 SCHEMA_MISMATCH = "SCHEMA_MISMATCH"
+BILLING_AMOUNT_MISMATCH = "BILLING_AMOUNT_MISMATCH"
 
 
 def _make_error(code: str, message: str) -> Dict[str, Any]:
@@ -145,6 +146,60 @@ def _validate_gold_schema_for_credit_type(db, credit_type: str) -> Optional[Dict
     except RuntimeError as exc:
         logger.error("Gold amount schema mismatch before billing write: %s", exc)
         return _make_error(SCHEMA_MISMATCH, str(exc))
+
+    return None
+
+
+def _extract_billing_metadata_amount(
+    billing_metadata: Optional[Dict[str, Any]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Any:
+    if metadata and isinstance(metadata, dict):
+        nested_bm = metadata.get("billing_metadata")
+        if isinstance(nested_bm, dict) and nested_bm.get("amount") is not None:
+            return nested_bm.get("amount")
+
+    if billing_metadata and isinstance(billing_metadata, dict):
+        return billing_metadata.get("amount")
+
+    return None
+
+
+def _validate_gold_billing_metadata_amount(
+    credit_type: str,
+    amount: Decimal | int,
+    billing_metadata: Optional[Dict[str, Any]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    if credit_type not in ("personal_gold", "team_gold"):
+        return None
+
+    metadata_amount = _extract_billing_metadata_amount(
+        billing_metadata=billing_metadata,
+        metadata=metadata,
+    )
+    if metadata_amount is None:
+        return _make_error(
+            BILLING_AMOUNT_MISMATCH,
+            "金豆扣费缺少 billing_metadata.amount，已阻止写账",
+        )
+
+    try:
+        expected_amount = normalize_gold_amount(metadata_amount)
+    except ValueError as exc:
+        return _make_error(BILLING_AMOUNT_MISMATCH, f"billing_metadata.amount 无效: {exc}")
+
+    if expected_amount != amount:
+        logger.error(
+            "Gold billing amount mismatch: credit_type=%s request_amount=%s metadata_amount=%s",
+            credit_type,
+            amount,
+            expected_amount,
+        )
+        return _make_error(
+            BILLING_AMOUNT_MISMATCH,
+            f"金豆扣费金额不一致：请求金额 {amount}，元数据金额 {expected_amount}",
+        )
 
     return None
 
@@ -465,6 +520,15 @@ def deduct(
         amount = normalize_amount_for_credit_type(credit_type, amount)
     except ValueError as exc:
         return _make_error(INVALID_AMOUNT, str(exc))
+
+    amount_error = _validate_gold_billing_metadata_amount(
+        credit_type=credit_type,
+        amount=amount,
+        billing_metadata=billing_metadata,
+        metadata=metadata,
+    )
+    if amount_error:
+        return amount_error
 
     db = get_session()
     try:

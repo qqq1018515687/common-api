@@ -77,32 +77,16 @@ def _query_member_stats(db, team_id: str, request_user_id: str, is_admin: bool, 
             u.role,
             count(r.id) as record_count,
             coalesce(sum(case
-                when r.operation_type = 'consumption' and r.amount <> 0 then abs(r.amount)
-                when r.operation_type = 'consumption' and r.amount = 0
-                    and r.balance_before is not null and r.balance_after is not null
-                    and r.balance_before > r.balance_after
-                    then r.balance_before - r.balance_after
+                when r.operation_type = 'consumption' then abs(r.amount)
                 else 0
             end), 0) as gross_consumption,
             coalesce(sum(case
-                when r.operation_type = 'refund' and r.amount <> 0 then r.amount
-                when r.operation_type = 'refund' and r.amount = 0
-                    and r.balance_before is not null and r.balance_after is not null
-                    and r.balance_after > r.balance_before
-                    then r.balance_after - r.balance_before
+                when r.operation_type = 'refund' then r.amount
                 else 0
             end), 0) as refund_amount,
             coalesce(sum(case
-                when r.operation_type = 'consumption' and r.amount <> 0 then abs(r.amount)
-                when r.operation_type = 'consumption' and r.amount = 0
-                    and r.balance_before is not null and r.balance_after is not null
-                    and r.balance_before > r.balance_after
-                    then r.balance_before - r.balance_after
-                when r.operation_type = 'refund' and r.amount <> 0 then -r.amount
-                when r.operation_type = 'refund' and r.amount = 0
-                    and r.balance_before is not null and r.balance_after is not null
-                    and r.balance_after > r.balance_before
-                    then -(r.balance_after - r.balance_before)
+                when r.operation_type = 'consumption' then abs(r.amount)
+                when r.operation_type = 'refund' then -r.amount
                 else 0
             end), 0) as net_consumption,
             min(r.created_at) as first_record_at,
