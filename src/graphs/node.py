@@ -1725,7 +1725,17 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
 
             # 构建更新参数，只传入存在的字段，避免 None 值覆盖
             update_kwargs = {}
-            for field in ["status", "result", "error", "completed_at", "user_friendly_message"]:
+            for field in [
+                "status",
+                "platform_task_id",
+                "result",
+                "error",
+                "completed_at",
+                "user_friendly_message",
+                "workflow_parameters",
+                "parameter_snapshot",
+                "connection_mode",
+            ]:
                 if field in state.task_updates:
                     update_kwargs[field] = state.task_updates.get(field)
             # deduction_result 单独处理，只有明确存在时才更新

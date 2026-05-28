@@ -15,7 +15,7 @@ class CreateTaskRequest(BaseModel):
     user_id: str = Field(..., description="用户ID")
     team_id: Optional[str] = Field(default=None, description="团队ID")
     platform: str = Field(..., description="平台标识")
-    platform_task_id: str = Field(..., description="平台任务ID")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID")
     type: str = Field(..., description="任务类型：image/video/audio")
     workflow_parameters: Optional[dict] = Field(default=None, description="工作流参数")
     parameter_snapshot: Optional[dict] = Field(default=None, description="完整参数快照")
@@ -26,9 +26,13 @@ class CreateTaskRequest(BaseModel):
 class UpdateTaskRequest(BaseModel):
     """更新任务请求"""
     status: Optional[str] = Field(default=None, description="任务状态")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID")
     result: Optional[dict] = Field(default=None, description="生成结果")
     error: Optional[str] = Field(default=None, description="错误信息")
     completed_at: Optional[int] = Field(default=None, description="完成时间")
+    workflow_parameters: Optional[dict] = Field(default=None, description="工作流参数")
+    parameter_snapshot: Optional[dict] = Field(default=None, description="完整参数快照")
+    connection_mode: Optional[str] = Field(default=None, description="连接模式")
 
 
 class TaskResponse(BaseModel):
@@ -37,7 +41,7 @@ class TaskResponse(BaseModel):
     user_id: str
     team_id: Optional[str]
     platform: str
-    platform_task_id: str
+    platform_task_id: Optional[str]
     type: str
     status: str
     created_at: int
@@ -238,12 +242,7 @@ async def update_task(task_id: str, request: UpdateTaskRequest):
     task_mgr = TaskManager()
     
     try:
-        task_in = TaskUpdate(
-            status=request.status,
-            result=request.result,
-            error=request.error,
-            completed_at=request.completed_at
-        )
+        task_in = TaskUpdate(**request.model_dump(exclude_unset=True))
         
         task = task_mgr.update_task(db, task_id, task_in)
         

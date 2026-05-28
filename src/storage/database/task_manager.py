@@ -14,7 +14,7 @@ class TaskCreate(BaseModel):
     user_id: str = Field(..., description="用户ID")
     team_id: Optional[str] = Field(default=None, description="团队ID")
     platform: str = Field(..., description="平台标识")
-    platform_task_id: str = Field(..., description="平台任务ID")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID")
     type: str = Field(..., description="任务类型：image/video/audio")
     workflow_parameters: Optional[dict] = Field(default=None, description="工作流参数")
     parameter_snapshot: Optional[dict] = Field(default=None, description="完整参数快照")
@@ -26,9 +26,13 @@ class TaskCreate(BaseModel):
 class TaskUpdate(BaseModel):
     """更新任务的输入"""
     status: Optional[str] = Field(default=None, description="任务状态")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID")
     result: Optional[dict] = Field(default=None, description="生成结果")
     error: Optional[str] = Field(default=None, description="错误信息")
     completed_at: Optional[int] = Field(default=None, description="完成时间")
+    workflow_parameters: Optional[dict] = Field(default=None, description="工作流参数")
+    parameter_snapshot: Optional[dict] = Field(default=None, description="完整参数快照")
+    connection_mode: Optional[str] = Field(default=None, description="连接模式")
     deduction_result: Optional[dict] = Field(default=None, description="扣费结果记录")
     user_friendly_message: Optional[str] = Field(default=None, description="LLM 生成的用户友好错误提示")
 
@@ -64,6 +68,34 @@ class TaskManager:
 
     def create_task(self, db: Session, task_in: TaskCreate) -> Tasks:
         """创建任务"""
+        existing_task = self.get_task_by_id(db, task_in.id)
+        if existing_task:
+            task_data = task_in.model_dump(exclude_unset=True)
+            for field in [
+                "platform_task_id",
+                "workflow_parameters",
+                "parameter_snapshot",
+                "connection_mode",
+                "deduction_result",
+                "team_id",
+                "batch_id",
+            ]:
+                value = task_data.get(field)
+                if value not in (None, "", {}) and hasattr(existing_task, field):
+                    current_value = getattr(existing_task, field)
+                    if current_value in (None, "", {}):
+                        setattr(existing_task, field, value)
+
+            existing_task.updated_at = str(int(time.time() * 1000))
+            db.add(existing_task)
+            try:
+                db.commit()
+                db.refresh(existing_task)
+                return existing_task
+            except Exception:
+                db.rollback()
+                raise
+
         current_time = str(int(time.time() * 1000))
         task_data = task_in.model_dump()
         task_data['status'] = 'running'
@@ -209,6 +241,8 @@ class TaskManager:
         platform_task_id: str
     ) -> Optional[Tasks]:
         """根据平台和平台任务ID获取任务"""
+        if not platform_task_id:
+            return None
         return db.query(Tasks).filter(
             Tasks.platform == platform,
             Tasks.platform_task_id == platform_task_id
