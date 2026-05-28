@@ -9,7 +9,7 @@ import bcrypt
 import random
 from datetime import datetime, timedelta, timezone
 
-from storage.database.shared.model import Users, RateLimits, RegisterVerificationCodes
+from storage.database.shared.model import Users, RateLimits, RegisterVerificationCodes, PasswordResetVerificationCodes
 from storage.database.amounts import gold_amount_to_number, normalize_gold_amount
 
 
@@ -359,6 +359,173 @@ class RegisterCodeManager:
                 "updated_at": int(self._ensure_aware(db_user.updated_at).timestamp() * 1000) if db_user.updated_at else None,
             }
             return True, "注册成功", user_data
+        except Exception:
+            db.rollback()
+            raise
+
+
+class PasswordResetCodeManager:
+    """密码重置验证码管理，仅保存验证码哈希。"""
+
+    code_ttl_seconds = 300
+    max_attempts = 5
+
+    @staticmethod
+    def _generate_record_id() -> str:
+        return f"pwd_reset_code_{uuid.uuid4()}"
+
+    @staticmethod
+    def _now() -> datetime:
+        return datetime.now(timezone.utc)
+
+    @staticmethod
+    def _ensure_aware(value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+
+    @staticmethod
+    def _ensure_password_reset_codes_table(db: Session) -> None:
+        bind = db.get_bind()
+        PasswordResetVerificationCodes.__table__.create(bind=bind, checkfirst=True)
+        for index in PasswordResetVerificationCodes.__table__.indexes:
+            index.create(bind=bind, checkfirst=True)
+
+    @staticmethod
+    def _hash_secret() -> str:
+        secret = (
+            os.getenv("PASSWORD_RESET_CODE_HASH_SECRET")
+            or os.getenv("REGISTER_CODE_HASH_SECRET")
+            or os.getenv("COZE_REGISTER_CODE_SECRET")
+            or os.getenv("ALIYUN_ACCESS_KEY_SECRET")
+            or os.getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET")
+        )
+        if not secret:
+            raise RuntimeError("PASSWORD_RESET_CODE_HASH_SECRET 未配置")
+        return secret
+
+    def hash_code(self, phone: str, code: str) -> str:
+        payload = f"password_reset:{phone}:{code}:{self._hash_secret()}".encode("utf-8")
+        return hashlib.sha256(payload).hexdigest()
+
+    def save_code(self, db: Session, phone: str, code: str, ip_address: str) -> PasswordResetVerificationCodes:
+        """保存新的密码重置验证码哈希。短信发送成功后再废弃旧验证码。"""
+        self._ensure_password_reset_codes_table(db)
+        now = self._now()
+        record = PasswordResetVerificationCodes(
+            id=self._generate_record_id(),
+            phone=phone,
+            code_hash=self.hash_code(phone, code),
+            ip_address=ip_address,
+            expires_at=now + timedelta(seconds=self.code_ttl_seconds),
+            attempts=0,
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(record)
+        try:
+            db.commit()
+            db.refresh(record)
+            return record
+        except Exception:
+            db.rollback()
+            raise
+
+    def mark_other_unused_codes_used(self, db: Session, phone: str, keep_record_id: str) -> None:
+        """短信确认发送成功后，废弃同手机号其他未使用密码重置验证码。"""
+        self._ensure_password_reset_codes_table(db)
+        now = self._now()
+        db.query(PasswordResetVerificationCodes).filter(
+            PasswordResetVerificationCodes.phone == phone,
+            PasswordResetVerificationCodes.used_at.is_(None),
+            PasswordResetVerificationCodes.id != keep_record_id,
+        ).update(
+            {
+                "used_at": now,
+                "updated_at": now,
+            },
+            synchronize_session=False,
+        )
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+
+    def delete_code(self, db: Session, record_id: str) -> None:
+        self._ensure_password_reset_codes_table(db)
+        record = db.query(PasswordResetVerificationCodes).filter(PasswordResetVerificationCodes.id == record_id).first()
+        if not record:
+            return
+        db.delete(record)
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+
+    def _latest_unused_code(self, db: Session, phone: str) -> Optional[PasswordResetVerificationCodes]:
+        return (
+            db.query(PasswordResetVerificationCodes)
+            .filter(
+                PasswordResetVerificationCodes.phone == phone,
+                PasswordResetVerificationCodes.used_at.is_(None),
+            )
+            .order_by(PasswordResetVerificationCodes.created_at.desc())
+            .with_for_update()
+            .first()
+        )
+
+    def reset_password_with_code(
+        self,
+        db: Session,
+        phone: str,
+        password: str,
+        code: str,
+    ) -> tuple[bool, str]:
+        """校验并消费密码重置验证码，同时更新用户密码。"""
+        now = self._now()
+
+        try:
+            self._ensure_password_reset_codes_table(db)
+            db_user = (
+                db.query(Users)
+                .filter(Users.phone == phone)
+                .with_for_update()
+                .first()
+            )
+            if not db_user or db_user.account_status != "active":
+                return False, "验证码错误或已过期"
+
+            record = self._latest_unused_code(db, phone)
+            if not record:
+                return False, "验证码错误或已过期"
+
+            if self._ensure_aware(record.expires_at) <= now or record.attempts >= self.max_attempts:
+                record.used_at = now
+                record.updated_at = now
+                db.add(record)
+                db.commit()
+                return False, "验证码错误或已过期"
+
+            expected_hash = self.hash_code(phone, code)
+            if not hmac.compare_digest(record.code_hash, expected_hash):
+                record.attempts += 1
+                record.updated_at = now
+                if record.attempts >= self.max_attempts:
+                    record.used_at = now
+                db.add(record)
+                db.commit()
+                return False, "验证码错误或已过期"
+
+            record.used_at = now
+            record.updated_at = now
+            db_user.password_hash = hash_password(password)
+            db_user.updated_at = now
+            db.add(record)
+            db.add(db_user)
+            db.commit()
+            return True, "密码已重置"
         except Exception:
             db.rollback()
             raise

@@ -46,8 +46,10 @@ from graphs.node import (
     create_user_node,
     update_rate_limit_node,
     send_register_code_node,
+    send_password_reset_code_node,
     register_with_limit_node,
     register_with_code_node,
+    reset_password_with_code_node,
     get_user_node,
     get_user_by_id_node,
     update_user_node,
@@ -162,8 +164,10 @@ builder.add_node("operation_route", operation_route_node)
 builder.add_node("check_rate_limit", check_rate_limit_node)
 builder.add_node("update_rate_limit", update_rate_limit_node)
 builder.add_node("send_register_code", send_register_code_node)
+builder.add_node("send_password_reset_code", send_password_reset_code_node)
 builder.add_node("register_with_limit", register_with_limit_node)
 builder.add_node("register_with_code", register_with_code_node)
+builder.add_node("reset_password_with_code", reset_password_with_code_node)
 builder.add_node("get_user", get_user_node)
 builder.add_node("get_user_by_id", get_user_by_id_node)
 builder.add_node("update_user", update_user_node)
@@ -250,8 +254,10 @@ builder.add_conditional_edges(
         "限流检查": "check_rate_limit",
         "更新限流": "update_rate_limit",
         "发送注册验证码": "send_register_code",
+        "发送密码重置验证码": "send_password_reset_code",
         "用户注册": "register_with_limit",
         "验证码注册": "register_with_code",
+        "验证码重置密码": "reset_password_with_code",
         "用户登录": "get_user",
         "查询单个用户": "get_user_by_id",
         "更新用户": "update_user",
@@ -303,8 +309,10 @@ builder.add_conditional_edges(
 builder.add_edge("check_rate_limit", "format_response")
 builder.add_edge("update_rate_limit", "format_response")
 builder.add_edge("send_register_code", "format_response")
+builder.add_edge("send_password_reset_code", "format_response")
 builder.add_edge("register_with_limit", "format_response")
 builder.add_edge("register_with_code", "format_response")
+builder.add_edge("reset_password_with_code", "format_response")
 builder.add_edge("get_user", "format_response")
 builder.add_edge("get_user_by_id", "format_response")
 builder.add_edge("update_user", "format_response")

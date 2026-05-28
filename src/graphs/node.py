@@ -56,8 +56,10 @@ from graphs.state import (
     CreateUserInput, CreateUserOutput,
     UpdateRateLimitInput, UpdateRateLimitOutput,
     SendRegisterCodeInput, SendRegisterCodeOutput,
+    SendPasswordResetCodeInput, SendPasswordResetCodeOutput,
     RegisterWithLimitInput, RegisterWithLimitOutput,
     RegisterWithCodeInput, RegisterWithCodeOutput,
+    ResetPasswordWithCodeInput, ResetPasswordWithCodeOutput,
     GetUserInput, GetUserOutput,
     GetUserByIdInput, GetUserByIdOutput,
     UpdateUserInput, UpdateUserOutput,
@@ -108,6 +110,11 @@ def _get_register_code_manager():
     return RegisterCodeManager
 
 
+def _get_password_reset_code_manager():
+    from storage.database.user_manager import PasswordResetCodeManager
+    return PasswordResetCodeManager
+
+
 def router_node(state: RouterInput, config: RunnableConfig, runtime: Runtime[Context]) -> RouterOutput:
     """
     title: 路由节点
@@ -137,10 +144,14 @@ def route_by_operation_type(state: OperationRouteInput) -> str:
         return "更新限流"
     elif operation_type == "send_register_code":
         return "发送注册验证码"
+    elif operation_type == "send_password_reset_code":
+        return "发送密码重置验证码"
     elif operation_type == "register":
         return "验证码注册"
     elif operation_type == "register_with_code":
         return "验证码注册"
+    elif operation_type == "reset_password_with_code":
+        return "验证码重置密码"
     elif operation_type == "login":
         return "用户登录"
     elif operation_type == "get_user_by_id":
@@ -234,6 +245,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         operation_type=input_data.operation_type if input_data else None,
         username=input_data.username if input_data else None,
         password=input_data.password if input_data else None,
+        confirm_password=input_data.confirm_password if input_data else None,
         code=input_data.code if input_data else None,
         file=processed_file,
         file_list=processed_file_list,
@@ -511,6 +523,9 @@ def _failure_result(message: str) -> dict:
     return {"success": False, "error": message}
 
 
+PASSWORD_RESET_SEND_SUCCESS_MESSAGE = "验证码已发送"
+
+
 def send_register_code_node(state: SendRegisterCodeInput, config: RunnableConfig, runtime: Runtime[Context]) -> SendRegisterCodeOutput:
     """
     title: 发送注册验证码
@@ -620,6 +635,156 @@ def send_register_code_node(state: SendRegisterCodeInput, config: RunnableConfig
         },
         success=True,
     )
+
+
+def _check_password_reset_code_rate_limit(phone: str, ip: str) -> tuple[bool, str]:
+    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
+
+    db = get_session()
+    try:
+        rate_mgr = RateLimitManager()
+
+        blocked_info = rate_mgr.check_blocked_status(db, phone, ip)
+        if blocked_info:
+            return False, "账号已被封禁，请稍后再试"
+
+        limits = rate_mgr.check_limits(db, phone, ip)
+        if limits["blocked_phone_10min"]:
+            record = rate_mgr.get_or_create(db, phone, ip)
+            rate_mgr.block(db, record, block_duration_hours=10 / 60)
+            return False, "该手机号发送验证码过于频繁，请10分钟后再试"
+
+        if limits["blocked_phone_1hour"]:
+            record = rate_mgr.get_or_create(db, phone, ip)
+            rate_mgr.block(db, record, block_duration_hours=1)
+            return False, "该手机号今日发送次数已达上限，请1小时后再试"
+
+        return True, ""
+    finally:
+        db.close()
+
+
+def _record_password_reset_code_attempt(
+    phone: str,
+    ip: str,
+    config: RunnableConfig,
+    runtime: Runtime[Context],
+) -> bool:
+    try:
+        update_result = update_rate_limit_node(
+            UpdateRateLimitInput(phone=phone, ip=ip),
+            config,
+            runtime,
+        )
+        return update_result.blocked
+    except Exception as exc:
+        logger.warning("[密码重置验证码] 限流记录更新失败: phone=%s, error=%s", _mask_phone(phone), exc)
+        return False
+
+
+def _password_reset_code_sent_output(expires_in: int = 300) -> SendPasswordResetCodeOutput:
+    return SendPasswordResetCodeOutput(
+        result={
+            "success": True,
+            "message": PASSWORD_RESET_SEND_SUCCESS_MESSAGE,
+            "countdown": 60,
+            "expires_in": expires_in,
+        },
+        success=True,
+    )
+
+
+def send_password_reset_code_node(
+    state: SendPasswordResetCodeInput,
+    config: RunnableConfig,
+    runtime: Runtime[Context],
+) -> SendPasswordResetCodeOutput:
+    """
+    title: 发送密码重置验证码
+    desc: 检查手机号、用户状态、限流、发送短信并持久化验证码哈希
+    integrations: 数据库
+    """
+    phone = (state.phone or "").strip()
+    ip = (state.ip or "unknown").strip() or "unknown"
+    masked_phone = _mask_phone(phone)
+
+    if not re.fullmatch(r"1[3-9]\d{9}", phone):
+        return SendPasswordResetCodeOutput(
+            result=_failure_result("手机号格式不正确"),
+            success=False,
+            error="手机号格式不正确",
+        )
+
+    allowed, reason = _check_password_reset_code_rate_limit(phone, ip)
+    if not allowed:
+        logger.info("[密码重置验证码] 限流拦截: phone=%s, reason=%s", masked_phone, reason)
+        return SendPasswordResetCodeOutput(
+            result=_failure_result(reason),
+            success=False,
+            error=reason,
+        )
+
+    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
+    db = get_session()
+    try:
+        user_mgr = UserManager()
+        db_user = user_mgr.get_user_by_phone(db, phone)
+        if not db_user or db_user.account_status != "active":
+            logger.info("[密码重置验证码] 账号不存在或不可用: phone=%s", masked_phone)
+            _record_password_reset_code_attempt(phone, ip, config, runtime)
+            PasswordResetCodeManager = _get_password_reset_code_manager()
+            return _password_reset_code_sent_output(PasswordResetCodeManager.code_ttl_seconds)
+    finally:
+        db.close()
+
+    logger.info("[密码重置验证码] 开始发送: phone=%s, ip=%s", masked_phone, ip)
+
+    code = str(secrets.randbelow(900000) + 100000)
+    PasswordResetCodeManager = _get_password_reset_code_manager()
+    code_mgr = PasswordResetCodeManager()
+    record_id = None
+
+    db = get_session()
+    try:
+        record = code_mgr.save_code(db, phone, code, ip)
+        record_id = record.id
+    except RuntimeError as exc:
+        logger.error("[密码重置验证码] 验证码服务配置错误: phone=%s, error=%s", masked_phone, exc)
+        _record_password_reset_code_attempt(phone, ip, config, runtime)
+        return _password_reset_code_sent_output(PasswordResetCodeManager.code_ttl_seconds)
+    except Exception as exc:
+        logger.exception("[密码重置验证码] 验证码保存失败: phone=%s, error=%s", masked_phone, exc)
+        _record_password_reset_code_attempt(phone, ip, config, runtime)
+        return _password_reset_code_sent_output(PasswordResetCodeManager.code_ttl_seconds)
+    finally:
+        db.close()
+
+    send_result = send_sms_verify_code(phone, code)
+    if not send_result.success:
+        if record_id:
+            cleanup_db = get_session()
+            try:
+                code_mgr.delete_code(cleanup_db, record_id)
+            except Exception as exc:
+                logger.warning("[密码重置验证码] 短信失败后的验证码清理失败: phone=%s, error=%s", masked_phone, exc)
+            finally:
+                cleanup_db.close()
+        logger.info("[密码重置验证码] 短信发送失败: phone=%s, reason=%s", masked_phone, send_result.message)
+        _record_password_reset_code_attempt(phone, ip, config, runtime)
+        return _password_reset_code_sent_output(PasswordResetCodeManager.code_ttl_seconds)
+
+    cleanup_db = get_session()
+    try:
+        code_mgr.mark_other_unused_codes_used(cleanup_db, phone, record_id)
+    except Exception as exc:
+        logger.warning("[密码重置验证码] 旧验证码废弃失败: phone=%s, error=%s", masked_phone, exc)
+    finally:
+        cleanup_db.close()
+
+    blocked = _record_password_reset_code_attempt(phone, ip, config, runtime)
+
+    logger.info("[密码重置验证码] 发送成功: phone=%s, blocked=%s", masked_phone, blocked)
+    return _password_reset_code_sent_output(PasswordResetCodeManager.code_ttl_seconds)
 
 
 def register_with_limit_node(state: RegisterWithLimitInput, config: RunnableConfig, runtime: Runtime[Context]) -> RegisterWithLimitOutput:
@@ -765,6 +930,86 @@ def register_with_code_node(state: RegisterWithCodeInput, config: RunnableConfig
         },
         success=True,
         user=user,
+    )
+
+
+def reset_password_with_code_node(
+    state: ResetPasswordWithCodeInput,
+    config: RunnableConfig,
+    runtime: Runtime[Context],
+) -> ResetPasswordWithCodeOutput:
+    """
+    title: 验证码重置密码
+    desc: 在事务中校验并消费验证码、更新用户密码哈希
+    integrations: 数据库
+    """
+    phone = (state.phone or "").strip()
+    password = state.password or ""
+    confirm_password = state.confirm_password or ""
+    code = (state.code or "").strip()
+    masked_phone = _mask_phone(phone)
+
+    if not re.fullmatch(r"1[3-9]\d{9}", phone):
+        return ResetPasswordWithCodeOutput(
+            result=_failure_result("手机号格式不正确"),
+            success=False,
+            error="手机号格式不正确",
+        )
+    if len(password) < 7:
+        return ResetPasswordWithCodeOutput(
+            result=_failure_result("密码至少需要7个字符"),
+            success=False,
+            error="密码至少需要7个字符",
+        )
+    if password != confirm_password:
+        return ResetPasswordWithCodeOutput(
+            result=_failure_result("两次输入的密码不一致"),
+            success=False,
+            error="两次输入的密码不一致",
+        )
+    if not re.fullmatch(r"\d{6}", code):
+        return ResetPasswordWithCodeOutput(
+            result=_failure_result("验证码格式不正确"),
+            success=False,
+            error="验证码格式不正确",
+        )
+
+    logger.info("[验证码重置密码] 开始处理: phone=%s", masked_phone)
+    PasswordResetCodeManager = _get_password_reset_code_manager()
+    code_mgr = PasswordResetCodeManager()
+    db = get_session()
+    try:
+        success, message = code_mgr.reset_password_with_code(
+            db=db,
+            phone=phone,
+            password=password,
+            code=code,
+        )
+    except Exception as exc:
+        logger.exception("[验证码重置密码] 处理异常: phone=%s, error=%s", masked_phone, exc)
+        return ResetPasswordWithCodeOutput(
+            result=_failure_result("密码重置失败,请稍后重试"),
+            success=False,
+            error="密码重置失败,请稍后重试",
+        )
+    finally:
+        db.close()
+
+    if not success:
+        logger.info("[验证码重置密码] 重置失败: phone=%s, reason=%s", masked_phone, message)
+        return ResetPasswordWithCodeOutput(
+            result=_failure_result(message),
+            success=False,
+            error=message,
+        )
+
+    logger.info("[验证码重置密码] 重置成功: phone=%s", masked_phone)
+    return ResetPasswordWithCodeOutput(
+        result={
+            "success": True,
+            "message": "密码已重置，请使用新密码登录",
+        },
+        success=True,
     )
 
 

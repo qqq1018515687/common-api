@@ -7,6 +7,7 @@ class InputData(BaseModel):
     """输入数据对象，包含所有业务字段"""
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
+    confirm_password: Optional[str] = Field(default=None, description="确认密码")
     code: Optional[str] = Field(default=None, description="验证码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表（提示词增强使用）")
@@ -17,7 +18,7 @@ class InputData(BaseModel):
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
-    operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/register/register_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、公告管理(get_active_popup/get_all/create/update/disable)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、RunningHub错误分析(runninghub_error_analysis)")
+    operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/send_password_reset_code/register/register_with_code/reset_password_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、公告管理(get_active_popup/get_all/create/update/disable)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、RunningHub错误分析(runninghub_error_analysis)")
     assets: Optional[List[dict]] = Field(default=None, description="Agent 意图判断素材摘要列表")
     current_target: Optional[dict] = Field(default=None, description="Agent 意图判断当前已选目标")
     agent_preferences: Optional[dict] = Field(default=None, description="Agent 生成偏好与模型偏好")
@@ -108,6 +109,7 @@ class GlobalState(BaseModel):
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
+    confirm_password: Optional[str] = Field(default=None, description="确认密码")
     code: Optional[str] = Field(default=None, description="验证码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表（提示词增强使用）")
@@ -277,6 +279,19 @@ class SendRegisterCodeOutput(BaseModel):
     error: Optional[str] = Field(default=None, description="错误信息")
 
 
+class SendPasswordResetCodeInput(BaseModel):
+    """发送密码重置验证码节点的输入"""
+    phone: Optional[str] = Field(default=None, description="手机号")
+    ip: Optional[str] = Field(default=None, description="IP地址")
+
+
+class SendPasswordResetCodeOutput(BaseModel):
+    """发送密码重置验证码节点的输出"""
+    result: dict = Field(default={}, description="发送结果")
+    success: bool = Field(default=True, description="是否成功")
+    error: Optional[str] = Field(default=None, description="错误信息")
+
+
 # 注册组合节点
 class RegisterWithLimitInput(BaseModel):
     """注册组合节点的输入"""
@@ -310,6 +325,21 @@ class RegisterWithCodeOutput(BaseModel):
     result: dict = Field(default={}, description="注册结果")
     success: bool = Field(default=True, description="是否成功")
     user: Optional[dict] = Field(default=None, description="用户数据")
+    error: Optional[str] = Field(default=None, description="错误信息")
+
+
+class ResetPasswordWithCodeInput(BaseModel):
+    """验证码重置密码节点的输入"""
+    phone: Optional[str] = Field(default=None, description="手机号")
+    password: Optional[str] = Field(default=None, description="新密码")
+    confirm_password: Optional[str] = Field(default=None, description="确认密码")
+    code: Optional[str] = Field(default=None, description="验证码")
+
+
+class ResetPasswordWithCodeOutput(BaseModel):
+    """验证码重置密码节点的输出"""
+    result: dict = Field(default={}, description="重置结果")
+    success: bool = Field(default=True, description="是否成功")
     error: Optional[str] = Field(default=None, description="错误信息")
 
 
@@ -628,6 +658,7 @@ class UnpackInputDataOutput(BaseModel):
     call_type: str = Field(..., description="调用类型")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
+    confirm_password: Optional[str] = Field(default=None, description="确认密码")
     code: Optional[str] = Field(default=None, description="验证码")
     file: Optional[File] = Field(default=None, description="上传的文件")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表")
