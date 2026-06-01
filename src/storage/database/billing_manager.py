@@ -86,6 +86,8 @@ def _extract_team_record_metadata(
         "task_id", "billing_task_id", "workflow", "workflow_id",
         "workflow_name", "model_key", "model_display_name",
         "source", "task_type", "currency", "number",
+        "base_cost_amount", "cost_amount", "pricing_tier", "pricing_multiplier",
+        "user_tier", "tier_multiplier", "quote_source",
         "agent_run_id", "agent_step_id", "agent_step_index",
         "agent_plan_type", "agent_model_preference",
     ]
@@ -643,6 +645,8 @@ def deduct(
         if billing_metadata:
             for _bk in ("platform", "selected_account", "provider", "model_name", "model_key",
                         "workflow", "workflow_name", "model_display_name", "title",
+                        "base_cost_amount", "cost_amount", "pricing_tier", "pricing_multiplier",
+                        "user_tier", "tier_multiplier", "quote_source",
                         "agent_run_id", "agent_step_id", "agent_step_index",
                         "agent_plan_type", "agent_model_preference"):
                 _bv = billing_metadata.get(_bk)
@@ -651,6 +655,8 @@ def deduct(
         if metadata and isinstance(metadata.get("billing_metadata"), dict):
             for _bk in ("platform", "selected_account", "provider", "model_name", "model_key",
                         "workflow", "workflow_name", "model_display_name", "title",
+                        "base_cost_amount", "cost_amount", "pricing_tier", "pricing_multiplier",
+                        "user_tier", "tier_multiplier", "quote_source",
                         "agent_run_id", "agent_step_id", "agent_step_index",
                         "agent_plan_type", "agent_model_preference"):
                 _bv = metadata["billing_metadata"].get(_bk)
