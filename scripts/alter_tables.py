@@ -24,9 +24,9 @@ def update_users_table():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS team_id VARCHAR(64)",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS gold_credits NUMERIC(12, 2) DEFAULT 0.00",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS silver_credits INTEGER DEFAULT 999999999",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user'",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS tier VARCHAR(20) DEFAULT 'standard'",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS account_status VARCHAR(20) DEFAULT 'active'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(32) DEFAULT 'user'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS tier VARCHAR(32) DEFAULT 'commercial_registered'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS account_status VARCHAR(32) DEFAULT 'active'",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP",
             "ALTER TABLE history ADD COLUMN IF NOT EXISTS meta_data JSON"
         ]
