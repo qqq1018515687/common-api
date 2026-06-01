@@ -434,7 +434,7 @@ def create_user_node(state: CreateUserInput, config: RunnableConfig, runtime: Ru
             gold_credits=state.gold_credits,
             silver_credits=state.silver_credits,
             role=state.role,
-            tier=state.tier,
+            tier=state.tier or "commercial_registered",
             account_status=state.account_status
         )
 

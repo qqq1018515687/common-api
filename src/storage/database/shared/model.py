@@ -122,7 +122,7 @@ class Users(Base):
     gold_credits: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), server_default=text('0.00'))
     silver_credits: Mapped[Optional[int]] = mapped_column(Integer, server_default=text('999999999'))
     role: Mapped[Optional[str]] = mapped_column(String(20), server_default=text("'user'::character varying"))
-    tier: Mapped[Optional[str]] = mapped_column(String(20), server_default=text("'standard'::character varying"))
+    tier: Mapped[Optional[str]] = mapped_column(String(32), server_default=text("'commercial_registered'::character varying"))
     account_status: Mapped[Optional[str]] = mapped_column(String(20), server_default=text("'active'::character varying"))
     updated_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime)
 

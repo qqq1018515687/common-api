@@ -1,6 +1,7 @@
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 import hmac
 import hashlib
 import os
@@ -12,6 +13,23 @@ from datetime import datetime, timedelta, timezone
 from storage.database.shared.model import Users, RateLimits, RegisterVerificationCodes, PasswordResetVerificationCodes
 from storage.database.amounts import gold_amount_to_number, normalize_gold_amount
 
+_USER_TIER_SCHEMA_READY = False
+
+
+def ensure_user_tier_schema(db: Session) -> None:
+    """Keep users.tier wide enough for commercial_registered."""
+    global _USER_TIER_SCHEMA_READY
+    if _USER_TIER_SCHEMA_READY:
+        return
+
+    bind = db.get_bind()
+    if bind.dialect.name == "postgresql":
+        db.execute(text("ALTER TABLE users ALTER COLUMN tier TYPE VARCHAR(32)"))
+        db.execute(text("ALTER TABLE users ALTER COLUMN tier SET DEFAULT 'commercial_registered'"))
+        db.commit()
+
+    _USER_TIER_SCHEMA_READY = True
+
 
 class UserCreate(BaseModel):
     phone: str = Field(..., description="手机号")
@@ -22,7 +40,7 @@ class UserCreate(BaseModel):
     gold_credits: float = Field(default=0, description="金豆余额")
     silver_credits: int = Field(default=10000, description="银豆余额")
     role: str = Field(default="user", description="用户角色")
-    tier: str = Field(default="standard", description="用户等级")
+    tier: str = Field(default="commercial_registered", description="用户等级")
     account_status: str = Field(default="active", description="账号状态")
 
 
@@ -80,6 +98,7 @@ class UserManager:
 
     def create_user(self, db: Session, user_in: UserCreate) -> Optional[Users]:
         """创建用户"""
+        ensure_user_tier_schema(db)
         # 检查手机号是否已存在
         existing_user = db.query(Users).filter(Users.phone == user_in.phone).first()
         if existing_user:
@@ -114,6 +133,8 @@ class UserManager:
             return None
 
         update_data = user_in.model_dump(exclude_unset=True)
+        if "tier" in update_data:
+            ensure_user_tier_schema(db)
         if "gold_credits" in update_data:
             update_data["gold_credits"] = normalize_gold_amount(update_data["gold_credits"], allow_zero=True)
         for field, value in update_data.items():
@@ -298,6 +319,7 @@ class RegisterCodeManager:
         now = self._now()
 
         try:
+            ensure_user_tier_schema(db)
             self._ensure_register_codes_table(db)
             existing_user = db.query(Users).filter(Users.phone == phone).first()
             if existing_user:
@@ -336,7 +358,7 @@ class RegisterCodeManager:
                 gold_credits=normalize_gold_amount(0, allow_zero=True),
                 silver_credits=10000,
                 role="user",
-                tier="standard",
+                tier="commercial_registered",
                 account_status="active",
             )
             db.add(record)
