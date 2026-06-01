@@ -56,5 +56,5 @@ def downgrade() -> None:
         "tasks",
         "platform_task_id",
         existing_type=sa.String(length=100),
-        nullable=False,
+        nullable=True,
     )

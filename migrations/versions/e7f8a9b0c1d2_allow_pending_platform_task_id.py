@@ -22,4 +22,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute("update tasks set platform_task_id = concat('pending:', id) where platform_task_id is null")
-    op.alter_column("tasks", "platform_task_id", nullable=False)
+    op.alter_column("tasks", "platform_task_id", nullable=True)

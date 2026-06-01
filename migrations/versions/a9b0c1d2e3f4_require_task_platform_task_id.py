@@ -19,12 +19,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.execute("update tasks set platform_task_id = concat('pending:', id) where platform_task_id is null")
-    op.alter_column(
-        "tasks",
-        "platform_task_id",
-        existing_type=sa.String(length=100),
-        nullable=False,
-    )
 
 
 def downgrade() -> None:
