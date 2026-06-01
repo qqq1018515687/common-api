@@ -20,7 +20,7 @@ class UserCreate(BaseModel):
     avatar: str = Field(..., description="头像URL")
     team_id: Optional[str] = Field(default=None, description="团队ID")
     gold_credits: float = Field(default=0, description="金豆余额")
-    silver_credits: int = Field(default=10000, description="银豆余额")
+    silver_credits: int = Field(default=2000, description="银豆余额")
     role: str = Field(default="user", description="用户角色")
     tier: str = Field(default="commercial_registered", description="用户等级")
     account_status: str = Field(default="active", description="账号状态")
@@ -334,7 +334,7 @@ class RegisterCodeManager:
                 avatar=avatar or "",
                 user_id=UserManager._generate_user_id(),
                 gold_credits=normalize_gold_amount(0, allow_zero=True),
-                silver_credits=10000,
+                silver_credits=2000,
                 role="user",
                 tier="commercial_registered",
                 account_status="active",
