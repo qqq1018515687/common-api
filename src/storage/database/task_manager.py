@@ -41,6 +41,10 @@ class TaskManager:
     """任务管理类"""
 
     @staticmethod
+    def _pending_platform_task_id(task_id: str) -> str:
+        return f"pending:{task_id}"
+
+    @staticmethod
     def verify_user_permission(db: Session, user_id: str) -> tuple[bool, Optional[str]]:
         """
         验证用户权限
@@ -83,7 +87,11 @@ class TaskManager:
                 value = task_data.get(field)
                 if value not in (None, "", {}) and hasattr(existing_task, field):
                     current_value = getattr(existing_task, field)
-                    if current_value in (None, "", {}):
+                    if current_value in (None, "", {}) or (
+                        field == "platform_task_id"
+                        and isinstance(current_value, str)
+                        and current_value.startswith("pending:")
+                    ):
                         setattr(existing_task, field, value)
 
             existing_task.updated_at = str(int(time.time() * 1000))
@@ -98,6 +106,8 @@ class TaskManager:
 
         current_time = str(int(time.time() * 1000))
         task_data = task_in.model_dump()
+        if not task_data.get("platform_task_id"):
+            task_data["platform_task_id"] = self._pending_platform_task_id(task_in.id)
         task_data['status'] = 'running'
         task_data['created_at'] = current_time
         task_data['updated_at'] = current_time

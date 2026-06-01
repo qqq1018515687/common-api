@@ -32,3 +32,10 @@ else
     echo "[setup] Warning: no pyproject.toml or requirements.txt found, skipping install"
   fi
 fi
+
+echo "[setup] Running pre-deploy schema backfill..."
+EXTRA_PYTHONPATH="${PWD}/src"
+if [ -n "$PIP_TARGET" ]; then
+  EXTRA_PYTHONPATH="${PIP_TARGET}:${EXTRA_PYTHONPATH}"
+fi
+PYTHONPATH="${EXTRA_PYTHONPATH}:${PYTHONPATH}" python scripts/predeploy_schema_backfill.py

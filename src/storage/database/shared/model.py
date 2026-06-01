@@ -79,7 +79,7 @@ class Tasks(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     user_id: Mapped[str] = mapped_column(String(36), nullable=False)
     platform: Mapped[str] = mapped_column(String(50), nullable=False)
-    platform_task_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    platform_task_id: Mapped[str] = mapped_column(String(100), nullable=False)
     type: Mapped[str] = mapped_column(String(10), nullable=False)
     status: Mapped[str] = mapped_column(String(10), nullable=False)
     created_at: Mapped[str] = mapped_column(String(20), nullable=False)
