@@ -30,6 +30,7 @@ depends_on: Union[str, Sequence[str], None] = None
 GOLD_MODES = {"gold", "personal_gold", "team_gold"}
 GOLD_CREDIT_TYPES = ("personal_gold", "team_gold")
 MONEY_QUANT = Decimal("0.01")
+DECIMAL_MONEY_CUTOFF_MS = 1778774400000
 
 
 def _divide_old_gold_amount(value: Any) -> Any:
@@ -139,8 +140,11 @@ def _migrate_task_json() -> None:
     rows = bind.execute(sa.text(
         "SELECT id, deduction_result, parameter_snapshot "
         "FROM tasks "
-        "WHERE deduction_result IS NOT NULL OR parameter_snapshot IS NOT NULL"
-    )).mappings().all()
+        "WHERE (deduction_result IS NOT NULL OR parameter_snapshot IS NOT NULL) "
+        "AND created_at < :decimal_money_cutoff_ms"
+    ), {
+        "decimal_money_cutoff_ms": str(DECIMAL_MONEY_CUTOFF_MS),
+    }).mappings().all()
 
     update_stmt = sa.text(
         "UPDATE tasks "
@@ -167,73 +171,118 @@ def _table_exists(table_name: str) -> bool:
     return sa.inspect(op.get_bind()).has_table(table_name)
 
 
-def upgrade() -> None:
+def _column_is_decimal_money(table_name: str, column_name: str) -> bool:
+    rows = op.get_bind().execute(sa.text("""
+        SELECT data_type, numeric_scale
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = :table_name
+          AND column_name = :column_name
+    """), {
+        "table_name": table_name,
+        "column_name": column_name,
+    }).mappings().all()
+
+    return bool(rows and rows[0]["data_type"] == "numeric" and rows[0]["numeric_scale"] == 2)
+
+
+def _convert_integer_money_column(
+    table_name: str,
+    column_name: str,
+    existing_type: sa.TypeEngine,
+    *,
+    nullable: bool,
+    server_default: sa.TextClause | None = None,
+) -> bool:
+    if _column_is_decimal_money(table_name, column_name):
+        if server_default is not None:
+            op.alter_column(
+                table_name,
+                column_name,
+                existing_type=sa.Numeric(12, 2),
+                existing_nullable=nullable,
+                server_default=server_default,
+            )
+        return False
+
     op.alter_column(
+        table_name,
+        column_name,
+        existing_type=existing_type,
+        type_=sa.Numeric(12, 2),
+        existing_nullable=nullable,
+        server_default=server_default,
+        postgresql_using=f"{column_name}::numeric(12, 2)",
+    )
+    return True
+
+
+def upgrade() -> None:
+    converted_any_gold_amount = False
+
+    converted_user_gold = _convert_integer_money_column(
         "users",
         "gold_credits",
-        existing_type=sa.Integer(),
-        type_=sa.Numeric(12, 2),
-        existing_nullable=True,
+        sa.Integer(),
+        nullable=True,
         server_default=sa.text("0.00"),
-        postgresql_using="gold_credits::numeric(12, 2)",
     )
-    op.execute("UPDATE users SET gold_credits = ROUND(gold_credits / 100.0, 2) WHERE gold_credits IS NOT NULL")
+    converted_any_gold_amount = converted_any_gold_amount or converted_user_gold
+    if converted_user_gold:
+        op.execute("UPDATE users SET gold_credits = ROUND(gold_credits / 100.0, 2) WHERE gold_credits IS NOT NULL")
 
-    op.alter_column(
+    converted_team_balance = _convert_integer_money_column(
         "teams",
         "balance",
-        existing_type=sa.Integer(),
-        type_=sa.Numeric(12, 2),
-        existing_nullable=False,
+        sa.Integer(),
+        nullable=False,
         server_default=sa.text("0.00"),
-        postgresql_using="balance::numeric(12, 2)",
     )
-    op.alter_column(
+    converted_team_total = _convert_integer_money_column(
         "teams",
         "total_consumed",
-        existing_type=sa.Integer(),
-        type_=sa.Numeric(12, 2),
-        existing_nullable=False,
+        sa.Integer(),
+        nullable=False,
         server_default=sa.text("0.00"),
-        postgresql_using="total_consumed::numeric(12, 2)",
     )
-    op.execute("UPDATE teams SET balance = ROUND(balance / 100.0, 2), total_consumed = ROUND(total_consumed / 100.0, 2)")
+    converted_any_gold_amount = converted_any_gold_amount or converted_team_balance or converted_team_total
+    if converted_team_balance:
+        op.execute("UPDATE teams SET balance = ROUND(balance / 100.0, 2)")
+    if converted_team_total:
+        op.execute("UPDATE teams SET total_consumed = ROUND(total_consumed / 100.0, 2)")
 
     for column_name in ("amount", "balance_before", "balance_after"):
-        op.alter_column(
+        converted = _convert_integer_money_column(
             "team_consumption_records",
             column_name,
-            existing_type=sa.BigInteger(),
-            type_=sa.Numeric(12, 2),
-            existing_nullable=(column_name != "amount"),
-            postgresql_using=f"{column_name}::numeric(12, 2)",
+            sa.BigInteger(),
+            nullable=(column_name != "amount"),
         )
-    op.execute(
-        "UPDATE team_consumption_records "
-        "SET amount = ROUND(amount / 100.0, 2), "
-        "balance_before = ROUND(balance_before / 100.0, 2), "
-        "balance_after = ROUND(balance_after / 100.0, 2)"
-    )
+        converted_any_gold_amount = converted_any_gold_amount or converted
+        if converted:
+            op.execute(
+                f"UPDATE team_consumption_records "
+                f"SET {column_name} = ROUND({column_name} / 100.0, 2)"
+            )
 
     if _table_exists("billing_records"):
         for column_name in ("amount", "balance_before", "balance_after"):
-            op.alter_column(
+            converted = _convert_integer_money_column(
                 "billing_records",
                 column_name,
-                existing_type=sa.BigInteger(),
-                type_=sa.Numeric(12, 2),
-                existing_nullable=(column_name != "amount"),
-                postgresql_using=f"{column_name}::numeric(12, 2)",
+                sa.BigInteger(),
+                nullable=(column_name != "amount"),
             )
-        op.execute(
-            "UPDATE billing_records "
-            "SET amount = ROUND(amount / 100.0, 2), "
-            "balance_before = ROUND(balance_before / 100.0, 2), "
-            "balance_after = ROUND(balance_after / 100.0, 2) "
-            "WHERE credit_type IN ('personal_gold', 'team_gold')"
-        )
+            converted_any_gold_amount = converted_any_gold_amount or converted
+            if converted:
+                op.execute(
+                    f"UPDATE billing_records "
+                    f"SET {column_name} = ROUND({column_name} / 100.0, 2) "
+                    f"WHERE credit_type IN ('personal_gold', 'team_gold')"
+                )
 
-    _migrate_task_json()
+    if converted_any_gold_amount:
+        _migrate_task_json()
 
 
 def downgrade() -> None:
