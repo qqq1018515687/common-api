@@ -3,6 +3,20 @@ from pydantic import BaseModel, Field, field_validator
 from utils.file.file import File
 
 
+def normalize_silver_credits_value(value):
+    """兼容 Coze/DB 返回的银豆小数字符串，银豆只保留整数。"""
+    if value is None or isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        return int(float(text))
+    return value
+
+
 class InputData(BaseModel):
     """输入数据对象，包含所有业务字段"""
     username: Optional[str] = Field(default=None, description="用户名")
@@ -47,18 +61,13 @@ class InputData(BaseModel):
     updates: Optional[dict] = Field(default=None, description="更新字段")
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    page: Optional[int] = Field(default=None, description="页码")
     limit: Optional[int] = Field(default=None, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
 
     # 任务时间范围查询字段
     start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒，13位整数）")
     end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒，13位整数）")
-    days: Optional[int] = Field(default=None, description="查询最近N天")
-    before_time: Optional[int] = Field(default=None, description="游标分页：查询早于该时间戳的记录（毫秒）")
-    status: Optional[str] = Field(default=None, description="任务状态筛选（running/completed/failed）")
-    before_time: Optional[int] = Field(default=None, description="游标分页：查询早于该时间戳的记录（毫秒）")
-    status: Optional[str] = Field(default=None, description="任务状态筛选（list_tasks 使用）")
-    status: Optional[str] = Field(default=None, description="任务状态筛选（list_tasks 使用）")
     before_time: Optional[int] = Field(default=None, description="游标分页：查询早于该时间戳的记录（毫秒，13位整数）")
     status: Optional[str] = Field(default=None, description="任务状态筛选（list_tasks 使用）")
     days: Optional[int] = Field(default=None, description="查询最近N天的数据（list_tasks 使用）")
@@ -81,7 +90,6 @@ class InputData(BaseModel):
     # 团队余额相关字段
     amount: Optional[float] = Field(default=None, description="金额（充值/扣费/退款使用）")
     description: Optional[str] = Field(default=None, description="操作描述")
-    days: Optional[int] = Field(default=None, description="查询天数")
     name: Optional[str] = Field(default=None, description="团队名称（创建团队使用）")
     target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
     target_username: Optional[str] = Field(default=None, description="目标用户名")
@@ -97,10 +105,14 @@ class InputData(BaseModel):
     credit_type: Optional[str] = Field(default=None, description="资金类型：personal_gold/personal_silver/team_gold")
     idempotency_key: Optional[str] = Field(default=None, description="幂等键（deduct/refund/settle 必传）")
     service_secret: Optional[str] = Field(default=None, description="服务密钥（billing 操作必传）")
-    original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID（refund/settle 使用）")
     final_amount: Optional[float] = Field(default=None, description="结算金额（settle 使用）")
     billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（main 透传，含 title/workflow/model 等信息）")
     metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
+
+    @field_validator("silver_credits", mode="before")
+    @classmethod
+    def normalize_silver_credits(cls, value):
+        return normalize_silver_credits_value(value)
 
 
 class GlobalState(BaseModel):
@@ -151,6 +163,7 @@ class GlobalState(BaseModel):
     updates: Optional[dict] = Field(default=None, description="更新字段")
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    page: Optional[int] = Field(default=None, description="页码")
     limit: Optional[int] = Field(default=None, description="每页数量")
     filter: Optional[dict] = Field(default=None, description="筛选条件")
 
@@ -194,10 +207,14 @@ class GlobalState(BaseModel):
     credit_type: Optional[str] = Field(default=None, description="资金类型：personal_gold/personal_silver/team_gold")
     idempotency_key: Optional[str] = Field(default=None, description="幂等键（deduct/refund/settle 必传）")
     service_secret: Optional[str] = Field(default=None, description="服务密钥（billing 操作必传）")
-    original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID（refund/settle 使用）")
     final_amount: Optional[float] = Field(default=None, description="结算金额（settle 使用）")
     billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（main 透传，含 title/workflow/model 等信息）")
     metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
+
+    @field_validator("silver_credits", mode="before")
+    @classmethod
+    def normalize_silver_credits(cls, value):
+        return normalize_silver_credits_value(value)
 
 
 class GraphInput(BaseModel):
@@ -440,6 +457,11 @@ class UpdateUserInput(BaseModel):
     tier: Optional[str] = Field(default=None, description="用户等级")
     account_status: Optional[str] = Field(default=None, description="账号状态")
     updates: Optional[dict] = Field(default=None, description="更新字段（已废弃，使用上面的具体字段）")
+
+    @field_validator("silver_credits", mode="before")
+    @classmethod
+    def normalize_silver_credits(cls, value):
+        return normalize_silver_credits_value(value)
 
 
 class UpdateUserOutput(BaseModel):
@@ -723,7 +745,6 @@ class UnpackInputDataOutput(BaseModel):
     # 团队余额相关字段
     amount: Optional[float] = Field(default=None, description="金额（充值/扣费/退款使用）")
     description: Optional[str] = Field(default=None, description="操作描述")
-    days: Optional[int] = Field(default=None, description="查询天数")
     name: Optional[str] = Field(default=None, description="团队名称（创建团队使用）")
     target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
     target_username: Optional[str] = Field(default=None, description="目标用户名")
@@ -739,10 +760,14 @@ class UnpackInputDataOutput(BaseModel):
     credit_type: Optional[str] = Field(default=None, description="资金类型：personal_gold/personal_silver/team_gold")
     idempotency_key: Optional[str] = Field(default=None, description="幂等键")
     service_secret: Optional[str] = Field(default=None, description="服务密钥")
-    original_record_id: Optional[str] = Field(default=None, description="原扣费记录ID（refund/settle 使用）")
     final_amount: Optional[float] = Field(default=None, description="结算金额（settle 使用）")
     billing_metadata: Optional[dict] = Field(default=None, description="billing 元数据（main 透传）")
     metadata: Optional[dict] = Field(default=None, description="通用元数据（含 billing_metadata 嵌套结构，main 透传）")
+
+    @field_validator("silver_credits", mode="before")
+    @classmethod
+    def normalize_silver_credits(cls, value):
+        return normalize_silver_credits_value(value)
 
 
 # 工具路由节点
@@ -947,4 +972,3 @@ class BillingSettleInput(BaseModel):
 class BillingSettleOutput(BaseModel):
     """结算节点的输出"""
     response_data: dict = Field(default={}, description="统一响应数据")
-

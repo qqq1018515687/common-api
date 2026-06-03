@@ -154,7 +154,7 @@ class UserManager:
         account_status: Optional[str] = None
     ) -> tuple[List[Users], int]:
         """用户列表"""
-        query = db.query(Users).filter(Users.account_status != "deleted")
+        query = db.query(Users)
 
         if role:
             query = query.filter(Users.role == role)
@@ -162,6 +162,8 @@ class UserManager:
             query = query.filter(Users.tier == tier)
         if account_status:
             query = query.filter(Users.account_status == account_status)
+        else:
+            query = query.filter(Users.account_status != "deleted")
 
         # 统计总数
         total = query.count()

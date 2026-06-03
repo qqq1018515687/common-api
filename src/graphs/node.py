@@ -282,6 +282,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         updates=input_data.updates if input_data else None,
         operator_role=input_data.operator_role if input_data else None,
         operator_user_id=input_data.operator_user_id if input_data else None,
+        page=input_data.page if input_data else None,
         limit=input_data.limit if input_data else None,
         filter=input_data.filter if input_data else None,
         # 任务时间范围查询字段
@@ -1219,7 +1220,7 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
             updates['username'] = state.username
         if state.avatar is not None:
             updates['avatar'] = processed_avatar  # 使用处理后的头像
-        if state.team_id is not None:
+        if "team_id" in state.model_fields_set:
             updates['team_id'] = state.team_id
         if state.gold_credits is not None:
             updates['gold_credits'] = state.gold_credits
@@ -2225,4 +2226,3 @@ def prompt_enhance_node(state: PromptEnhanceInput, config: RunnableConfig, runti
 
 
 # ============ 团队余额初始化节点 ============
-
