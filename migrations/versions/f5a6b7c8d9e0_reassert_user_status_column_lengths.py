@@ -1,7 +1,7 @@
 """reassert user status column lengths
 
-Revision ID: d3e4f5a6b7c8
-Revises: c2d3e4f5a6b7
+Revision ID: f5a6b7c8d9e0
+Revises: e4f5a6b7c8d9
 Create Date: 2026-06-02 00:00:00.000000
 
 """
@@ -10,8 +10,8 @@ from typing import Sequence, Union
 from alembic import op
 
 
-revision: str = "d3e4f5a6b7c8"
-down_revision: Union[str, Sequence[str], None] = "c2d3e4f5a6b7"
+revision: str = "f5a6b7c8d9e0"
+down_revision: Union[str, Sequence[str], None] = "e4f5a6b7c8d9"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
