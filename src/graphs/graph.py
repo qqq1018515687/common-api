@@ -267,7 +267,8 @@ builder.add_conditional_edges(
         "查询单个用户": "get_user_by_id",
         "更新用户": "update_user",
         "删除用户": "delete_user",
-        "用户列表": "list_users"
+        "用户列表": "list_users",
+        "对象储存管理": "storage_management"
     }
 )
 

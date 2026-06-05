@@ -164,6 +164,14 @@ def route_by_operation_type(state: OperationRouteInput) -> str:
         return "删除用户"
     elif operation_type == "list_users":
         return "用户列表"
+    elif operation_type in [
+        "list_objects",
+        "get_object_metadata",
+        "regenerate_url",
+        "delete_object",
+        "cleanup_expired",
+    ]:
+        return "对象储存管理"
     else:
         return "未知操作"
 
