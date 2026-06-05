@@ -25,8 +25,12 @@ class InputData(BaseModel):
     code: Optional[str] = Field(default=None, description="验证码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表（提示词增强使用）")
-    file_key: Optional[str] = Field(default=None, description="对象存储文件键（delete_upload 使用）")
-    category: Optional[str] = Field(default=None, description="文件分类：avatar/upload/temp")
+    file_key: Optional[str] = Field(default=None, description="对象存储文件键（delete_upload/storage_management 使用）")
+    category: Optional[str] = Field(default=None, description="文件分类：avatar/upload/temp 或 storage 分类")
+    prefix: Optional[str] = Field(default=None, description="对象存储前缀筛选（storage_management 使用）")
+    continuation_token: Optional[str] = Field(default=None, description="对象存储分页 token（storage_management 使用）")
+    dry_run: Optional[bool] = Field(default=None, description="对象储存清理试运行（storage_management 使用）")
+    include_avatars: Optional[bool] = Field(default=None, description="对象储存清理是否包含头像（storage_management 使用）")
     source: Optional[str] = Field(default=None, description="文件来源标记")
     user_id: Optional[str] = Field(default=None, description="用户 ID（save/history/update_user/delete_user 使用）")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
@@ -117,7 +121,7 @@ class InputData(BaseModel):
 
 class GlobalState(BaseModel):
     """全局状态定义"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/delete_upload/save/tool/user_task_management/notification_management/announcement_management/team_balance/billing/agent_intent/agent_run")
+    call_type: str = Field(..., description="调用类型：account_management/upload/delete_upload/storage_management/save/tool/user_task_management/notification_management/announcement_management/team_balance/billing/agent_intent/agent_run")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
     username: Optional[str] = Field(default=None, description="用户名")
     password: Optional[str] = Field(default=None, description="密码")
@@ -125,8 +129,12 @@ class GlobalState(BaseModel):
     code: Optional[str] = Field(default=None, description="验证码")
     file: Optional[File] = Field(default=None, description="上传的文件（upload/tool 使用）")
     file_list: Optional[List[File]] = Field(default=None, description="文件列表（提示词增强使用）")
-    file_key: Optional[str] = Field(default=None, description="对象存储文件键（delete_upload 使用）")
-    category: Optional[str] = Field(default=None, description="文件分类：avatar/upload/temp")
+    file_key: Optional[str] = Field(default=None, description="对象存储文件键（delete_upload/storage_management 使用）")
+    category: Optional[str] = Field(default=None, description="文件分类：avatar/upload/temp 或 storage 分类")
+    prefix: Optional[str] = Field(default=None, description="对象存储前缀筛选（storage_management 使用）")
+    continuation_token: Optional[str] = Field(default=None, description="对象存储分页 token（storage_management 使用）")
+    dry_run: Optional[bool] = Field(default=None, description="对象储存清理试运行（storage_management 使用）")
+    include_avatars: Optional[bool] = Field(default=None, description="对象储存清理是否包含头像（storage_management 使用）")
     source: Optional[str] = Field(default=None, description="文件来源标记")
     user_id: Optional[str] = Field(default=None, description="用户 ID（save/update_user/delete_user/create_task/list_tasks 使用）")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
@@ -219,7 +227,7 @@ class GlobalState(BaseModel):
 
 class GraphInput(BaseModel):
     """工作流的输入"""
-    call_type: str = Field(..., description="调用类型：account_management/upload/delete_upload/save/history/tool/task_management/notification_management/announcement_management/team_balance/billing/agent_intent/agent_run")
+    call_type: str = Field(..., description="调用类型：account_management/upload/delete_upload/storage_management/save/history/tool/task_management/notification_management/announcement_management/team_balance/billing/agent_intent/agent_run")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
 
@@ -686,6 +694,10 @@ class UnpackInputDataOutput(BaseModel):
     file_list: Optional[List[File]] = Field(default=None, description="文件列表")
     file_key: Optional[str] = Field(default=None, description="对象存储文件键")
     category: Optional[str] = Field(default=None, description="文件分类")
+    prefix: Optional[str] = Field(default=None, description="对象存储前缀筛选")
+    continuation_token: Optional[str] = Field(default=None, description="对象存储分页 token")
+    dry_run: Optional[bool] = Field(default=None, description="对象储存清理试运行")
+    include_avatars: Optional[bool] = Field(default=None, description="对象储存清理是否包含头像")
     source: Optional[str] = Field(default=None, description="文件来源标记")
     user_id: Optional[str] = Field(default=None, description="用户ID")
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub链接")

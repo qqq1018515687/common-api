@@ -1,0 +1,361 @@
+import logging
+import re
+import time
+from typing import Any, Dict, List, Optional
+
+from coze_coding_utils.runtime_ctx.context import Context
+from langchain_core.runnables import RunnableConfig
+from langgraph.runtime import Runtime
+from pydantic import BaseModel, Field
+
+from storage.storage_manager import StorageCategory, get_storage_manager
+
+logger = logging.getLogger(__name__)
+
+ALLOWED_CATEGORIES = {
+    "avatars": StorageCategory.AVATAR,
+    "avatar": StorageCategory.AVATAR,
+    "uploads": StorageCategory.UPLOAD,
+    "upload": StorageCategory.UPLOAD,
+    "temp": StorageCategory.TEMP,
+    "legacy": "legacy",
+}
+CONTROLLED_PREFIXES = ("uploads/", "temp/", "avatars/")
+CLEANUP_PREFIXES = ("uploads/", "temp/")
+LEGACY_CLEANUP_PREFIXES = ("upload/", "tmp/", "coze_storage_7592868590546845742/")
+
+
+class StorageManagementInput(BaseModel):
+    operation_type: Optional[str] = Field(default=None, description="list_objects/get_object_metadata/regenerate_url/delete_object/cleanup_expired")
+    file_key: Optional[str] = Field(default=None, description="对象 key")
+    category: Optional[str] = Field(default=None, description="avatars/uploads/temp/legacy")
+    prefix: Optional[str] = Field(default=None, description="对象前缀")
+    continuation_token: Optional[str] = Field(default=None, description="分页 token")
+    limit: Optional[int] = Field(default=None, description="分页数量，1-1000")
+    dry_run: Optional[bool] = Field(default=True, description="清理试运行")
+    include_avatars: Optional[bool] = Field(default=False, description="清理时是否包含 avatars")
+    reason: Optional[str] = Field(default=None, description="管理原因")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户 ID")
+
+
+class StorageManagementOutput(BaseModel):
+    response_data: dict = Field(default={}, description="统一响应数据")
+
+
+def _success(data: dict, msg: str = "操作成功") -> StorageManagementOutput:
+    return StorageManagementOutput(response_data={"code": 0, "msg": msg, "data": data})
+
+
+def _failure(msg: str, code: int = 400, error_code: str = "STORAGE_MANAGEMENT_ERROR") -> StorageManagementOutput:
+    return StorageManagementOutput(response_data={"code": code, "error_code": error_code, "msg": msg, "data": None})
+
+
+def _require_admin(state: StorageManagementInput) -> Optional[StorageManagementOutput]:
+    if (state.operator_role or "").strip().lower() != "admin":
+        return _failure("对象储存管理只允许管理员操作", code=403, error_code="ADMIN_REQUIRED")
+    return None
+
+
+def _normalize_limit(limit: Optional[int]) -> int:
+    if limit is None:
+        return 100
+    return min(max(int(limit), 1), 1000)
+
+
+def _normalize_category(category: Optional[str]) -> Optional[str]:
+    if not category:
+        return None
+    text = category.strip().lower()
+    if not text or text == "all":
+        return None
+    if text not in ALLOWED_CATEGORIES:
+        raise ValueError("对象储存分类不合法")
+    return text
+
+
+def _prefix_for_category(category: Optional[str]) -> Optional[str]:
+    normalized = _normalize_category(category)
+    if not normalized or normalized == "legacy":
+        return None
+    storage_category = ALLOWED_CATEGORIES[normalized]
+    return StorageCategory.get_prefix(storage_category) + "/"
+
+
+def _validate_file_key(file_key: Optional[str]) -> str:
+    key = (file_key or "").strip()
+    if not key:
+        raise ValueError("缺少 file_key")
+    if key.startswith("/") or ".." in key or re.match(r"^[a-z][a-z0-9+.-]*://", key, re.I):
+        raise ValueError("file_key 不合法")
+    return key
+
+
+def _is_controlled_key(file_key: str) -> bool:
+    return file_key.startswith(CONTROLLED_PREFIXES) or file_key.startswith(LEGACY_CLEANUP_PREFIXES)
+
+
+def _category_from_key(file_key: str) -> str:
+    if file_key.startswith("avatars/"):
+        return "avatars"
+    if file_key.startswith("uploads/"):
+        return "uploads"
+    if file_key.startswith("temp/"):
+        return "temp"
+    return "legacy"
+
+
+def _is_image_key(file_key: str) -> bool:
+    return bool(re.search(r"\.(png|jpe?g|webp|gif|bmp|svg)$", file_key, re.I))
+
+
+def _timestamp(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        if hasattr(value, "timestamp"):
+            return int(value.timestamp())
+        return int(value)
+    except Exception:
+        return None
+
+
+def _object_summary(file_key: str, raw: Optional[Dict[str, Any]] = None, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    raw = raw or {}
+    metadata = metadata or {}
+    created_at = metadata.get("created_at") or _timestamp(raw.get("last_modified"))
+    expires_in = metadata.get("expires_in") or 0
+    expires_at = int(created_at + expires_in) if created_at and expires_in else None
+    is_permanent = bool(metadata.get("is_permanent"))
+    is_expired = False if is_permanent else bool(expires_at and expires_at < int(time.time()))
+    return {
+        "key": file_key,
+        "file_key": file_key,
+        "category": metadata.get("category") or _category_from_key(file_key),
+        "size": raw.get("size"),
+        "last_modified": _timestamp(raw.get("last_modified")),
+        "etag": raw.get("etag"),
+        "content_type": raw.get("content_type") or ("image/*" if _is_image_key(file_key) else None),
+        "source": metadata.get("source"),
+        "original_filename": metadata.get("original_filename"),
+        "created_at": created_at,
+        "expires_at": expires_at,
+        "is_expired": is_expired,
+        "is_permanent": is_permanent,
+        "metadata": metadata,
+    }
+
+
+def _list_raw_objects(storage_mgr: Any, prefix: Optional[str], limit: int, continuation_token: Optional[str]) -> Dict[str, Any]:
+    storage = storage_mgr.storage
+    client = storage._get_client()
+    kwargs = {
+        "Bucket": storage._resolve_bucket(None),
+        "MaxKeys": limit,
+    }
+    if prefix:
+        kwargs["Prefix"] = prefix
+    if continuation_token:
+        kwargs["ContinuationToken"] = continuation_token
+    resp = client.list_objects_v2(**kwargs)
+    objects: List[Dict[str, Any]] = []
+    for item in resp.get("Contents", []) or []:
+        key = item.get("Key")
+        if not key:
+            continue
+        objects.append({
+            "key": key,
+            "size": item.get("Size"),
+            "last_modified": item.get("LastModified"),
+            "etag": item.get("ETag"),
+        })
+    return {
+        "objects": objects,
+        "is_truncated": bool(resp.get("IsTruncated")),
+        "next_continuation_token": resp.get("NextContinuationToken"),
+    }
+
+
+def _list_objects(state: StorageManagementInput) -> StorageManagementOutput:
+    storage_mgr = get_storage_manager()
+    normalized_category = _normalize_category(state.category)
+    category_prefix = _prefix_for_category(state.category)
+    prefix = (state.prefix or category_prefix or "").strip() or None
+    if category_prefix and prefix and not prefix.startswith(category_prefix):
+        prefix = category_prefix + prefix.lstrip("/")
+    limit = _normalize_limit(state.limit)
+    listed = _list_raw_objects(storage_mgr, prefix, limit, state.continuation_token)
+    objects = []
+    for raw in listed["objects"]:
+        key = raw["key"]
+        if normalized_category == "legacy" and key.startswith(CONTROLLED_PREFIXES):
+            continue
+        metadata = storage_mgr.get_file_metadata(key) or {}
+        objects.append(_object_summary(key, raw=raw, metadata=metadata))
+    return _success({
+        "objects": objects,
+        "total": len(objects),
+        "scanned": len(objects),
+        "category": state.category,
+        "prefix": prefix,
+        "limit": limit,
+        "is_truncated": listed["is_truncated"],
+        "next_continuation_token": listed["next_continuation_token"],
+    }, "查询成功")
+
+
+def _get_object_metadata(state: StorageManagementInput) -> StorageManagementOutput:
+    key = _validate_file_key(state.file_key)
+    storage_mgr = get_storage_manager()
+    metadata = storage_mgr.get_file_metadata(key) or {}
+    exists = storage_mgr.storage.file_exists(file_key=key)
+    if not exists:
+        return _failure("对象不存在", code=404, error_code="OBJECT_NOT_FOUND")
+    raw = {}
+    try:
+        storage = storage_mgr.storage
+        head = storage._get_client().head_object(
+            Bucket=storage._resolve_bucket(None),
+            Key=key,
+        )
+        raw = {
+            "size": head.get("ContentLength"),
+            "last_modified": head.get("LastModified"),
+            "etag": head.get("ETag"),
+            "content_type": head.get("ContentType"),
+        }
+    except Exception as exc:
+        logger.warning("读取对象 head 信息失败，降级返回元数据: %s", exc)
+    return _success({"object": _object_summary(key, raw=raw, metadata=metadata)}, "查询成功")
+
+
+def _regenerate_url(state: StorageManagementInput) -> StorageManagementOutput:
+    key = _validate_file_key(state.file_key)
+    storage_mgr = get_storage_manager()
+    if storage_mgr.is_expired(key):
+        return _failure("对象已过期，不能刷新签名 URL", code=400, error_code="OBJECT_EXPIRED")
+    url = storage_mgr.regenerate_url(key)
+    if not url:
+        return _failure("刷新签名 URL 失败", code=500, error_code="REGENERATE_URL_FAILED")
+    metadata = storage_mgr.get_file_metadata(key) or {}
+    summary = _object_summary(key, metadata=metadata)
+    return _success({"file_key": key, "url": url, "expires_at": summary.get("expires_at")}, "刷新成功")
+
+
+def _delete_object(state: StorageManagementInput) -> StorageManagementOutput:
+    key = _validate_file_key(state.file_key)
+    if not (state.reason or "").strip():
+        return _failure("删除对象必须填写 reason", code=400, error_code="REASON_REQUIRED")
+    if not _is_controlled_key(key):
+        return _failure("对象 key 不在允许管理范围", code=403, error_code="KEY_NOT_ALLOWED")
+    storage_mgr = get_storage_manager()
+    exists = storage_mgr.storage.file_exists(file_key=key)
+    if not exists:
+        return _success({"file_key": key, "deleted": False}, "对象不存在或已删除")
+    storage_mgr.storage.delete_file(file_key=key)
+    return _success({"file_key": key, "deleted": True}, "删除成功")
+
+
+def _iter_cleanup_prefixes(include_avatars: bool) -> List[str]:
+    prefixes = list(CLEANUP_PREFIXES) + list(LEGACY_CLEANUP_PREFIXES)
+    if include_avatars:
+        prefixes.append("avatars/")
+    return prefixes
+
+
+def _is_cleanup_prefix_allowed(prefix: str, include_avatars: bool) -> bool:
+    allowed_prefixes = tuple(_iter_cleanup_prefixes(include_avatars))
+    return prefix.startswith(allowed_prefixes)
+
+
+def _cleanup_expired(state: StorageManagementInput) -> StorageManagementOutput:
+    dry_run = state.dry_run is not False
+    if not dry_run and not (state.reason or "").strip():
+        return _failure("执行清理必须填写 reason", code=400, error_code="REASON_REQUIRED")
+
+    storage_mgr = get_storage_manager()
+    normalized_category = _normalize_category(state.category)
+    category_prefix = _prefix_for_category(state.category)
+    requested_prefix = (state.prefix or "").strip()
+    if requested_prefix or category_prefix:
+        prefixes = [requested_prefix or category_prefix]
+    elif normalized_category == "legacy":
+        prefixes = list(LEGACY_CLEANUP_PREFIXES)
+    else:
+        prefixes = _iter_cleanup_prefixes(bool(state.include_avatars))
+    prefixes = [prefix for prefix in prefixes if prefix]
+    for prefix in prefixes:
+        if not _is_cleanup_prefix_allowed(prefix, bool(state.include_avatars)):
+            return _failure("过期清理只允许处理 uploads/、temp/ 和旧兼容前缀；avatars/ 需显式允许", code=403, error_code="PREFIX_NOT_ALLOWED")
+
+    result = {"scanned": 0, "expired": 0, "deleted": 0, "failed": 0, "dry_run": dry_run, "objects": [], "errors": []}
+    now = int(time.time())
+
+    for prefix in prefixes:
+        if prefix.startswith("avatars/") and not state.include_avatars:
+            continue
+        token = None
+        while True:
+            listed = _list_raw_objects(storage_mgr, prefix, 1000, token)
+            result["scanned"] += len(listed["objects"])
+            for raw in listed["objects"]:
+                key = raw["key"]
+                try:
+                    metadata = storage_mgr.get_file_metadata(key) or {}
+                    summary = _object_summary(key, raw=raw, metadata=metadata)
+                    expired = bool(summary.get("is_expired"))
+                    if not metadata and key.startswith(LEGACY_CLEANUP_PREFIXES):
+                        last_modified = summary.get("last_modified")
+                        expired = bool(last_modified and last_modified + 30 * 86400 < now)
+                        summary["is_expired"] = expired
+                    if not expired:
+                        continue
+                    result["expired"] += 1
+                    result["objects"].append(summary)
+                    if not dry_run:
+                        storage_mgr.storage.delete_file(file_key=key)
+                        result["deleted"] += 1
+                except Exception as exc:
+                    result["failed"] += 1
+                    result["errors"].append({"file_key": key, "error": str(exc)})
+            if not listed["is_truncated"]:
+                break
+            token = listed["next_continuation_token"]
+    return _success(result, "试运行完成" if dry_run else "清理完成")
+
+
+def storage_management_node(
+    state: StorageManagementInput,
+    config: RunnableConfig,
+    runtime: Runtime[Context],
+) -> StorageManagementOutput:
+    """
+    title: 对象储存管理
+    desc: 管理员查看、刷新和清理 common 对象存储内容
+    integrations: 对象存储
+    """
+    void_context = runtime.context
+    void_context
+
+    admin_error = _require_admin(state)
+    if admin_error:
+        return admin_error
+
+    try:
+        operation_type = state.operation_type or "list_objects"
+        if operation_type == "list_objects":
+            return _list_objects(state)
+        if operation_type == "get_object_metadata":
+            return _get_object_metadata(state)
+        if operation_type == "regenerate_url":
+            return _regenerate_url(state)
+        if operation_type == "delete_object":
+            return _delete_object(state)
+        if operation_type == "cleanup_expired":
+            return _cleanup_expired(state)
+        return _failure(f"不支持的对象储存操作: {operation_type}", code=400, error_code="UNSUPPORTED_OPERATION")
+    except ValueError as exc:
+        return _failure(str(exc), code=400, error_code="INVALID_REQUEST")
+    except Exception as exc:
+        logger.exception("对象储存管理失败")
+        return _failure(f"对象储存管理失败: {exc}", code=500, error_code="STORAGE_MANAGEMENT_FAILED")

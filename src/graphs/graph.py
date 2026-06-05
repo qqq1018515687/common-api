@@ -83,6 +83,7 @@ from graphs.nodes.billing_deduct_node import billing_deduct_node
 from graphs.nodes.billing_refund_node import billing_refund_node
 from graphs.nodes.billing_settle_node import billing_settle_node
 from graphs.nodes.billing_records_node import billing_records_node
+from graphs.nodes.storage_management_node import storage_management_node
 
 
 def route_by_call_type(state: RouterOutput) -> str:
@@ -98,6 +99,8 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "文件上传"
     elif call_type == "delete_upload":
         return "删除上传文件"
+    elif call_type == "storage_management":
+        return "对象储存管理"
     elif call_type == "save":
         return "保存历史"
     elif call_type == "task_management" or call_type == "user_task_management" or call_type == "list_tasks":
@@ -175,6 +178,7 @@ builder.add_node("delete_user", delete_user_node)
 builder.add_node("list_users", list_users_node)
 builder.add_node("upload", upload_node)
 builder.add_node("delete_upload", delete_upload_node)
+builder.add_node("storage_management", storage_management_node)
 builder.add_node("save", save_node)
 builder.add_node("task_route", task_route_node)
 builder.add_node("create_task", create_task_node)
@@ -222,6 +226,7 @@ builder.add_conditional_edges(
         "账号管理": "operation_route",
         "文件上传": "upload",
         "删除上传文件": "delete_upload",
+        "对象储存管理": "storage_management",
         "保存历史": "save",
         "任务管理": "task_route",
         "工具中心": "tool_route",
@@ -320,6 +325,7 @@ builder.add_edge("delete_user", "format_response")
 builder.add_edge("list_users", "format_response")
 builder.add_edge("upload", "format_response")
 builder.add_edge("delete_upload", "format_response")
+builder.add_edge("storage_management", "format_response")
 builder.add_edge("save", "format_response")
 builder.add_edge("create_task", "format_response")
 builder.add_edge("update_task", "format_response")  # 暂时禁用图像自动打标，直接返回
