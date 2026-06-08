@@ -25,9 +25,12 @@ ALLOWED_CATEGORIES = {
     "uploads": StorageCategory.UPLOAD,
     "upload": StorageCategory.UPLOAD,
     "temp": StorageCategory.TEMP,
+    "site-assets": StorageCategory.SITE_ASSET,
+    "site_asset": StorageCategory.SITE_ASSET,
+    "assets": StorageCategory.SITE_ASSET,
     "legacy": "legacy",
 }
-CONTROLLED_PREFIXES = ("uploads/", "temp/", "avatars/")
+CONTROLLED_PREFIXES = ("uploads/", "temp/", "avatars/", "site-assets/", "assets/")
 CLEANUP_PREFIXES = ("uploads/", "temp/")
 LEGACY_CLEANUP_PREFIXES = ("upload/", "tmp/", "coze_storage_7592868590546845742/")
 FOLDER_KEEP_NAME = ".keep"
@@ -291,6 +294,8 @@ def _is_controlled_key(file_key: str) -> bool:
 
 
 def _category_from_key(file_key: str) -> str:
+    if file_key.startswith(("site-assets/", "assets/")):
+        return "site-assets"
     if file_key.startswith("avatars/"):
         return "avatars"
     if file_key.startswith("uploads/"):
@@ -310,6 +315,8 @@ def _is_folder_keep_key(file_key: str) -> bool:
 
 def _storage_category_for_key(file_key: str) -> str:
     category = _category_from_key(file_key)
+    if category == "site-assets":
+        return StorageCategory.SITE_ASSET
     if category == "avatars":
         return StorageCategory.AVATAR
     if category == "temp":
