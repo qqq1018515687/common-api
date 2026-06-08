@@ -1,7 +1,12 @@
 import base64
 import logging
 import mimetypes
+import os
 import re
+import shutil
+import subprocess
+import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -28,11 +33,27 @@ CLEANUP_PREFIXES = ("uploads/", "temp/")
 LEGACY_CLEANUP_PREFIXES = ("upload/", "tmp/", "coze_storage_7592868590546845742/")
 FOLDER_KEEP_NAME = ".keep"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+OFFICE_TO_PDF_TYPES = {
+    "application/msword",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+OFFICE_TO_PDF_SUFFIXES = {".doc", ".docx", ".ppt", ".pptx"}
+DEFAULT_SOFFICE_PATHS = (
+    r"C:\Program Files\LibreOffice\program\soffice.exe",
+    r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+)
+try:
+    OFFICE_CONVERSION_CONCURRENCY = max(1, int(os.environ.get("OFFICE_CONVERSION_CONCURRENCY", "1")))
+except ValueError:
+    OFFICE_CONVERSION_CONCURRENCY = 1
+OFFICE_CONVERSION_SEMAPHORE = threading.BoundedSemaphore(OFFICE_CONVERSION_CONCURRENCY)
 ALLOWED_UPLOAD_EXTENSIONS = {
     "png", "jpg", "jpeg", "webp", "gif", "bmp", "svg",
     "mp3", "wav", "m4a", "aac", "ogg", "flac",
     "mp4", "mov", "webm", "avi", "mkv",
-    "pdf", "txt", "md", "csv", "json", "doc", "docx", "xls", "xlsx",
+    "pdf", "txt", "md", "csv", "json", "doc", "docx", "ppt", "pptx", "xls", "xlsx",
     "zip", "rar", "7z", "tar", "gz",
 }
 ALLOWED_UPLOAD_MIME_PREFIXES = ("image/", "audio/", "video/", "text/")
@@ -45,6 +66,8 @@ ALLOWED_UPLOAD_MIME_TYPES = {
     "application/x-7z-compressed",
     "application/gzip",
     "application/msword",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -63,6 +86,7 @@ class StorageManagementInput(BaseModel):
     file_content_base64: Optional[str] = Field(default=None, description="上传文件 base64 内容")
     avoid_overwrite: Optional[bool] = Field(default=True, description="同名文件是否自动改名")
     size: Optional[int] = Field(default=None, description="上传文件大小")
+    convert_to_pdf: bool = Field(default=False, description="是否将 Office 文档转换为 PDF 后上传")
     continuation_token: Optional[str] = Field(default=None, description="分页 token")
     limit: Optional[int] = Field(default=None, description="分页数量，1-1000")
     dry_run: Optional[bool] = Field(default=True, description="清理试运行")
@@ -164,6 +188,94 @@ def _validate_upload_type(file_name: str, content_type: Optional[str]) -> str:
     if not mime_allowed:
         raise ValueError("当前文件 MIME 类型不允许上传")
     return normalized_type
+
+
+def _is_office_to_pdf_file(file_name: str, content_type: str) -> bool:
+    suffix = Path(file_name).suffix.lower()
+    return suffix in OFFICE_TO_PDF_SUFFIXES or content_type.lower() in OFFICE_TO_PDF_TYPES
+
+
+def _pdf_name(file_name: str) -> str:
+    path = Path(file_name)
+    stem = path.stem or "office-document"
+    return f"{stem}.pdf"
+
+
+def _find_soffice_command() -> str:
+    candidates = []
+    configured = os.environ.get("LIBREOFFICE_PATH") or os.environ.get("SOFFICE_PATH")
+    if configured:
+        candidates.append(configured.strip())
+    if os.name == "nt":
+        candidates.extend(DEFAULT_SOFFICE_PATHS)
+    candidates.append("soffice")
+
+    for candidate in dict.fromkeys(item for item in candidates if item):
+        if Path(candidate).is_absolute():
+            if Path(candidate).exists():
+                return candidate
+            continue
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+
+    raise RuntimeError("服务器未安装 LibreOffice/soffice，无法转换 DOC/DOCX/PPT/PPTX")
+
+
+def _convert_office_to_pdf(file_content: bytes, file_name: str, content_type: str) -> Tuple[bytes, str, Dict[str, Any]]:
+    suffix = Path(file_name).suffix.lower()
+    if suffix not in OFFICE_TO_PDF_SUFFIXES:
+        if content_type == "application/msword":
+            suffix = ".doc"
+        elif content_type == "application/vnd.ms-powerpoint":
+            suffix = ".ppt"
+        elif content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            suffix = ".docx"
+        elif content_type == "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+            suffix = ".pptx"
+        else:
+            suffix = ".bin"
+
+    if not OFFICE_CONVERSION_SEMAPHORE.acquire(timeout=120):
+        raise RuntimeError("Office 文件转换繁忙，请稍后重试")
+
+    try:
+        soffice_command = _find_soffice_command()
+        with tempfile.TemporaryDirectory(prefix="storage-office-") as work_dir:
+            input_path = Path(work_dir) / f"source{suffix}"
+            input_path.write_bytes(file_content)
+            completed = subprocess.run(
+                [
+                    soffice_command,
+                    "--headless",
+                    "--convert-to",
+                    "pdf",
+                    "--outdir",
+                    work_dir,
+                    str(input_path),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+            if completed.returncode != 0:
+                detail = (completed.stderr or completed.stdout or "").strip()
+                raise RuntimeError(f"Office 文件转换失败: {detail or 'LibreOffice 未返回可用错误信息'}")
+
+            pdf_path = input_path.with_suffix(".pdf")
+            if not pdf_path.exists():
+                raise RuntimeError("Office 文件转换失败: 未生成 PDF 文件")
+
+            pdf_content = pdf_path.read_bytes()
+    finally:
+        OFFICE_CONVERSION_SEMAPHORE.release()
+
+    return pdf_content, _pdf_name(file_name), {
+        "file_name": file_name,
+        "content_type": content_type,
+        "size": len(file_content),
+    }
 
 
 def _decode_upload_content(content_base64: Optional[str], expected_size: Optional[int]) -> bytes:
@@ -402,6 +514,13 @@ def _upload_object(state: StorageManagementInput) -> StorageManagementOutput:
     file_name = _safe_file_name(state.file_name)
     content_type = _validate_upload_type(file_name, state.content_type)
     content = _decode_upload_content(state.file_content_base64, state.size)
+    converted_from = None
+    if state.convert_to_pdf and _is_office_to_pdf_file(file_name, content_type):
+        content, file_name, converted_from = _convert_office_to_pdf(content, file_name, content_type)
+        content_type = "application/pdf"
+        if len(content) > MAX_UPLOAD_BYTES:
+            raise ValueError("转换后的 PDF 不能超过 10MB")
+
     storage_mgr = get_storage_manager()
     key = _unique_object_key(storage_mgr, prefix, file_name, state.avoid_overwrite is not False)
     now = int(time.time())
@@ -416,6 +535,8 @@ def _upload_object(state: StorageManagementInput) -> StorageManagementOutput:
         "is_permanent": str(is_permanent),
         "source": "admin_storage_manager",
         "operator_user_id": state.operator_user_id or "",
+        "converted_from_name": converted_from["file_name"] if converted_from else "",
+        "converted_from_content_type": converted_from["content_type"] if converted_from else "",
     }
     _put_object_with_metadata(storage_mgr, key, content, content_type, metadata)
     url_expiry = 315360000 if is_permanent else 86400
@@ -430,11 +551,27 @@ def _upload_object(state: StorageManagementInput) -> StorageManagementOutput:
             "original_filename": file_name,
             "is_permanent": is_permanent,
             "source": "admin_storage_manager",
+            "operator_user_id": state.operator_user_id or "",
         },
     )
     summary["signed_url"] = url
     summary["url"] = url
-    return _success({"object": summary, "file_key": key, "url": url}, "上传成功")
+    summary["public_url"] = url
+    summary["file_name"] = file_name
+    summary["converted_from"] = converted_from
+    return _success({
+        "object": summary,
+        "file_key": key,
+        "key": key,
+        "url": url,
+        "signed_url": url,
+        "public_url": url,
+        "expires_at": summary.get("expires_at"),
+        "content_type": content_type,
+        "size": len(content),
+        "file_name": file_name,
+        "converted_from": converted_from,
+    }, "上传成功")
 
 
 def _create_folder(state: StorageManagementInput) -> StorageManagementOutput:
@@ -501,6 +638,56 @@ def _regenerate_url(state: StorageManagementInput) -> StorageManagementOutput:
     metadata = storage_mgr.get_file_metadata(key) or {}
     summary = _object_summary(key, metadata=metadata)
     return _success({"file_key": key, "url": url, "expires_at": summary.get("expires_at")}, "刷新成功")
+
+
+def _validate_object(state: StorageManagementInput) -> StorageManagementOutput:
+    key = _validate_file_key(state.file_key)
+    prefix = _normalize_prefix(state.prefix)
+    if prefix and not key.startswith(prefix):
+        return _failure("对象不在允许的临时目录内", code=403, error_code="KEY_NOT_ALLOWED")
+
+    storage_mgr = get_storage_manager()
+    if not storage_mgr.storage.file_exists(file_key=key):
+        return _failure("对象不存在", code=404, error_code="OBJECT_NOT_FOUND")
+    if storage_mgr.is_expired(key):
+        return _failure("对象已过期", code=410, error_code="OBJECT_EXPIRED")
+
+    metadata = storage_mgr.get_file_metadata(key) or {}
+    owner_user_id = metadata.get("operator_user_id")
+    if owner_user_id and state.operator_user_id and owner_user_id != state.operator_user_id:
+        return _failure("无权访问该临时对象", code=403, error_code="OBJECT_FORBIDDEN")
+
+    raw = {}
+    try:
+        storage = storage_mgr.storage
+        head = storage._get_client().head_object(
+            Bucket=storage._resolve_bucket(None),
+            Key=key,
+        )
+        raw = {
+            "size": head.get("ContentLength"),
+            "last_modified": head.get("LastModified"),
+            "etag": head.get("ETag"),
+            "content_type": head.get("ContentType"),
+        }
+    except Exception as exc:
+        logger.warning("读取对象 head 信息失败，降级返回元数据: %s", exc)
+
+    summary = _object_summary(key, raw=raw, metadata=metadata)
+    url_expiry = 315360000 if summary.get("is_permanent") else 86400
+    url = storage_mgr.storage.generate_presigned_url(key=key, expire_time=url_expiry)
+    summary["url"] = url
+    summary["signed_url"] = url
+    summary["public_url"] = url
+    summary["file_name"] = summary.get("original_filename") or Path(key).name
+    return _success({
+        **summary,
+        "key": key,
+        "file_key": key,
+        "url": url,
+        "signed_url": url,
+        "public_url": url,
+    }, "对象可用")
 
 
 def _delete_object(state: StorageManagementInput) -> StorageManagementOutput:
@@ -632,6 +819,8 @@ def storage_management_node(
             return _get_object_metadata(state)
         if operation_type == "regenerate_url":
             return _regenerate_url(state)
+        if operation_type == "validate_object":
+            return _validate_object(state)
         if operation_type == "upload_object":
             return _upload_object(state)
         if operation_type == "create_folder":

@@ -207,7 +207,8 @@ class StorageManager:
                 'created_at': int(metadata.get('created_at', 0)),
                 'expires_in': int(metadata.get('expires_in', 0)),
                 'original_filename': metadata.get('original_filename'),
-                'is_permanent': metadata.get('is_permanent') == 'True'
+                'is_permanent': metadata.get('is_permanent') == 'True',
+                'operator_user_id': metadata.get('operator_user_id') or metadata.get('operator-user-id')
             }
             
         except Exception as e:
