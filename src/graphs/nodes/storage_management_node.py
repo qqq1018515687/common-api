@@ -789,36 +789,32 @@ def _cleanup_expired(state: StorageManagementInput) -> StorageManagementOutput:
 
 
 def _check_office_conversion() -> StorageManagementOutput:
-    command_path = Path(SOFFICE_COMMAND)
+    health_url = OFFICE_CONVERTER_URL.rstrip("/")
+    if health_url and not health_url.endswith("/health"):
+        health_url = f"{health_url}/health"
     result = {
-        "soffice_command": SOFFICE_COMMAND,
-        "exists": command_path.exists(),
-        "is_file": command_path.is_file(),
-        "is_symlink": command_path.is_symlink(),
-        "resolved_path": str(command_path.resolve()) if command_path.exists() else None,
-        "cwd": os.getcwd(),
-        "path_env": os.getenv("PATH", ""),
-        "version": None,
-        "returncode": None,
-        "stdout": "",
-        "stderr": "",
+        "converter_url_configured": bool(OFFICE_CONVERTER_URL),
+        "converter_token_configured": bool(OFFICE_CONVERTER_TOKEN),
+        "health_url": health_url or None,
+        "http_status": None,
+        "response": None,
         "error": None,
     }
     try:
-        completed = subprocess.run(
-            [SOFFICE_COMMAND, "--headless", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=20,
-            check=False,
-        )
-        result["returncode"] = completed.returncode
-        result["stdout"] = (completed.stdout or "").strip()[:500]
-        result["stderr"] = (completed.stderr or "").strip()[:500]
-        result["version"] = result["stdout"] or result["stderr"]
+        if not health_url:
+            raise RuntimeError("未配置 Office 转换服务 OFFICE_CONVERTER_URL")
+        if not health_url.lower().startswith("https://"):
+            raise RuntimeError("Office 转换服务 OFFICE_CONVERTER_URL 必须使用 HTTPS")
+        with urllib.request.urlopen(health_url, timeout=10) as response:
+            result["http_status"] = response.status
+            response_text = response.read().decode("utf-8", errors="replace")
+            try:
+                result["response"] = json.loads(response_text)
+            except Exception:
+                result["response"] = response_text[:500]
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
-    return _success(result, "Office 转换运行时检查完成")
+    return _success(result, "Office 转换服务检查完成")
 
 
 def storage_management_node(
