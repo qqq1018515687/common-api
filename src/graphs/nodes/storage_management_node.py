@@ -1,12 +1,12 @@
 import base64
+import json
 import logging
 import mimetypes
 import os
 import re
-import subprocess
-import tempfile
-import threading
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -39,8 +39,12 @@ OFFICE_TO_PDF_TYPES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
 OFFICE_TO_PDF_SUFFIXES = {".doc", ".docx", ".ppt", ".pptx"}
-SOFFICE_COMMAND = "/usr/bin/soffice"
-OFFICE_CONVERSION_SEMAPHORE = threading.BoundedSemaphore(1)
+OFFICE_CONVERTER_URL = (os.getenv("OFFICE_CONVERTER_URL") or "").strip()
+OFFICE_CONVERTER_TOKEN = (os.getenv("OFFICE_CONVERTER_TOKEN") or "").strip()
+try:
+    OFFICE_CONVERTER_TIMEOUT_SECONDS = max(10, int(os.getenv("OFFICE_CONVERTER_TIMEOUT_SECONDS", "120")))
+except ValueError:
+    OFFICE_CONVERTER_TIMEOUT_SECONDS = 120
 ALLOWED_UPLOAD_EXTENSIONS = {
     "png", "jpg", "jpeg", "webp", "gif", "bmp", "svg",
     "mp3", "wav", "m4a", "aac", "ogg", "flac",
@@ -193,65 +197,71 @@ def _pdf_name(file_name: str) -> str:
     return f"{stem}.pdf"
 
 
-def _find_soffice_command() -> str:
-    return SOFFICE_COMMAND
+def _office_converter_endpoint() -> str:
+    url = OFFICE_CONVERTER_URL.rstrip("/")
+    if not url:
+        raise RuntimeError("未配置 Office 转换服务 OFFICE_CONVERTER_URL")
+    if not url.lower().startswith("https://"):
+        raise RuntimeError("Office 转换服务 OFFICE_CONVERTER_URL 必须使用 HTTPS")
+    if url.endswith("/convert-to-pdf"):
+        return url
+    return f"{url}/convert-to-pdf"
+
+
+def _read_converter_error(text: str) -> str:
+    if not text:
+        return ""
+    try:
+        payload = json.loads(text)
+    except Exception:
+        return text[:500]
+    if isinstance(payload, dict):
+        detail = payload.get("detail") or payload.get("error") or payload.get("message")
+        if isinstance(detail, str):
+            return detail
+    return text[:500]
 
 
 def _convert_office_to_pdf(file_content: bytes, file_name: str, content_type: str) -> Tuple[bytes, str, Dict[str, Any]]:
-    suffix = Path(file_name).suffix.lower()
-    if suffix not in OFFICE_TO_PDF_SUFFIXES:
-        if content_type == "application/msword":
-            suffix = ".doc"
-        elif content_type == "application/vnd.ms-powerpoint":
-            suffix = ".ppt"
-        elif content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            suffix = ".docx"
-        elif content_type == "application/vnd.openxmlformats-officedocument.presentationml.presentation":
-            suffix = ".pptx"
-        else:
-            suffix = ".bin"
-
-    if not OFFICE_CONVERSION_SEMAPHORE.acquire(timeout=120):
-        raise RuntimeError("Office 文件转换繁忙，请稍后重试")
-
+    if not OFFICE_CONVERTER_TOKEN:
+        raise RuntimeError("未配置 Office 转换服务 OFFICE_CONVERTER_TOKEN")
+    payload = {
+        "file_name": file_name,
+        "content_type": content_type,
+        "file_content_base64": base64.b64encode(file_content).decode("ascii"),
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {OFFICE_CONVERTER_TOKEN}",
+    }
+    request = urllib.request.Request(
+        _office_converter_endpoint(),
+        data=json.dumps(payload).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
     try:
-        soffice_command = _find_soffice_command()
-        with tempfile.TemporaryDirectory(prefix="storage-office-") as work_dir:
-            input_path = Path(work_dir) / f"source{suffix}"
-            input_path.write_bytes(file_content)
-            try:
-                completed = subprocess.run(
-                    [
-                        soffice_command,
-                        "--headless",
-                        "--convert-to",
-                        "pdf",
-                        "--outdir",
-                        work_dir,
-                        str(input_path),
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                    check=False,
-                )
-            except FileNotFoundError as exc:
-                raise RuntimeError(f"LibreOffice 执行文件不存在: {SOFFICE_COMMAND}") from exc
-            except PermissionError as exc:
-                raise RuntimeError(f"LibreOffice 执行文件无执行权限: {SOFFICE_COMMAND}") from exc
-            except subprocess.TimeoutExpired as exc:
-                raise RuntimeError("LibreOffice 转换超时") from exc
-            if completed.returncode != 0:
-                detail = (completed.stderr or completed.stdout or "").strip()
-                raise RuntimeError(f"Office 文件转换失败: {detail or 'LibreOffice 未返回可用错误信息'}")
+        with urllib.request.urlopen(request, timeout=OFFICE_CONVERTER_TIMEOUT_SECONDS) as response:
+            response_payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = _read_converter_error(exc.read().decode("utf-8", errors="replace"))
+        raise RuntimeError(f"Office 转换服务返回 {exc.code}: {detail or '未知错误'}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Office 转换服务不可用: {exc.reason}") from exc
+    except TimeoutError as exc:
+        raise RuntimeError("Office 转换服务请求超时") from exc
+    except Exception as exc:
+        raise RuntimeError(f"Office 转换服务请求失败: {exc}") from exc
 
-            pdf_path = input_path.with_suffix(".pdf")
-            if not pdf_path.exists():
-                raise RuntimeError("Office 文件转换失败: 未生成 PDF 文件")
-
-            pdf_content = pdf_path.read_bytes()
-    finally:
-        OFFICE_CONVERSION_SEMAPHORE.release()
+    pdf_base64 = response_payload.get("file_content_base64") if isinstance(response_payload, dict) else None
+    if not isinstance(pdf_base64, str) or not pdf_base64:
+        raise RuntimeError("Office 转换服务未返回 PDF 内容")
+    try:
+        pdf_content = base64.b64decode(pdf_base64, validate=True)
+    except Exception as exc:
+        raise RuntimeError("Office 转换服务返回的 PDF 内容无效") from exc
+    if not pdf_content:
+        raise RuntimeError("Office 转换服务返回的 PDF 内容为空")
 
     return pdf_content, _pdf_name(file_name), {
         "file_name": file_name,
