@@ -1,9 +1,7 @@
 import base64
 import logging
 import mimetypes
-import os
 import re
-import shutil
 import subprocess
 import tempfile
 import threading
@@ -40,15 +38,8 @@ OFFICE_TO_PDF_TYPES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
 OFFICE_TO_PDF_SUFFIXES = {".doc", ".docx", ".ppt", ".pptx"}
-DEFAULT_SOFFICE_PATHS = (
-    r"C:\Program Files\LibreOffice\program\soffice.exe",
-    r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
-)
-try:
-    OFFICE_CONVERSION_CONCURRENCY = max(1, int(os.environ.get("OFFICE_CONVERSION_CONCURRENCY", "1")))
-except ValueError:
-    OFFICE_CONVERSION_CONCURRENCY = 1
-OFFICE_CONVERSION_SEMAPHORE = threading.BoundedSemaphore(OFFICE_CONVERSION_CONCURRENCY)
+SOFFICE_COMMAND = "/usr/bin/soffice"
+OFFICE_CONVERSION_SEMAPHORE = threading.BoundedSemaphore(1)
 ALLOWED_UPLOAD_EXTENSIONS = {
     "png", "jpg", "jpeg", "webp", "gif", "bmp", "svg",
     "mp3", "wav", "m4a", "aac", "ogg", "flac",
@@ -202,23 +193,8 @@ def _pdf_name(file_name: str) -> str:
 
 
 def _find_soffice_command() -> str:
-    candidates = []
-    configured = os.environ.get("LIBREOFFICE_PATH") or os.environ.get("SOFFICE_PATH")
-    if configured:
-        candidates.append(configured.strip())
-    if os.name == "nt":
-        candidates.extend(DEFAULT_SOFFICE_PATHS)
-    candidates.append("soffice")
-
-    for candidate in dict.fromkeys(item for item in candidates if item):
-        if Path(candidate).is_absolute():
-            if Path(candidate).exists():
-                return candidate
-            continue
-        resolved = shutil.which(candidate)
-        if resolved:
-            return resolved
-
+    if Path(SOFFICE_COMMAND).exists():
+        return SOFFICE_COMMAND
     raise RuntimeError("服务器未安装 LibreOffice/soffice，无法转换 DOC/DOCX/PPT/PPTX")
 
 
@@ -643,7 +619,9 @@ def _regenerate_url(state: StorageManagementInput) -> StorageManagementOutput:
 def _validate_object(state: StorageManagementInput) -> StorageManagementOutput:
     key = _validate_file_key(state.file_key)
     prefix = _normalize_prefix(state.prefix)
-    if prefix and not key.startswith(prefix):
+    if not prefix:
+        return _failure("缺少校验目录前缀", code=400, error_code="PREFIX_REQUIRED")
+    if not key.startswith(prefix):
         return _failure("对象不在允许的临时目录内", code=403, error_code="KEY_NOT_ALLOWED")
 
     storage_mgr = get_storage_manager()
