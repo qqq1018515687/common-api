@@ -193,9 +193,7 @@ def _pdf_name(file_name: str) -> str:
 
 
 def _find_soffice_command() -> str:
-    if Path(SOFFICE_COMMAND).exists():
-        return SOFFICE_COMMAND
-    raise RuntimeError("服务器未安装 LibreOffice/soffice，无法转换 DOC/DOCX/PPT/PPTX")
+    return SOFFICE_COMMAND
 
 
 def _convert_office_to_pdf(file_content: bytes, file_name: str, content_type: str) -> Tuple[bytes, str, Dict[str, Any]]:
@@ -220,21 +218,26 @@ def _convert_office_to_pdf(file_content: bytes, file_name: str, content_type: st
         with tempfile.TemporaryDirectory(prefix="storage-office-") as work_dir:
             input_path = Path(work_dir) / f"source{suffix}"
             input_path.write_bytes(file_content)
-            completed = subprocess.run(
-                [
-                    soffice_command,
-                    "--headless",
-                    "--convert-to",
-                    "pdf",
-                    "--outdir",
-                    work_dir,
-                    str(input_path),
-                ],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                check=False,
-            )
+            try:
+                completed = subprocess.run(
+                    [
+                        soffice_command,
+                        "--headless",
+                        "--convert-to",
+                        "pdf",
+                        "--outdir",
+                        work_dir,
+                        str(input_path),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    check=False,
+                )
+            except FileNotFoundError as exc:
+                raise RuntimeError(f"LibreOffice 执行文件不存在: {SOFFICE_COMMAND}") from exc
+            except PermissionError as exc:
+                raise RuntimeError(f"LibreOffice 执行文件无执行权限: {SOFFICE_COMMAND}") from exc
             if completed.returncode != 0:
                 detail = (completed.stderr or completed.stdout or "").strip()
                 raise RuntimeError(f"Office 文件转换失败: {detail or 'LibreOffice 未返回可用错误信息'}")
