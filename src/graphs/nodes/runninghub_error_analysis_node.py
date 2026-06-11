@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from typing import Optional
 from jinja2 import Template
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -9,6 +10,16 @@ from coze_coding_utils.runtime_ctx.context import Context
 from coze_coding_dev_sdk import LLMClient
 
 from graphs.state import RunningHubErrorAnalysisInput, RunningHubErrorAnalysisOutput
+
+
+GENERIC_MESSAGES = {
+    "生成失败，请重试",
+    "生成失败，请稍后重试",
+    "任务执行失败",
+    "任务状态异常",
+    "刷新页面查看最新状态",
+    "任务可能已被中断或取消，请刷新页面查看最新状态",
+}
 
 
 def _get_text_content(content: object) -> str:
@@ -25,6 +36,157 @@ def _get_text_content(content: object) -> str:
                 if isinstance(item, dict) and item.get("type") == "text"
             )
     return str(content)
+
+
+def _safe_text(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    try:
+        return json.dumps(value, ensure_ascii=False, default=str)
+    except Exception:
+        return str(value)
+
+
+def _collect_error_text(value: object, depth: int = 0) -> str:
+    if depth > 5 or value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (int, float, bool)):
+        return str(value)
+    if isinstance(value, list):
+        return " ".join(_collect_error_text(item, depth + 1) for item in value)
+    if isinstance(value, dict):
+        keys = [
+            "code", "msg", "message", "error", "error_message", "statusText",
+            "failureStage", "stage", "exception_type", "node_name",
+            "failedReason", "data", "raw", "raw_error",
+        ]
+        parts = []
+        for key in keys:
+            if key in value:
+                parts.append(_collect_error_text(value.get(key), depth + 1))
+        if not parts:
+            parts = [_collect_error_text(item, depth + 1) for item in value.values()]
+        return " ".join(part for part in parts if part)
+    return str(value)
+
+
+def _extract_node_name(error_response: dict, text: str) -> str:
+    def find_node_name(value: object, depth: int = 0) -> str:
+        if depth > 5 or value is None:
+            return ""
+        if isinstance(value, dict):
+            direct = value.get("node_name") or value.get("nodeName")
+            if direct:
+                return _safe_text(direct)
+            for item in value.values():
+                found = find_node_name(item, depth + 1)
+                if found:
+                    return found
+        if isinstance(value, list):
+            for item in value:
+                found = find_node_name(item, depth + 1)
+                if found:
+                    return found
+        return ""
+
+    nested_node_name = find_node_name(error_response)
+    if nested_node_name:
+        return nested_node_name
+
+    failed_reason = error_response.get("failedReason") or error_response.get("failed_reason")
+    if isinstance(failed_reason, dict):
+        node_name = failed_reason.get("node_name") or failed_reason.get("nodeName")
+        if node_name:
+            return _safe_text(node_name)
+
+    node_name = error_response.get("node_name") or error_response.get("nodeName")
+    if node_name:
+        return _safe_text(node_name)
+
+    match = re.search(r"(?:节点|node)[:：\s]*([A-Za-z0-9_.\-/\u4e00-\u9fff]+)", text, re.IGNORECASE)
+    return match.group(1).strip() if match else ""
+
+
+def _build_rule_based_result(error_response: dict) -> Optional[dict]:
+    text = _collect_error_text(error_response)
+    normalized = text.lower()
+    node_name = _extract_node_name(error_response, text)
+    platform = _safe_text(error_response.get("platform")) or "unknown"
+
+    if (
+        "loadimagefromurl" in normalized
+        or "图片链接加载超时" in text
+        or "access-control-allow-origin" in normalized
+        or "cors" in normalized
+        or "403" in normalized and ("image" in normalized or "图片" in text or "tos.coze" in normalized)
+    ):
+        return {
+            "success": True,
+            "error_code": error_response.get("code"),
+            "error_message": error_response.get("msg") or error_response.get("message") or text[:300],
+            "user_friendly_message": "参考图链接无法被生成服务读取。",
+            "suggestion": "请重新上传图片后再试。",
+            "error_category": "图片链接不可访问",
+            "platform": platform,
+            "node_name": node_name,
+        }
+
+    if "cuda out of memory" in normalized or "out of memory" in normalized or "显存" in text:
+        return {
+            "success": True,
+            "error_code": error_response.get("code"),
+            "error_message": error_response.get("msg") or text[:300],
+            "user_friendly_message": "生成资源不足，任务被中断。",
+            "suggestion": "请稍后重试或降低尺寸。",
+            "error_category": "资源不足",
+            "platform": platform,
+            "node_name": node_name,
+        }
+
+    if "timeout" in normalized or "timed out" in normalized or "超时" in text:
+        return {
+            "success": True,
+            "error_code": error_response.get("code"),
+            "error_message": error_response.get("msg") or text[:300],
+            "user_friendly_message": "任务执行超时，未生成结果。",
+            "suggestion": "请稍后重新生成。",
+            "error_category": "网络超时",
+            "platform": platform,
+            "node_name": node_name,
+        }
+
+    if "content policy" in normalized or "safety" in normalized or "审核" in text or "违规" in text:
+        return {
+            "success": True,
+            "error_code": error_response.get("code"),
+            "error_message": error_response.get("msg") or text[:300],
+            "user_friendly_message": "内容未通过安全检查。",
+            "suggestion": "请调整提示词或参考图。",
+            "error_category": "内容审核未通过",
+            "platform": platform,
+            "node_name": node_name,
+        }
+
+    if node_name and ("exception" in normalized or "节点" in text or "node" in normalized):
+        return {
+            "success": True,
+            "error_code": error_response.get("code"),
+            "error_message": error_response.get("msg") or text[:300],
+            "user_friendly_message": f"{node_name} 节点执行失败。",
+            "suggestion": "请检查输入图片和参数。",
+            "error_category": "节点执行异常",
+            "platform": platform,
+            "node_name": node_name,
+        }
+
+    if _safe_text(error_response.get("msg")) in GENERIC_MESSAGES and not node_name:
+        return None
+
+    return None
 
 
 def runninghub_error_analysis_node(
@@ -48,6 +210,10 @@ def runninghub_error_analysis_node(
                 "user_friendly_message": "未收到错误信息，无法进行分析。"
             }
         )
+
+    rule_based_result = _build_rule_based_result(error_response)
+    if rule_based_result:
+        return RunningHubErrorAnalysisOutput(result=rule_based_result)
 
     try:
         # 读取配置文件
