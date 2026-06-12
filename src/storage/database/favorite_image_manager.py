@@ -98,26 +98,43 @@ class FavoriteImageManager:
     def _normalize_favorite_input_from_task(cls, favorite_in: FavoriteImageAdd, task: Tasks) -> FavoriteImageAdd:
         task_result = task.result if isinstance(task.result, dict) else {}
         image_urls = cls._read_first_url_list(task_result, "imageUrls", "image_urls")
-        if favorite_in.image_index >= len(image_urls):
-            raise ValueError("Image index is out of task result range")
+        requested_source_url = favorite_in.source_url.strip() if favorite_in.source_url else ""
+        resolved_image_index: Optional[int] = None
 
-        canonical_source_url = image_urls[favorite_in.image_index]
-        if favorite_in.source_url and not cls._source_url_matches(favorite_in.source_url, canonical_source_url):
-            raise ValueError("source_url does not match task result image")
+        if 0 <= favorite_in.image_index < len(image_urls):
+            canonical_source_url = image_urls[favorite_in.image_index]
+            if not requested_source_url or cls._source_url_matches(requested_source_url, canonical_source_url):
+                resolved_image_index = favorite_in.image_index
+
+        if resolved_image_index is None and requested_source_url:
+            resolved_image_index = next(
+                (
+                    index
+                    for index, image_url in enumerate(image_urls)
+                    if cls._source_url_matches(requested_source_url, image_url)
+                ),
+                None,
+            )
+
+        if resolved_image_index is None:
+            raise ValueError("这张图片不在原任务结果中，暂时无法收藏")
+
+        canonical_source_url = image_urls[resolved_image_index]
 
         thumbnail_urls = cls._read_first_url_list(task_result, "thumbnailUrls", "thumbnail_urls")
         preview_urls = cls._read_first_url_list(task_result, "previewUrls", "preview_urls")
         canonical_thumbnail_url = (
-            thumbnail_urls[favorite_in.image_index]
-            if favorite_in.image_index < len(thumbnail_urls)
+            thumbnail_urls[resolved_image_index]
+            if resolved_image_index < len(thumbnail_urls)
             else (
-                preview_urls[favorite_in.image_index]
-                if favorite_in.image_index < len(preview_urls)
+                preview_urls[resolved_image_index]
+                if resolved_image_index < len(preview_urls)
                 else favorite_in.thumbnail_url
             )
         )
 
         return favorite_in.model_copy(update={
+            "image_index": resolved_image_index,
             "source_url": canonical_source_url,
             "thumbnail_url": canonical_thumbnail_url,
         })
