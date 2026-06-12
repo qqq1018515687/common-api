@@ -87,6 +87,36 @@ class FavoriteImageManager:
                 return urls
         return []
 
+    @staticmethod
+    def _is_image_file_type(file_type: Any) -> bool:
+        if not isinstance(file_type, str):
+            return False
+        normalized = file_type.lower().strip().split("/", 1)[-1]
+        return normalized in {"image", "png", "jpg", "jpeg", "webp", "gif", "bmp", "tiff", "svg"}
+
+    @classmethod
+    def _read_image_urls_from_result(cls, task_result: Dict[str, Any]) -> list[str]:
+        direct_urls = cls._read_first_url_list(task_result, "imageUrls", "image_urls")
+        if direct_urls:
+            return direct_urls
+
+        files = task_result.get("files")
+        if not isinstance(files, list):
+            return []
+
+        image_urls: list[str] = []
+        for item in files:
+            if not isinstance(item, dict):
+                continue
+            url = item.get("file_url") or item.get("url")
+            if not isinstance(url, str) or not url.strip():
+                continue
+            file_type = item.get("file_type") or item.get("type") or item.get("mime_type") or item.get("mimeType")
+            if file_type and not cls._is_image_file_type(file_type):
+                continue
+            image_urls.append(url.strip())
+        return image_urls
+
     @classmethod
     def _source_url_matches(cls, requested_url: str, canonical_url: str) -> bool:
         requested_key = cls._extract_common_file_key(requested_url)
@@ -142,7 +172,7 @@ class FavoriteImageManager:
     @classmethod
     def _normalize_favorite_input_from_task(cls, favorite_in: FavoriteImageAdd, task: Tasks) -> FavoriteImageAdd:
         task_result = task.result if isinstance(task.result, dict) else {}
-        image_urls = cls._read_first_url_list(task_result, "imageUrls", "image_urls")
+        image_urls = cls._read_image_urls_from_result(task_result)
         thumbnail_urls = cls._read_first_url_list(task_result, "thumbnailUrls", "thumbnail_urls")
         preview_urls = cls._read_first_url_list(task_result, "previewUrls", "preview_urls")
         requested_urls = cls._read_candidate_urls(favorite_in)

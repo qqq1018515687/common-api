@@ -234,6 +234,47 @@ class FavoriteImageManagerTest(unittest.TestCase):
         self.assertEqual(1, favorite.image_index)
         self.assertEqual("uploads/result-b.png", favorite.source_url)
 
+    def test_files_result_file_url_is_used_as_canonical_image_result(self) -> None:
+        favorite = FavoriteImageManager._normalize_favorite_input_from_task(
+            make_favorite(
+                image_index=0,
+                source_url="https://rh-images.example.com/result.png",
+                source_url_candidates=[
+                    "https://rh-images.example.com/result.png",
+                    "https://rh-images.example.com/result.png?x-oss-process=image/resize,w_300",
+                ],
+            ),
+            make_task(result={
+                "files": [
+                    {
+                        "file_type": "png",
+                        "file_url": "https://rh-images.example.com/result.png",
+                    }
+                ],
+                "message": "success",
+            }),
+        )
+
+        self.assertEqual(0, favorite.image_index)
+        self.assertEqual("https://rh-images.example.com/result.png", favorite.source_url)
+
+    def test_files_result_ignores_non_image_files(self) -> None:
+        with self.assertRaisesRegex(ValueError, "这张图片不在原任务结果中，暂时无法收藏"):
+            FavoriteImageManager._normalize_favorite_input_from_task(
+                make_favorite(
+                    image_index=0,
+                    source_url="https://files.example.com/result.mp4",
+                ),
+                make_task(result={
+                    "files": [
+                        {
+                            "file_type": "mp4",
+                            "file_url": "https://files.example.com/result.mp4",
+                        }
+                    ],
+                }),
+            )
+
     def test_rejects_source_url_outside_task_result(self) -> None:
         with self.assertRaisesRegex(ValueError, "这张图片不在原任务结果中，暂时无法收藏"):
             FavoriteImageManager._normalize_favorite_input_from_task(
