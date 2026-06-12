@@ -28,9 +28,11 @@ ALLOWED_CATEGORIES = {
     "site-assets": StorageCategory.SITE_ASSET,
     "site_asset": StorageCategory.SITE_ASSET,
     "assets": StorageCategory.SITE_ASSET,
+    "favorites": StorageCategory.FAVORITE,
+    "favorite": StorageCategory.FAVORITE,
     "legacy": "legacy",
 }
-CONTROLLED_PREFIXES = ("uploads/", "temp/", "avatars/", "site-assets/", "assets/")
+CONTROLLED_PREFIXES = ("uploads/", "temp/", "avatars/", "site-assets/", "assets/", "favorites/")
 CLEANUP_PREFIXES = ("uploads/", "temp/")
 LEGACY_CLEANUP_PREFIXES = ("upload/", "tmp/", "coze_storage_7592868590546845742/")
 FOLDER_KEEP_NAME = ".keep"
@@ -302,6 +304,8 @@ def _category_from_key(file_key: str) -> str:
         return "uploads"
     if file_key.startswith("temp/"):
         return "temp"
+    if file_key.startswith("favorites/"):
+        return "favorites"
     return "legacy"
 
 
@@ -321,6 +325,8 @@ def _storage_category_for_key(file_key: str) -> str:
         return StorageCategory.AVATAR
     if category == "temp":
         return StorageCategory.TEMP
+    if category == "favorites":
+        return StorageCategory.FAVORITE
     return StorageCategory.UPLOAD
 
 

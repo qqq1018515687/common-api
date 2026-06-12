@@ -22,7 +22,8 @@ class StorageCategory:
     UPLOAD = 'upload'      # 用户上传（30天）
     TEMP = 'temp'          # 临时文件（1天）
     SITE_ASSET = 'site_asset'  # 站点长期静态资源
-    
+    FAVORITE = 'favorite'      # 用户图片收藏（10年）
+
     @classmethod
     def get_prefix(cls, category: str) -> str:
         """获取分类对应的目录前缀"""
@@ -30,26 +31,26 @@ class StorageCategory:
             cls.AVATAR: 'avatars',
             cls.UPLOAD: 'uploads',
             cls.TEMP: 'temp',
-            cls.SITE_ASSET: 'site-assets'
+            cls.SITE_ASSET: 'site-assets',
+            cls.FAVORITE: 'favorites',
         }
         return mapping.get(category, 'misc')
-    
+
     @classmethod
     def get_expiry_days(cls, category: str) -> int:
         """获取分类对应的保留天数"""
         mapping = {
-            cls.AVATAR: 3650,    # 10年
-            cls.UPLOAD: 30,      # 30天
-            cls.TEMP: 1,         # 1天
-            cls.SITE_ASSET: 3650 # 10年
+            cls.AVATAR: 3650,
+            cls.UPLOAD: 30,
+            cls.TEMP: 1,
+            cls.SITE_ASSET: 3650,
+            cls.FAVORITE: 3650,
         }
         return mapping.get(category, 30)
-    
+
     @classmethod
     def is_permanent(cls, category: str) -> bool:
-        """判断是否为永久存储"""
-        return category in {cls.AVATAR, cls.SITE_ASSET}
-
+        return category in {cls.AVATAR, cls.SITE_ASSET, cls.FAVORITE}
 
 class StorageManager:
     """存储管理器"""
@@ -86,7 +87,7 @@ class StorageManager:
             }
         """
         # 验证分类
-        if category not in [StorageCategory.AVATAR, StorageCategory.UPLOAD, StorageCategory.TEMP, StorageCategory.SITE_ASSET]:
+        if category not in [StorageCategory.AVATAR, StorageCategory.UPLOAD, StorageCategory.TEMP, StorageCategory.SITE_ASSET, StorageCategory.FAVORITE]:
             raise ValueError(f"不支持的分类: {category}")
         
         # 生成带分类前缀的对象键

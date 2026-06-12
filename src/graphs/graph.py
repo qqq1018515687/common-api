@@ -84,6 +84,7 @@ from graphs.nodes.billing_refund_node import billing_refund_node
 from graphs.nodes.billing_settle_node import billing_settle_node
 from graphs.nodes.billing_records_node import billing_records_node
 from graphs.nodes.storage_management_node import storage_management_node
+from graphs.nodes.favorite_image_node import favorite_image_node
 
 
 def route_by_call_type(state: RouterOutput) -> str:
@@ -121,6 +122,8 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "Agent Run"
     elif call_type == "billing":
         return "资金扣费"
+    elif call_type == "favorite_image_management":
+        return "favorite_image_management"
     else:
         return "账号管理"  # 默认
 
@@ -211,6 +214,7 @@ builder.add_node("billing_deduct", billing_deduct_node)
 builder.add_node("billing_refund", billing_refund_node)
 builder.add_node("billing_settle", billing_settle_node)
 builder.add_node("billing_records", billing_records_node)
+builder.add_node("favorite_image_handler", favorite_image_node)
 
 # 设置入口点（先解包数据）
 builder.set_entry_point("unpack_input_data")
@@ -236,7 +240,8 @@ builder.add_conditional_edges(
         "RunningHub错误分析": "runninghub_error_analysis",
         "Agent意图判断": "agent_intent",
         "Agent Run": "agent_run",
-        "资金扣费": "billing_route"
+        "资金扣费": "billing_route",
+        "favorite_image_management": "favorite_image_handler"
     }
 )
 
@@ -351,6 +356,7 @@ builder.add_edge("billing_deduct", "format_response")
 builder.add_edge("billing_refund", "format_response")
 builder.add_edge("billing_settle", "format_response")
 builder.add_edge("billing_records", "format_response")
+builder.add_edge("favorite_image_handler", "format_response")
 
 # ============ 图像标签生成流程（暂时禁用）============
 # 启用图像自动打标时，取消下面的注释，并注释掉上面的 `builder.add_edge("update_task", "format_response")`

@@ -96,6 +96,30 @@ class Tasks(Base):
     is_deleted: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text("false"), comment="是否已删除（软删除标记）")
     user_friendly_message: Mapped[Optional[str]] = mapped_column(Text, comment="LLM 生成的用户友好错误提示")
 
+class FavoriteImages(Base):
+    __tablename__ = 'favorite_images'
+    __table_args__ = (
+        PrimaryKeyConstraint('favorite_id', name='favorite_images_pkey'),
+        UniqueConstraint('user_id', 'task_id', 'image_index', name='uq_favorite_images_user_task_image'),
+        Index('ix_favorite_images_user_created', 'user_id', 'created_at'),
+        Index('ix_favorite_images_task_id', 'task_id'),
+        {'comment': 'Image-level user favorites with long-term object storage'}
+    )
+
+    favorite_id: Mapped[str] = mapped_column(String(36), primary_key=True, comment='Favorite record ID')
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='Owner user ID')
+    task_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='Source task ID')
+    image_index: Mapped[int] = mapped_column(Integer, nullable=False, comment='Image index in task result')
+    source_url: Mapped[str] = mapped_column(Text, nullable=False, comment='Original source URL')
+    stored_url: Mapped[str] = mapped_column(Text, nullable=False, comment='Long-term stored URL')
+    file_key: Mapped[Optional[str]] = mapped_column(String(512), comment='Object storage key')
+    thumbnail_url: Mapped[Optional[str]] = mapped_column(Text, comment='Thumbnail URL')
+    workflow_id: Mapped[Optional[str]] = mapped_column(String(128), comment='Workflow ID')
+    workflow_name: Mapped[Optional[str]] = mapped_column(String(255), comment='Workflow display name')
+    model_name: Mapped[Optional[str]] = mapped_column(String(128), comment='Model name')
+    parameter_snapshot: Mapped[Optional[dict]] = mapped_column(JSON, comment='Task parameter snapshot')
+    created_at: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='Created timestamp in ms')
+
 
 class Users(Base):
     __tablename__ = 'users'
