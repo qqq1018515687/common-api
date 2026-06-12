@@ -111,6 +111,11 @@ def make_task(**overrides) -> Tasks:
                 "uploads/result-b-thumb.png",
                 "https://img.example.com/c-thumb.png",
             ],
+            "previewUrls": [
+                "https://img.example.com/a-preview.png",
+                "uploads/result-b-preview.png",
+                "https://img.example.com/c-preview.png",
+            ],
         },
     }
     payload.update(overrides)
@@ -168,6 +173,55 @@ class FavoriteImageManagerTest(unittest.TestCase):
         self.assertEqual(2, favorite.image_index)
         self.assertEqual("https://img.example.com/c.png", favorite.source_url)
 
+    def test_valid_index_accepts_matching_thumbnail_url_and_keeps_canonical_source(self) -> None:
+        favorite = FavoriteImageManager._normalize_favorite_input_from_task(
+            make_favorite(image_index=1, source_url="uploads/result-b-thumb.png"),
+            make_task(),
+        )
+
+        self.assertEqual(1, favorite.image_index)
+        self.assertEqual("uploads/result-b.png", favorite.source_url)
+        self.assertEqual("uploads/result-b-thumb.png", favorite.thumbnail_url)
+
+    def test_valid_index_accepts_matching_preview_url_and_keeps_canonical_source(self) -> None:
+        favorite = FavoriteImageManager._normalize_favorite_input_from_task(
+            make_favorite(image_index=2, source_url="https://img.example.com/c-preview.png"),
+            make_task(),
+        )
+
+        self.assertEqual(2, favorite.image_index)
+        self.assertEqual("https://img.example.com/c.png", favorite.source_url)
+        self.assertEqual("https://img.example.com/c-thumb.png", favorite.thumbnail_url)
+
+    def test_out_of_range_index_is_corrected_by_source_url_candidates(self) -> None:
+        favorite = FavoriteImageManager._normalize_favorite_input_from_task(
+            make_favorite(
+                image_index=99,
+                source_url="https://proxy.example.com/display-thumb.png",
+                source_url_candidates=[
+                    "https://proxy.example.com/display-thumb.png",
+                    "https://img.example.com/c.png",
+                ],
+            ),
+            make_task(),
+        )
+
+        self.assertEqual(2, favorite.image_index)
+        self.assertEqual("https://img.example.com/c.png", favorite.source_url)
+
+    def test_wrong_index_is_corrected_by_candidate_thumbnail_url(self) -> None:
+        favorite = FavoriteImageManager._normalize_favorite_input_from_task(
+            make_favorite(
+                image_index=0,
+                source_url="https://proxy.example.com/display-thumb.png",
+                source_url_candidates=["uploads/result-b-thumb.png"],
+            ),
+            make_task(),
+        )
+
+        self.assertEqual(1, favorite.image_index)
+        self.assertEqual("uploads/result-b.png", favorite.source_url)
+
     def test_common_storage_signed_url_matches_task_result_key(self) -> None:
         favorite = FavoriteImageManager._normalize_favorite_input_from_task(
             make_favorite(
@@ -184,6 +238,17 @@ class FavoriteImageManagerTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "这张图片不在原任务结果中，暂时无法收藏"):
             FavoriteImageManager._normalize_favorite_input_from_task(
                 make_favorite(image_index=99, source_url="https://other.example.com/not-owned.png"),
+                make_task(),
+            )
+
+    def test_rejects_candidates_outside_task_result(self) -> None:
+        with self.assertRaisesRegex(ValueError, "这张图片不在原任务结果中，暂时无法收藏"):
+            FavoriteImageManager._normalize_favorite_input_from_task(
+                make_favorite(
+                    image_index=99,
+                    source_url="https://other.example.com/not-owned.png",
+                    source_url_candidates=["https://other.example.com/not-owned-thumb.png"],
+                ),
                 make_task(),
             )
 

@@ -31,6 +31,7 @@ class FavoriteImageAdd(BaseModel):
     task_id: str = Field(..., description="Source task ID")
     image_index: int = Field(..., ge=0, description="Image index in task result")
     source_url: Optional[str] = Field(default=None, description="Original image URL")
+    source_url_candidates: list[str] = Field(default_factory=list, description="Candidate display/source URLs used only for task-result matching")
     thumbnail_url: Optional[str] = Field(default=None, description="Thumbnail URL")
     workflow_id: Optional[str] = Field(default=None, description="Workflow ID")
     workflow_name: Optional[str] = Field(default=None, description="Workflow display name")
@@ -95,23 +96,79 @@ class FavoriteImageManager:
         return requested_url.strip() == canonical_url.strip()
 
     @classmethod
+    def _read_candidate_urls(cls, favorite_in: FavoriteImageAdd) -> list[str]:
+        candidates: list[str] = []
+        seen: set[str] = set()
+
+        def append(value: Any) -> None:
+            if not isinstance(value, str):
+                return
+            url = value.strip()
+            if not url or url in seen:
+                return
+            seen.add(url)
+            candidates.append(url)
+
+        append(favorite_in.source_url)
+        for value in favorite_in.source_url_candidates or []:
+            append(value)
+        append(favorite_in.thumbnail_url)
+        return candidates
+
+    @classmethod
+    def _candidate_matches_index(
+        cls,
+        candidates: list[str],
+        image_urls: list[str],
+        thumbnail_urls: list[str],
+        preview_urls: list[str],
+        image_index: int,
+    ) -> bool:
+        if image_index < 0 or image_index >= len(image_urls):
+            return False
+
+        index_urls = [image_urls[image_index]]
+        if image_index < len(thumbnail_urls):
+            index_urls.append(thumbnail_urls[image_index])
+        if image_index < len(preview_urls):
+            index_urls.append(preview_urls[image_index])
+
+        return any(
+            cls._source_url_matches(candidate, index_url)
+            for candidate in candidates
+            for index_url in index_urls
+        )
+
+    @classmethod
     def _normalize_favorite_input_from_task(cls, favorite_in: FavoriteImageAdd, task: Tasks) -> FavoriteImageAdd:
         task_result = task.result if isinstance(task.result, dict) else {}
         image_urls = cls._read_first_url_list(task_result, "imageUrls", "image_urls")
-        requested_source_url = favorite_in.source_url.strip() if favorite_in.source_url else ""
+        thumbnail_urls = cls._read_first_url_list(task_result, "thumbnailUrls", "thumbnail_urls")
+        preview_urls = cls._read_first_url_list(task_result, "previewUrls", "preview_urls")
+        requested_urls = cls._read_candidate_urls(favorite_in)
         resolved_image_index: Optional[int] = None
 
-        if 0 <= favorite_in.image_index < len(image_urls):
-            canonical_source_url = image_urls[favorite_in.image_index]
-            if not requested_source_url or cls._source_url_matches(requested_source_url, canonical_source_url):
-                resolved_image_index = favorite_in.image_index
+        if cls._candidate_matches_index(
+            requested_urls,
+            image_urls,
+            thumbnail_urls,
+            preview_urls,
+            favorite_in.image_index,
+        ):
+            resolved_image_index = favorite_in.image_index
 
-        if resolved_image_index is None and requested_source_url:
+        if resolved_image_index is None and requested_urls:
             resolved_image_index = next(
                 (
                     index
-                    for index, image_url in enumerate(image_urls)
-                    if cls._source_url_matches(requested_source_url, image_url)
+                    for index in range(len(image_urls))
+                    if cls._candidate_matches_index(
+                        requested_urls,
+                        image_urls,
+                        thumbnail_urls,
+                        preview_urls,
+                        index,
+                    )
                 ),
                 None,
             )
@@ -121,8 +178,6 @@ class FavoriteImageManager:
 
         canonical_source_url = image_urls[resolved_image_index]
 
-        thumbnail_urls = cls._read_first_url_list(task_result, "thumbnailUrls", "thumbnail_urls")
-        preview_urls = cls._read_first_url_list(task_result, "previewUrls", "preview_urls")
         canonical_thumbnail_url = (
             thumbnail_urls[resolved_image_index]
             if resolved_image_index < len(thumbnail_urls)

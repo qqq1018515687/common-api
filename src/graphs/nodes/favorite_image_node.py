@@ -82,6 +82,7 @@ def favorite_image_node(
                 task_id=payload.get("task_id"),
                 image_index=payload.get("image_index"),
                 source_url=payload.get("source_url"),
+                source_url_candidates=payload.get("source_url_candidates") or [],
                 thumbnail_url=payload.get("thumbnail_url"),
                 workflow_id=payload.get("workflow_id"),
                 workflow_name=payload.get("workflow_name"),
