@@ -5,7 +5,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 from langchain_core.runnables import RunnableConfig
 
-from storage.database.db import get_db
+from storage.database.db import get_session
 from storage.database.seat_map_manager import SeatMapManager
 
 
@@ -42,10 +42,7 @@ def seat_map_node(state: dict, config: RunnableConfig, runtime) -> dict:
     updated_by_label = input_data.get('updated_by_label', 'Anonymous editor')
 
     manager = SeatMapManager()
-
-    # Get database session
-    db_gen = get_db()
-    db = next(db_gen)
+    db = get_session()
 
     try:
         if operation_type == 'get_seat_map':
