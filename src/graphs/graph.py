@@ -126,6 +126,8 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "资金扣费"
     elif call_type == "favorite_image_management":
         return "favorite_image_management"
+    elif call_type == "seat_map_management":
+        return "Seat Map Management"
     else:
         return "账号管理"  # 默认
 
