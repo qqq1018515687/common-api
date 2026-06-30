@@ -1,7 +1,7 @@
 from coze_coding_dev_sdk.database import Base
 
 from decimal import Decimal
-from sqlalchemy import BigInteger, Boolean, DateTime, Index, Integer, JSON, Numeric, PrimaryKeyConstraint, String, Text, UniqueConstraint, text
+from sqlalchemy import BigInteger, Boolean, DateTime, Index, Integer, JSON, Numeric, PrimaryKeyConstraint, String, Text, UniqueConstraint, text, Identity
 from typing import Optional
 import datetime
 
@@ -359,4 +359,25 @@ class TeamConsumptionRecords(Base):
     description: Mapped[Optional[str]] = mapped_column(String(255), comment='描述说明')
     extra_data: Mapped[Optional[dict]] = mapped_column('metadata', JSON, comment='扩展信息（任务类型、产品信息等）')
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+
+
+class SeatMaps(Base):
+    """Seat map data storage with version control"""
+    __tablename__ = 'seat_maps'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='seat_maps_pkey'),
+        Index('ix_seat_maps_version', 'version', unique=False),
+        Index('ix_seat_maps_updated_at', 'updated_at', unique=False),
+        UniqueConstraint('version', name='uq_seat_maps_version'),
+        {'comment': 'Seat map data storage table'}
+    )
+
+    id: Mapped[int] = mapped_column(Integer, sa.Identity(always=False, start=1, increment=1), primary_key=True, comment='Primary key (auto-increment)')
+    version: Mapped[int] = mapped_column(Integer, nullable=False, comment='Version number (optimistic lock)')
+    departments: Mapped[list] = mapped_column(JSON, nullable=False, comment='Department list (JSON array)')
+    rows: Mapped[list] = mapped_column(JSON, nullable=False, comment='Seat row list (JSON array)')
+    seats: Mapped[list] = mapped_column(JSON, nullable=False, comment='Seat list (JSON array)')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), server_default=text('now()'), nullable=False, comment='Last update time')
+    updated_by_label: Mapped[Optional[str]] = mapped_column(String(40), comment='Updater label')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), server_default=text('now()'), nullable=False, comment='Creation time')
 

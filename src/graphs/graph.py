@@ -6,6 +6,8 @@ from coze_coding_utils.runtime_ctx.context import Context
 from pydantic import BaseModel, Field
 from typing import Optional
 
+from graphs.nodes.seat_map_node import seat_map_node
+
 logger = logging.getLogger(__name__)
 
 from graphs.state import (
@@ -215,6 +217,7 @@ builder.add_node("billing_refund", billing_refund_node)
 builder.add_node("billing_settle", billing_settle_node)
 builder.add_node("billing_records", billing_records_node)
 builder.add_node("favorite_image_handler", favorite_image_node)
+builder.add_node("seat_map_handler", seat_map_node)
 
 # 设置入口点（先解包数据）
 builder.set_entry_point("unpack_input_data")
@@ -241,7 +244,8 @@ builder.add_conditional_edges(
         "Agent意图判断": "agent_intent",
         "Agent Run": "agent_run",
         "资金扣费": "billing_route",
-        "favorite_image_management": "favorite_image_handler"
+        "favorite_image_management": "favorite_image_handler",
+        "Seat Map Management": "seat_map_handler"
     }
 )
 
@@ -357,6 +361,7 @@ builder.add_edge("billing_refund", "format_response")
 builder.add_edge("billing_settle", "format_response")
 builder.add_edge("billing_records", "format_response")
 builder.add_edge("favorite_image_handler", "format_response")
+builder.add_edge("seat_map_handler", "format_response")
 
 # ============ 图像标签生成流程（暂时禁用）============
 # 启用图像自动打标时，取消下面的注释，并注释掉上面的 `builder.add_edge("update_task", "format_response")`
