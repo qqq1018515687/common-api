@@ -372,7 +372,7 @@ class SeatMaps(Base):
         {'comment': 'Seat map data storage table'}
     )
 
-    id: Mapped[int] = mapped_column(Integer, sa.Identity(always=False, start=1, increment=1), primary_key=True, comment='Primary key (auto-increment)')
+    id: Mapped[int] = mapped_column(Integer, Identity(always=False, start=1, increment=1), primary_key=True, comment='Primary key (auto-increment)')
     version: Mapped[int] = mapped_column(Integer, nullable=False, comment='Version number (optimistic lock)')
     departments: Mapped[list] = mapped_column(JSON, nullable=False, comment='Department list (JSON array)')
     rows: Mapped[list] = mapped_column(JSON, nullable=False, comment='Seat row list (JSON array)')
