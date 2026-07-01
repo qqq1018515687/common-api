@@ -35,6 +35,7 @@ class TaskUpdate(BaseModel):
     connection_mode: Optional[str] = Field(default=None, description="连接模式")
     deduction_result: Optional[dict] = Field(default=None, description="扣费结果记录")
     user_friendly_message: Optional[str] = Field(default=None, description="LLM 生成的用户友好错误提示")
+    deleted_image_urls: Optional[List[str]] = Field(default=None, description="已删除的图片URL列表（图像级软删除）")
 
 
 class TaskManager:

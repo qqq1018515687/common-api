@@ -95,6 +95,7 @@ class Tasks(Base):
     team_id: Mapped[Optional[str]] = mapped_column(String(64))
     is_deleted: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text("false"), comment="是否已删除（软删除标记）")
     user_friendly_message: Mapped[Optional[str]] = mapped_column(Text, comment="LLM 生成的用户友好错误提示")
+    deleted_image_urls: Mapped[Optional[list]] = mapped_column(JSON, comment="已删除的图片URL列表（图像级软删除）")
 
 class FavoriteImages(Base):
     __tablename__ = 'favorite_images'
