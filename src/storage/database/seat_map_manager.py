@@ -105,12 +105,12 @@ class SeatMapManager:
                     version, departments, rows, seats, updated_at, updated_by_label, created_at
                 )
                 VALUES (
-                    :version,
-                    :departments::jsonb,
-                    :rows::jsonb,
-                    :seats::jsonb,
+                    %(version)s,
+                    %(departments)s::jsonb,
+                    %(rows)s::jsonb,
+                    %(seats)s::jsonb,
                     NOW(),
-                    :updated_by_label,
+                    %(updated_by_label)s,
                     NOW()
                 )
                 RETURNING id, version, updated_at
