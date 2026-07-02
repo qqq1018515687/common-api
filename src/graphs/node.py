@@ -1919,7 +1919,8 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "completed_at": task.completed_at,
                     "batch_id": task.batch_id,
                     "connection_mode": task.connection_mode,
-                    "is_deleted": task.is_deleted
+                    "is_deleted": task.is_deleted,
+                    "deleted_image_urls": task.deleted_image_urls
                 }
                 # 过滤：completed 任务必须有媒体结果才展示
                 if task.status == "completed":
