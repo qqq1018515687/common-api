@@ -1757,6 +1757,7 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
                 "workflow_parameters",
                 "parameter_snapshot",
                 "connection_mode",
+                "deleted_image_urls",
             ]:
                 if field in state.task_updates:
                     update_kwargs[field] = state.task_updates.get(field)
