@@ -1243,7 +1243,11 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
         if state.avatar is not None:
             updates['avatar'] = processed_avatar  # 使用处理后的头像
         if "team_id" in state.model_fields_set:
-            updates['team_id'] = state.team_id
+            # 显式传 null 才清除团队；空字符串视为不更新，保留原值
+            if state.team_id is None:
+                updates['team_id'] = None
+            elif state.team_id != '':
+                updates['team_id'] = state.team_id
         if state.gold_credits is not None:
             updates['gold_credits'] = state.gold_credits
         if state.silver_credits is not None:
