@@ -1,7 +1,7 @@
 """add deleted_image_urls column to tasks table
 
 Revision ID: h1i2j3k4l5m6
-Revises: g0h1i2j3k4l5
+Revises: v001_add_seat_maps
 Create Date: 2026-07-02 00:00:00.000000
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = "h1i2j3k4l5m6"
-down_revision = "g0h1i2j3k4l5"
+down_revision = "v001_add_seat_maps"
 branch_labels = None
 depends_on = None
 
