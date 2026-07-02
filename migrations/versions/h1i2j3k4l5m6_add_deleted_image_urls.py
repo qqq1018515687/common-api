@@ -1,16 +1,16 @@
 """add deleted_image_urls column to tasks table
 
-Revision ID: g0h1i2j3k4l5
-Revises: v001_add_seat_maps
-Create Date: 2026-07-01 00:00:00.000000
+Revision ID: h1i2j3k4l5m6
+Revises: 0d1e2f3a4b5c
+Create Date: 2026-07-02 00:00:00.000000
 
 """
 from alembic import op
 import sqlalchemy as sa
 
 
-revision = "g0h1i2j3k4l5"
-down_revision = "v001_add_seat_maps"
+revision = "h1i2j3k4l5m6"
+down_revision = "0d1e2f3a4b5c"
 branch_labels = None
 depends_on = None
 
