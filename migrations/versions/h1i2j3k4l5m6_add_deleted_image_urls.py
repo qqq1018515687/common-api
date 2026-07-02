@@ -1,7 +1,7 @@
 """add deleted_image_urls column to tasks table
 
 Revision ID: h1i2j3k4l5m6
-Revises: 0d1e2f3a4b5c
+Revises: g0h1i2j3k4l5
 Create Date: 2026-07-02 00:00:00.000000
 
 """
