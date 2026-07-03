@@ -61,6 +61,7 @@ from graphs.node import (
     route_by_task_operation_type,
     create_task_node,
     update_task_node,
+    get_task_node,
     delete_task_node,
     list_tasks_node
 )
@@ -190,6 +191,7 @@ builder.add_node("save", save_node)
 builder.add_node("task_route", task_route_node)
 builder.add_node("create_task", create_task_node)
 builder.add_node("update_task", update_task_node)
+builder.add_node("get_task", get_task_node)
 builder.add_node("delete_task", delete_task_node)
 builder.add_node("list_tasks", list_tasks_node)
 builder.add_node("system_notification_handler", system_notification_handler_node)
@@ -289,6 +291,7 @@ builder.add_conditional_edges(
     path=route_by_task_operation_type,
     path_map={
         "创建任务": "create_task",
+        "查询单个任务": "get_task",
         "更新任务": "update_task",
         "删除任务": "delete_task",
         "查询任务列表": "list_tasks"
@@ -341,6 +344,7 @@ builder.add_edge("storage_management", "format_response")
 builder.add_edge("save", "format_response")
 builder.add_edge("create_task", "format_response")
 builder.add_edge("update_task", "format_response")  # 暂时禁用图像自动打标，直接返回
+builder.add_edge("get_task", "format_response")
 builder.add_edge("delete_task", "format_response")
 builder.add_edge("list_tasks", "format_response")
 builder.add_edge("system_notification_handler", "format_response")

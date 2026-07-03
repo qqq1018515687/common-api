@@ -45,7 +45,7 @@ class InputData(BaseModel):
     runninghub_link: Optional[str] = Field(default=None, description="RunningHub 链接（save 使用）")
     tool_type: Optional[str] = Field(default=None, description="工具类型：reverse_image/translate_doubao/translate_flash/prompt_enhance")
     prompt: Optional[str] = Field(default=None, description="提示词/待翻译文本（tool 使用）")
-    operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/send_password_reset_code/register/register_with_code/reset_password_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、公告管理(get_active_popup/get_all/create/update/disable)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、RunningHub错误分析(runninghub_error_analysis)")
+    operation_type: Optional[str] = Field(default=None, description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/send_password_reset_code/register/register_with_code/reset_password_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/get_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、公告管理(get_active_popup/get_all/create/update/disable)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、RunningHub错误分析(runninghub_error_analysis)")
     assets: Optional[List[dict]] = Field(default=None, description="Agent 意图判断素材摘要列表")
     current_target: Optional[dict] = Field(default=None, description="Agent 意图判断当前已选目标")
     agent_preferences: Optional[dict] = Field(default=None, description="Agent 生成偏好与模型偏好")
@@ -86,7 +86,7 @@ class InputData(BaseModel):
     days: Optional[int] = Field(default=None, description="查询最近N天的数据（list_tasks 使用）")
 
     # 任务管理相关字段
-    task_id: Optional[str] = Field(default=None, description="任务ID（update_task/delete_task 使用）")
+    task_id: Optional[str] = Field(default=None, description="任务ID（get_task/update_task/delete_task 使用）")
     task_data: Optional[dict] = Field(default=None, description="任务数据（create_task 使用）")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据（update_task 使用）")
 
@@ -200,7 +200,7 @@ class GlobalState(BaseModel):
     status: Optional[str] = Field(default=None, description="任务状态筛选（running/completed/failed）")
 
     # 任务管理相关字段
-    task_id: Optional[str] = Field(default=None, description="任务ID（update_task/delete_task 使用）")
+    task_id: Optional[str] = Field(default=None, description="任务ID（get_task/update_task/delete_task 使用）")
     task_data: Optional[dict] = Field(default=None, description="任务数据（create_task 使用）")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据（update_task 使用）")
 
@@ -598,6 +598,17 @@ class UpdateTaskOutput(BaseModel):
     task_result: Optional[dict] = Field(default=None, description="任务结果")
 
 
+class GetTaskInput(BaseModel):
+    """查询单个任务节点的输入（仅限注册用户）"""
+    user_id: str = Field(..., description="用户ID（必须是已注册的活跃用户）")
+    task_id: str = Field(..., description="任务ID")
+
+
+class GetTaskOutput(BaseModel):
+    """查询单个任务节点的输出"""
+    result: dict = Field(..., description="查询结果")
+
+
 class DeleteTaskInput(BaseModel):
     """删除任务节点的输入（仅限注册用户）"""
     user_id: str = Field(..., description="用户ID（必须是已注册的活跃用户）")
@@ -626,7 +637,7 @@ class ListTasksOutput(BaseModel):
 
 class TaskRouteInput(BaseModel):
     """任务路由节点的输入"""
-    operation_type: str = Field(..., description="操作类型：create_task/update_task/delete_task/list_tasks")
+    operation_type: str = Field(..., description="操作类型：create_task/get_task/update_task/delete_task/list_tasks")
     # 任务管理相关字段
     user_id: Optional[str] = Field(default=None, description="用户ID")
     task_id: Optional[str] = Field(default=None, description="任务ID")

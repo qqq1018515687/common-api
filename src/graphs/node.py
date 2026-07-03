@@ -67,6 +67,7 @@ from graphs.state import (
     ListUsersInput, ListUsersOutput,
     CreateTaskInput, CreateTaskOutput,
     UpdateTaskInput, UpdateTaskOutput,
+    GetTaskInput, GetTaskOutput,
     DeleteTaskInput, DeleteTaskOutput,
     ListTasksInput, ListTasksOutput,
     TaskRouteInput, TaskRouteOutput
@@ -1659,6 +1660,8 @@ def route_by_task_operation_type(state: TaskRouteInput) -> str:
 
     if operation_type == "create_task":
         return "创建任务"
+    elif operation_type == "get_task":
+        return "查询单个任务"
     elif operation_type == "update_task":
         return "更新任务"
     elif operation_type == "delete_task":
@@ -1789,6 +1792,68 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
 
     except Exception as e:
         return UpdateTaskOutput(result={"success": False, "message": f"更新失败: {str(e)}"})
+
+
+def get_task_node(state: GetTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> GetTaskOutput:
+    """
+    title: 查询单个任务
+    desc: 根据任务ID精确查询任务（仅限注册用户；管理员可查任意任务，普通用户只能查自己的任务）
+    integrations: 数据库
+    """
+    ctx = runtime.context
+
+    if not state.task_id or not state.user_id:
+        return GetTaskOutput(result={"success": False, "message": "缺少必要参数：task_id 或 user_id"})
+
+    try:
+        from storage.database.task_manager import TaskManager
+        from storage.database.shared.model import Users
+
+        db = get_session()
+        try:
+            task_mgr = TaskManager()
+            has_permission, error_msg = task_mgr.verify_user_permission(db, state.user_id)
+            if not has_permission:
+                return GetTaskOutput(result={"success": False, "message": error_msg})
+
+            db_task = task_mgr.get_task_by_id(db, state.task_id)
+            if not db_task or db_task.is_deleted:
+                return GetTaskOutput(result={"success": False, "message": "任务不存在"})
+
+            user = db.query(Users).filter(Users.user_id == state.user_id).first()
+            if not user:
+                return GetTaskOutput(result={"success": False, "message": "用户不存在"})
+            if user.role != 'admin' and db_task.user_id != state.user_id:
+                return GetTaskOutput(result={"success": False, "message": "无权访问此任务"})
+
+            task = {
+                "id": db_task.id,
+                "user_id": db_task.user_id,
+                "team_id": db_task.team_id,
+                "platform": db_task.platform,
+                "platform_task_id": db_task.platform_task_id,
+                "type": db_task.type,
+                "status": db_task.status,
+                "workflow_parameters": db_task.workflow_parameters,
+                "parameter_snapshot": db_task.parameter_snapshot,
+                "result": db_task.result,
+                "error": db_task.error,
+                "deduction_result": db_task.deduction_result,
+                "user_friendly_message": db_task.user_friendly_message,
+                "created_at": db_task.created_at,
+                "updated_at": db_task.updated_at,
+                "completed_at": db_task.completed_at,
+                "batch_id": db_task.batch_id,
+                "connection_mode": db_task.connection_mode,
+                "is_deleted": db_task.is_deleted
+            }
+            return GetTaskOutput(result={"success": True, "message": "查询成功", "task": task})
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        return GetTaskOutput(result={"success": False, "message": f"查询失败: {str(e)}"})
 
 
 def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> DeleteTaskOutput:
