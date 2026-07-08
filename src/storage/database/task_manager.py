@@ -3,6 +3,7 @@ import time
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from storage.database.shared.model import Tasks, Users
 import time
@@ -41,9 +42,25 @@ class TaskUpdate(BaseModel):
 class TaskManager:
     """任务管理类"""
 
+    _task_schema_checked = False
+
     @staticmethod
     def _pending_platform_task_id(task_id: str) -> str:
         return f"pending:{task_id}"
+
+    @classmethod
+    def _ensure_task_schema(cls, db: Session) -> None:
+        """Ensure optional task columns exist before ORM queries select them."""
+        if cls._task_schema_checked:
+            return
+
+        try:
+            db.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deleted_image_urls JSON"))
+            db.commit()
+            cls._task_schema_checked = True
+        except Exception:
+            db.rollback()
+            raise
 
     @staticmethod
     def verify_user_permission(db: Session, user_id: str) -> tuple[bool, Optional[str]]:
@@ -73,6 +90,7 @@ class TaskManager:
 
     def create_task(self, db: Session, task_in: TaskCreate) -> Tasks:
         """创建任务"""
+        self._ensure_task_schema(db)
         existing_task = self.get_task_by_id(db, task_in.id)
         if existing_task:
             task_data = task_in.model_dump(exclude_unset=True)
@@ -125,6 +143,7 @@ class TaskManager:
 
     def get_task_by_id(self, db: Session, task_id: str) -> Optional[Tasks]:
         """根据任务ID获取任务"""
+        self._ensure_task_schema(db)
         return db.query(Tasks).filter(Tasks.id == task_id).first()
 
     def get_tasks_by_user_id(
@@ -151,6 +170,7 @@ class TaskManager:
         Returns:
             任务列表（按 created_at DESC 排序）
         """
+        self._ensure_task_schema(db)
         # 限制最大返回数量
         limit = min(limit, 500)
 
@@ -212,6 +232,7 @@ class TaskManager:
             - 如果提供 team_id（不管有没有 user_id）：查询该团队的所有任务
             - 如果既没有 user_id 也没有 team_id：返回空列表
         """
+        self._ensure_task_schema(db)
         # 限制最大返回数量
         limit = min(limit, 1000)
 
@@ -252,6 +273,7 @@ class TaskManager:
         platform_task_id: str
     ) -> Optional[Tasks]:
         """根据平台和平台任务ID获取任务"""
+        self._ensure_task_schema(db)
         if not platform_task_id:
             return None
         return db.query(Tasks).filter(
@@ -357,6 +379,7 @@ class TaskManager:
         Returns:
             任务数量
         """
+        self._ensure_task_schema(db)
         query = db.query(Tasks).filter(
             Tasks.user_id == user_id,
             Tasks.is_deleted == False
@@ -388,6 +411,7 @@ class TaskManager:
         before_time: Optional[int] = None
     ) -> int:
         """统计有可展示媒体结果的 completed 任务数量（与前端展示逻辑一致）"""
+        self._ensure_task_schema(db)
         from sqlalchemy import func, text
 
         query = db.query(Tasks).filter(
@@ -462,6 +486,7 @@ class TaskManager:
             - 如果提供 team_id（不管有没有 user_id）：统计该团队的所有任务（包含团队所有成员的任务）
             - 如果既没有 user_id 也没有 team_id：返回 0
         """
+        self._ensure_task_schema(db)
         # 基础查询条件：自动过滤已删除的任务
         query = db.query(Tasks).filter(Tasks.is_deleted == False)
 
