@@ -52,7 +52,7 @@ class TaskManager:
     @classmethod
     def _ensure_task_schema(cls, db: Session) -> None:
         """Ensure optional task columns exist before ORM queries select them.
-        注意: started_at 和 elapsed_time_seconds 字段通过 Alembic 迁移添加,此处不再添加。
+        注意: started_at 和 elapsed_time_seconds 字段已在数据库中手动添加,此处不再处理。
         """
         if cls._task_schema_checked:
             return
