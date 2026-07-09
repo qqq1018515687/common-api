@@ -79,8 +79,12 @@ def run_migrations_online() -> None:
     connectable = get_engine()
 
     with connectable.connect() as connection:
+        # 【修复】强制关闭类型对比,避免 VITE3 的迁移机制误触发 users 表的 downgrade
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=False,  # 不对比列类型差异
+            compare_server_default=False  # 不对比默认值差异
         )
 
         with context.begin_transaction():
