@@ -90,6 +90,8 @@ class Tasks(Base):
     error: Mapped[Optional[str]] = mapped_column(Text)
     deduction_result: Mapped[Optional[dict]] = mapped_column(JSON, comment="扣费结果记录")
     completed_at: Mapped[Optional[str]] = mapped_column(String(20))
+    started_at: Mapped[Optional[str]] = mapped_column(String(20), comment="任务真正开始执行的时间戳(毫秒字符串)")
+    elapsed_time_seconds: Mapped[Optional[int]] = mapped_column(Integer, server_default=text('0'), comment="任务耗时(秒),由后端统一计算")
     batch_id: Mapped[Optional[str]] = mapped_column(String(36))
     connection_mode: Mapped[Optional[str]] = mapped_column(String(10), server_default=text("'sse'::character varying"))
     team_id: Mapped[Optional[str]] = mapped_column(String(64))

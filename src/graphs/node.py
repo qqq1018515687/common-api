@@ -1760,6 +1760,7 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
                 "result",
                 "error",
                 "completed_at",
+                "started_at",  # 【新增】允许更新 started_at
                 "user_friendly_message",
                 "workflow_parameters",
                 "parameter_snapshot",
@@ -1987,6 +1988,8 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "created_at": task.created_at,
                     "updated_at": task.updated_at,
                     "completed_at": task.completed_at,
+                    "started_at": task.started_at,  # 【新增】任务开始时间
+                    "elapsed_time_seconds": task.elapsed_time_seconds if hasattr(task, 'elapsed_time_seconds') else 0,  # 【新增】后端统一计算的耗时(秒)
                     "batch_id": task.batch_id,
                     "connection_mode": task.connection_mode,
                     "is_deleted": task.is_deleted,

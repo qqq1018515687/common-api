@@ -31,6 +31,7 @@ class TaskUpdate(BaseModel):
     result: Optional[dict] = Field(default=None, description="生成结果")
     error: Optional[str] = Field(default=None, description="错误信息")
     completed_at: Optional[int] = Field(default=None, description="完成时间")
+    started_at: Optional[int] = Field(default=None, description="任务真正开始执行时间(毫秒)")
     workflow_parameters: Optional[dict] = Field(default=None, description="工作流参数")
     parameter_snapshot: Optional[dict] = Field(default=None, description="完整参数快照")
     connection_mode: Optional[str] = Field(default=None, description="连接模式")
@@ -56,6 +57,9 @@ class TaskManager:
 
         try:
             db.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deleted_image_urls JSON"))
+            # 【新增】耗时相关字段,纯加法,不影响现有逻辑
+            db.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS started_at VARCHAR(20)"))
+            db.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS elapsed_time_seconds INTEGER DEFAULT 0"))
             db.commit()
             cls._task_schema_checked = True
         except Exception:
@@ -130,6 +134,7 @@ class TaskManager:
         task_data['status'] = 'running'
         task_data['created_at'] = current_time
         task_data['updated_at'] = current_time
+        task_data['started_at'] = current_time  # 【新增】任务创建时即记录开始时间
 
         db_task = Tasks(**task_data)
         db.add(db_task)
@@ -281,6 +286,45 @@ class TaskManager:
             Tasks.platform_task_id == platform_task_id
         ).first()
 
+    def calculate_elapsed_time(self, task: Tasks) -> int:
+        """
+        【共享函数】统一计算任务耗时(秒)
+
+        计算逻辑:
+        1. 如果有 started_at 和 completed_at: elapsed = (completed_at - started_at) / 1000
+        2. 如果没有 started_at,用 created_at 兜底: elapsed = (completed_at - created_at) / 1000
+        3. 如果 completed_at 为空或任务未完成: 返回 0
+
+        异常处理:
+        - 负数或无效值返回 0
+        - 超大值(>24小时=86400秒)截断到 86400
+
+        Args:
+            task: 任务对象
+
+        Returns:
+            耗时秒数(int),范围 0~86400
+        """
+        if not task.completed_at:
+            return 0
+
+        try:
+            completed = int(task.completed_at)
+            started = int(task.started_at) if task.started_at else int(task.created_at)
+
+            elapsed_ms = completed - started
+            elapsed_seconds = elapsed_ms // 1000
+
+            # 异常值校验
+            if elapsed_seconds < 0:
+                return 0
+            if elapsed_seconds > 86400:  # 超过24小时,截断
+                elapsed_seconds = 86400
+
+            return elapsed_seconds
+        except (ValueError, TypeError):
+            return 0
+
     def update_task(
         self,
         db: Session,
@@ -298,6 +342,11 @@ class TaskManager:
         for field, value in update_data.items():
             if hasattr(db_task, field):
                 setattr(db_task, field, value)
+
+        # 【新增】如果任务完成,自动计算耗时并写入 elapsed_time_seconds
+        if 'completed_at' in update_data and update_data['completed_at']:
+            elapsed_seconds = self.calculate_elapsed_time(db_task)
+            db_task.elapsed_time_seconds = elapsed_seconds
 
         db.add(db_task)
         try:
