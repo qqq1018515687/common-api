@@ -87,6 +87,8 @@ class InputData(BaseModel):
 
     # 任务管理相关字段
     task_id: Optional[str] = Field(default=None, description="任务ID（get_task/update_task/delete_task 使用）")
+    platform: Optional[str] = Field(default=None, description="平台标识，与 platform_task_id 配合使用")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID，与 platform 配合使用")
     task_data: Optional[dict] = Field(default=None, description="任务数据（create_task 使用）")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据（update_task 使用）")
 
