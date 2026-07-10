@@ -9,7 +9,7 @@
 本迁移同时确保 users 表字段为 varchar(32),避免触发 varchar(20) 限制错误
 (因数据库中存在 commercial_registered 等 21 字符的 tier 值)
 
-Revision ID: v003_add_tasks_elapsed_time_fields
+Revision ID: v003_tasks_elapsed
 Revises: h1i2j3k4l5m6
 Create Date: 2026-07-10 00:00:00.000000
 
@@ -17,10 +17,9 @@ Create Date: 2026-07-10 00:00:00.000000
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision: str = 'v003_add_tasks_elapsed_time_fields'
+revision: str = 'v003_tasks_elapsed'
 down_revision: Union[str, Sequence[str], None] = 'h1i2j3k4l5m6'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -35,15 +34,9 @@ def upgrade() -> None:
     op.execute("ALTER TABLE users ALTER COLUMN tier TYPE varchar(32)")
     op.execute("ALTER TABLE users ALTER COLUMN account_status TYPE varchar(32)")
 
-    # 【新增】tasks 表耗时字段
-    op.add_column(
-        'tasks',
-        sa.Column('started_at', sa.String(20), nullable=True, comment='任务真正开始执行的时间戳(毫秒字符串)')
-    )
-    op.add_column(
-        'tasks',
-        sa.Column('elapsed_time_seconds', sa.Integer(), server_default='0', nullable=True, comment='任务耗时(秒),由后端统一计算')
-    )
+    # 【新增】tasks 表耗时字段(使用 IF NOT EXISTS 避免与运行时 _ensure_task_schema 冲突)
+    op.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS started_at VARCHAR(20)")
+    op.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS elapsed_time_seconds INTEGER DEFAULT 0")
 
     # 【回填】旧任务的 started_at 用 created_at 兜底
     op.execute("""
