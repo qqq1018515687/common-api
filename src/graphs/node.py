@@ -314,6 +314,8 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         status=input_data.status if input_data else None,
         # 任务管理相关字段
         task_id=input_data.task_id if input_data else None,
+        platform=input_data.platform if input_data else None,
+        platform_task_id=input_data.platform_task_id if input_data else None,
         task_data=input_data.task_data if input_data else None,
         task_updates=input_data.task_updates if input_data else None,
         # 系统通知相关字段

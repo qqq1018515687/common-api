@@ -201,6 +201,8 @@ class GlobalState(BaseModel):
 
     # 任务管理相关字段
     task_id: Optional[str] = Field(default=None, description="任务ID（get_task/update_task/delete_task 使用）")
+    platform: Optional[str] = Field(default=None, description="平台标识，与 platform_task_id 配合使用")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID，与 platform 配合使用")
     task_data: Optional[dict] = Field(default=None, description="任务数据（create_task 使用）")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据（update_task 使用）")
 
@@ -785,9 +787,12 @@ class UnpackInputDataOutput(BaseModel):
     status: Optional[str] = Field(default=None, description="任务状态筛选")
     days: Optional[int] = Field(default=None, description="查询天数")
     # 任务管理相关字段
-    task_id: Optional[str] = Field(default=None, description="任务ID")
-    task_data: Optional[dict] = Field(default=None, description="任务数据")
-    task_updates: Optional[dict] = Field(default=None, description="任务更新数据")
+    task_id: Optional[str] = Field(default=None, description="任务ID（get_task/update_task/delete_task 使用）")
+    platform: Optional[str] = Field(default=None, description="平台标识，与 platform_task_id 配合使用")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID，与 platform 配合使用")
+    task_data: Optional[dict] = Field(default=None, description="任务数据（create_task 使用）")
+    task_updates: Optional[dict] = Field(default=None, description="任务更新数据（update_task 使用）")
+
     # 系统通知相关字段
     notification_id: Optional[str] = Field(default=None, description="通知ID")
     notification_data: Optional[dict] = Field(default=None, description="通知数据")
