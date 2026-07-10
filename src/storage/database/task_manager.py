@@ -51,14 +51,14 @@ class TaskManager:
 
     @classmethod
     def _ensure_task_schema(cls, db: Session) -> None:
-        """Ensure optional task columns exist before ORM queries select them.
-        注意: started_at 和 elapsed_time_seconds 字段已在数据库中手动添加,此处不再处理。
-        """
+        """Ensure optional task columns exist before ORM queries select them."""
         if cls._task_schema_checked:
             return
 
         try:
             db.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deleted_image_urls JSON"))
+            db.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS started_at VARCHAR(20)"))
+            db.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS elapsed_time_seconds INTEGER DEFAULT 0"))
             db.commit()
             cls._task_schema_checked = True
         except Exception:
