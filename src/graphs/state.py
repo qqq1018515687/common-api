@@ -604,7 +604,7 @@ class UpdateTaskOutput(BaseModel):
 
 class GetTaskInput(BaseModel):
     """查询单个任务节点的输入（仅限注册用户）"""
-    user_id: str = Field(..., description="用户ID（必须是已注册的活跃用户）")
+    user_id: Optional[str] = Field(default=None, description="用户ID（必须是已注册的活跃用户）")
     task_id: Optional[str] = Field(default=None, description="任务ID（前端主键）")
     platform: Optional[str] = Field(default=None, description="平台标识，与 platform_task_id 配合使用")
     platform_task_id: Optional[str] = Field(default=None, description="平台任务ID（与 platform 配合使用）")
