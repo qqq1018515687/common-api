@@ -608,6 +608,7 @@ class GetTaskInput(BaseModel):
     task_id: Optional[str] = Field(default=None, description="任务ID（前端主键）")
     platform: Optional[str] = Field(default=None, description="平台标识，与 platform_task_id 配合使用")
     platform_task_id: Optional[str] = Field(default=None, description="平台任务ID（与 platform 配合使用）")
+    query_id: Optional[str] = Field(default=None, description="通用查询ID：自动匹配 id 或 platform_task_id")
 
 
 class GetTaskOutput(BaseModel):

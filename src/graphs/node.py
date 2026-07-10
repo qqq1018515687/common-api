@@ -1811,11 +1811,13 @@ def get_task_node(state: GetTaskInput, config: RunnableConfig, runtime: Runtime[
     """
     ctx = runtime.context
 
+    query_id = state.query_id or None
+
     if not state.user_id:
         return GetTaskOutput(result={"success": False, "message": "缺少必要参数：user_id"})
 
-    if not state.task_id and not state.platform_task_id:
-        return GetTaskOutput(result={"success": False, "message": "缺少必要参数：task_id 或 platform_task_id"})
+    if not state.task_id and not state.platform_task_id and not query_id:
+        return GetTaskOutput(result={"success": False, "message": "缺少必要参数：task_id 或 platform_task_id 或 query_id"})
 
     try:
         from storage.database.task_manager import TaskManager
@@ -1828,11 +1830,18 @@ def get_task_node(state: GetTaskInput, config: RunnableConfig, runtime: Runtime[
             if not has_permission:
                 return GetTaskOutput(result={"success": False, "message": error_msg})
 
-            # 支持按 task_id（前端主键）或 platform + platform_task_id（平台任务ID）查询
+            # 支持三种查询模式：
+            #   1. task_id（前端主键）
+            #   2. platform + platform_task_id（平台任务ID）
+            #   3. query_id（自动匹配 id 或 platform_task_id）
             if state.task_id:
                 db_task = task_mgr.get_task_by_id(db, state.task_id)
             elif state.platform_task_id and state.platform:
                 db_task = task_mgr.get_task_by_platform_task_id(db, state.platform, state.platform_task_id)
+            elif query_id:
+                db_task = task_mgr.get_task_by_id(db, query_id)
+                if not db_task or db_task.is_deleted:
+                    db_task = task_mgr.get_task_by_platform_task_id_flexible(db, query_id)
             else:
                 return GetTaskOutput(result={"success": False, "message": "使用 platform_task_id 查询时必须同时提供 platform"})
 

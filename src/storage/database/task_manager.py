@@ -285,6 +285,19 @@ class TaskManager:
             Tasks.platform_task_id == platform_task_id
         ).first()
 
+    def get_task_by_platform_task_id_flexible(
+        self,
+        db: Session,
+        platform_task_id: str
+    ) -> Optional[Tasks]:
+        """仅根据平台任务ID获取任务（不限制平台，按 updated_at 降序返回最新一条）"""
+        self._ensure_task_schema(db)
+        if not platform_task_id:
+            return None
+        return db.query(Tasks).filter(
+            Tasks.platform_task_id == platform_task_id
+        ).order_by(Tasks.updated_at.desc()).first()
+
     def calculate_elapsed_time(self, task: Tasks) -> int:
         """
         【共享函数】统一计算任务耗时(秒)
