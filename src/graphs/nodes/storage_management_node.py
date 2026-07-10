@@ -544,7 +544,7 @@ def _upload_object(state: StorageManagementInput) -> StorageManagementOutput:
         "converted_from_content_type": converted_from["content_type"] if converted_from else "",
     }
     _put_object_with_metadata(storage_mgr, key, content, content_type, metadata)
-    url_expiry = 315360000 if is_permanent else 86400
+    url_expiry = 315360000 if is_permanent else 2592000
     url = storage_mgr.storage.generate_presigned_url(key=key, expire_time=url_expiry)
     summary = _object_summary(
         key,
@@ -681,7 +681,7 @@ def _validate_object(state: StorageManagementInput) -> StorageManagementOutput:
         logger.warning("读取对象 head 信息失败，降级返回元数据: %s", exc)
 
     summary = _object_summary(key, raw=raw, metadata=metadata)
-    url_expiry = 315360000 if summary.get("is_permanent") else 86400
+    url_expiry = 315360000 if summary.get("is_permanent") else 2592000
     url = storage_mgr.storage.generate_presigned_url(key=key, expire_time=url_expiry)
     summary["url"] = url
     summary["signed_url"] = url

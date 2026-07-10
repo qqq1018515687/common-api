@@ -1433,7 +1433,7 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
             # 远程 URL：使用 upload_from_url
             file_key = storage.upload_from_url(url=file_url)
             # 生成 URL
-            public_url = storage.generate_presigned_url(key=file_key, expire_time=86400)
+            public_url = storage.generate_presigned_url(key=file_key, expire_time=2592000)
             return UploadOutput(result={
                 "success": True,
                 "message": "文件上传成功",
