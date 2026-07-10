@@ -601,7 +601,9 @@ class UpdateTaskOutput(BaseModel):
 class GetTaskInput(BaseModel):
     """查询单个任务节点的输入（仅限注册用户）"""
     user_id: str = Field(..., description="用户ID（必须是已注册的活跃用户）")
-    task_id: str = Field(..., description="任务ID")
+    task_id: Optional[str] = Field(default=None, description="任务ID（前端主键）")
+    platform: Optional[str] = Field(default=None, description="平台标识，与 platform_task_id 配合使用")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID（与 platform 配合使用）")
 
 
 class GetTaskOutput(BaseModel):
@@ -640,7 +642,9 @@ class TaskRouteInput(BaseModel):
     operation_type: str = Field(..., description="操作类型：create_task/get_task/update_task/delete_task/list_tasks")
     # 任务管理相关字段
     user_id: Optional[str] = Field(default=None, description="用户ID")
-    task_id: Optional[str] = Field(default=None, description="任务ID")
+    task_id: Optional[str] = Field(default=None, description="任务ID（前端主键）")
+    platform: Optional[str] = Field(default=None, description="平台标识")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID")
     task_data: Optional[dict] = Field(default=None, description="任务数据")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据")
     # 时间范围查询字段
@@ -658,7 +662,9 @@ class TaskRouteOutput(BaseModel):
     operation_type: str = Field(..., description="操作类型")
     # 任务管理相关字段
     user_id: Optional[str] = Field(default=None, description="用户ID")
-    task_id: Optional[str] = Field(default=None, description="任务ID")
+    task_id: Optional[str] = Field(default=None, description="任务ID（前端主键）")
+    platform: Optional[str] = Field(default=None, description="平台标识")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID")
     task_data: Optional[dict] = Field(default=None, description="任务数据")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据")
     # 时间范围查询字段

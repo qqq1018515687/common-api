@@ -1644,6 +1644,8 @@ def task_route_node(state: TaskRouteInput, config: RunnableConfig, runtime: Runt
         operation_type=state.operation_type,
         user_id=state.user_id,
         task_id=state.task_id,
+        platform=state.platform,
+        platform_task_id=state.platform_task_id,
         task_data=state.task_data,
         task_updates=state.task_updates,
         start_time=state.start_time,
@@ -1802,13 +1804,16 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
 def get_task_node(state: GetTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> GetTaskOutput:
     """
     title: 查询单个任务
-    desc: 根据任务ID精确查询任务（仅限注册用户；管理员可查任意任务，普通用户只能查自己的任务）
+    desc: 根据任务ID或平台任务ID精确查询任务（仅限注册用户；管理员可查任意任务，普通用户只能查自己的任务）
     integrations: 数据库
     """
     ctx = runtime.context
 
-    if not state.task_id or not state.user_id:
-        return GetTaskOutput(result={"success": False, "message": "缺少必要参数：task_id 或 user_id"})
+    if not state.user_id:
+        return GetTaskOutput(result={"success": False, "message": "缺少必要参数：user_id"})
+
+    if not state.task_id and not state.platform_task_id:
+        return GetTaskOutput(result={"success": False, "message": "缺少必要参数：task_id 或 platform_task_id"})
 
     try:
         from storage.database.task_manager import TaskManager
@@ -1821,7 +1826,14 @@ def get_task_node(state: GetTaskInput, config: RunnableConfig, runtime: Runtime[
             if not has_permission:
                 return GetTaskOutput(result={"success": False, "message": error_msg})
 
-            db_task = task_mgr.get_task_by_id(db, state.task_id)
+            # 支持按 task_id（前端主键）或 platform + platform_task_id（平台任务ID）查询
+            if state.task_id:
+                db_task = task_mgr.get_task_by_id(db, state.task_id)
+            elif state.platform_task_id and state.platform:
+                db_task = task_mgr.get_task_by_platform_task_id(db, state.platform, state.platform_task_id)
+            else:
+                return GetTaskOutput(result={"success": False, "message": "使用 platform_task_id 查询时必须同时提供 platform"})
+
             if not db_task or db_task.is_deleted:
                 return GetTaskOutput(result={"success": False, "message": "任务不存在"})
 
