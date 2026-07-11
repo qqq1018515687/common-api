@@ -1657,7 +1657,9 @@ def task_route_node(state: TaskRouteInput, config: RunnableConfig, runtime: Runt
         before_time=state.before_time,
         team_id=state.team_id,
         status=state.status,
-        limit=state.limit
+        limit=state.limit,
+        operator_role=state.operator_role,
+        operator_user_id=state.operator_user_id
     )
 
 
@@ -1934,16 +1936,19 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
     """
     ctx = runtime.context
 
-    # 至少需要 user_id 或 team_id 其中之一
-    if not state.user_id and not state.team_id:
+    # admin 模式：不要求 user_id 或 team_id，跳过权限验证，查全表
+    is_admin = (state.operator_role or "").strip().lower() == "admin"
+    if is_admin:
+        pass  # 跳过 user_id/team_id 校验和权限验证，直接查
+    elif not state.user_id and not state.team_id:
         return ListTasksOutput(result={"success": False, "message": "缺少必要参数：user_id 和 team_id 至少需要提供一个"})
-
-    # 如果提供了 team_id，必须提供用户 ID 进行权限验证
-    if state.team_id and not state.user_id:
+    elif state.team_id and not state.user_id:
         return ListTasksOutput(result={"success": False, "message": "查询团队任务需要同时提供 user_id 用于权限验证"})
+    else:
+        # 验证用户权限（仅当非 admin 且提供了 user_id 时）
+        pass
 
-    # 验证用户权限（仅当提供了 user_id 时）
-    if state.user_id:
+    if state.user_id and not is_admin:
         try:
             from storage.database.task_manager import TaskManager
             db = get_session()
@@ -1989,7 +1994,8 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 start_time=start_time,
                 end_time=end_time,
                 limit=overfetch_limit,
-                before_time=before_time
+                before_time=before_time,
+                admin_full_list=is_admin
             )
 
             # 转换为可序列化的字典列表，过滤无媒体结果的 completed 任务

@@ -631,12 +631,14 @@ class DeleteTaskOutput(BaseModel):
 
 class ListTasksInput(BaseModel):
     """查询任务列表节点的输入"""
-    user_id: Optional[str] = Field(default=None, description="用户ID（可选，至少提供 user_id 或 team_id 之一）")
-    team_id: Optional[str] = Field(default=None, description="团队ID筛选（可选，至少提供 user_id 或 team_id 之一）")
+    user_id: Optional[str] = Field(default=None, description="用户ID（可选，至少提供 user_id 或 team_id 之一，admin 可不传）")
+    team_id: Optional[str] = Field(default=None, description="团队ID筛选（可选，至少提供 user_id 或 team_id 之一，admin 可不传）")
     status: Optional[str] = Field(default=None, description="任务状态筛选")
     days: Optional[int] = Field(default=30, description="查询最近N天的数据（默认30天）")
     limit: Optional[int] = Field(default=50, description="返回数量限制（默认50，最大1000）")
     before_time: Optional[int] = Field(default=None, description="游标分页：查询早于该时间戳的记录（毫秒，13位整数）")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色（admin 时不要求 user_id/team_id）")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
 
 
 class ListTasksOutput(BaseModel):
@@ -663,6 +665,8 @@ class TaskRouteInput(BaseModel):
     team_id: Optional[str] = Field(default=None, description="团队ID")
     status: Optional[str] = Field(default=None, description="任务状态")
     limit: Optional[int] = Field(default=None, description="最大返回数量")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色（admin 或 user）")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
 
 
 class TaskRouteOutput(BaseModel):
@@ -684,6 +688,8 @@ class TaskRouteOutput(BaseModel):
     team_id: Optional[str] = Field(default=None, description="团队ID")
     status: Optional[str] = Field(default=None, description="任务状态")
     limit: Optional[int] = Field(default=None, description="最大返回数量")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色（admin 或 user）")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
 
 
 # 统一返回节点

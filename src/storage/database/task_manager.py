@@ -215,6 +215,7 @@ class TaskManager:
         end_time: Optional[int] = None,
         limit: int = 50,
         before_time: Optional[int] = None,
+        admin_full_list: bool = False,
     ) -> List[tuple]:
         """灵活查询任务列表
 
@@ -227,6 +228,7 @@ class TaskManager:
             end_time: 查询结束时间戳（毫秒，可选）
             limit: 返回数量限制（默认50，最大1000）
             before_time: 游标分页，查询早于该时间戳的记录（毫秒，可选）
+            admin_full_list: 管理员全量模式，跳过 user_id/team_id 筛选查全表
 
         Returns:
             任务列表（按 created_at DESC 排序），每个元素是 (Task, username) 元组
@@ -234,7 +236,7 @@ class TaskManager:
         查询规则：
             - 如果只提供 user_id（没有 team_id）：查询该用户的所有任务
             - 如果提供 team_id（不管有没有 user_id）：查询该团队的所有任务
-            - 如果既没有 user_id 也没有 team_id：返回空列表
+            - 如果既没有 user_id 也没有 team_id 且不是 admin_full_list：返回空列表
         """
         self._ensure_task_schema(db)
         # 限制最大返回数量
@@ -250,7 +252,7 @@ class TaskManager:
             query = query.filter(Tasks.team_id == team_id)
         elif user_id:
             query = query.filter(Tasks.user_id == user_id)
-        else:
+        elif not admin_full_list:
             return []
 
         # 时间范围筛选
