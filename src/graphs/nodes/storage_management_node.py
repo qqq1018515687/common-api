@@ -841,7 +841,7 @@ def _refresh_task_urls(state: StorageManagementInput) -> StorageManagementOutput
         tasks = task_mgr.get_tasks_flexible(
             db=db,
             status="completed",
-            limit=1000,
+            limit=200,
             admin_full_list=True,
         )
     except Exception as exc:
