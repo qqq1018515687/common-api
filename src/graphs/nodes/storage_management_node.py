@@ -841,7 +841,7 @@ def _refresh_task_urls(state: StorageManagementInput) -> StorageManagementOutput
         tasks = task_mgr.get_tasks_flexible(
             db=db,
             status="completed",
-            limit=200,
+            limit=500,
             admin_full_list=True,
         )
     except Exception as exc:
@@ -920,7 +920,22 @@ def _refresh_task_urls(state: StorageManagementInput) -> StorageManagementOutput
             file_key = extract_file_key(url)
             if not file_key:
                 continue
-            new_url = storage_mgr.regenerate_url(file_key)
+            # 优化：只调一次 S3 head_object，本地判断过期
+            metadata = storage_mgr.get_file_metadata(file_key)
+            if not metadata:
+                failed += 1
+                errors.append(f"{file_key}: 无元数据")
+                continue
+            is_permanent = metadata.get('is_permanent', False)
+            if not is_permanent:
+                created_at = metadata.get('created_at', 0)
+                expires_in = metadata.get('expires_in', 0)
+                if created_at and expires_in and int(time.time()) > created_at + expires_in:
+                    failed += 1
+                    errors.append(f"{file_key}: 文件已过期")
+                    continue
+            url_expiry = 315360000 if is_permanent else 2592000
+            new_url = storage_mgr.storage.generate_presigned_url(key=file_key, expire_time=url_expiry)
             if new_url:
                 url_to_new[url] = new_url
             else:
