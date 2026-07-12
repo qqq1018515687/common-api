@@ -17,6 +17,9 @@ from pydantic import BaseModel, Field
 
 from storage.storage_manager import StorageCategory, get_storage_manager
 
+from storage.database.db import get_session
+from storage.database.task_manager import TaskManager, TaskUpdate
+
 logger = logging.getLogger(__name__)
 
 ALLOWED_CATEGORIES = {
@@ -830,6 +833,137 @@ def _check_office_conversion() -> StorageManagementOutput:
     return _success(result, "Office 转换服务检查完成")
 
 
+def _refresh_task_urls(state: StorageManagementInput) -> StorageManagementOutput:
+    storage_mgr = get_storage_manager()
+    db = get_session()
+    try:
+        task_mgr = TaskManager()
+        tasks = task_mgr.get_tasks_flexible(
+            db=db,
+            status="completed",
+            limit=1000,
+            admin_full_list=True,
+        )
+    except Exception as exc:
+        db.close()
+        return _failure(f"查询任务失败: {exc}", code=500, error_code="QUERY_FAILED")
+
+    COMMON_PREFIXES = ("uploads/", "temp/", "avatars/", "site-assets/", "assets/", "favorites/")
+
+    def extract_file_key(url: str) -> Optional[str]:
+        try:
+            from urllib.parse import urlparse, parse_qs, unquote
+            text = (url or "").strip()
+            if not text:
+                return None
+            if re.match(r"^[a-z][a-z0-9+.-]*://", text, re.I):
+                parsed = urlparse(text)
+                query = parse_qs(parsed.query or "")
+                for param in ("path", "file_key", "key"):
+                    raw_values = query.get(param)
+                    if raw_values:
+                        key = unquote(raw_values[0]).replace("\\", "/").lstrip("/")
+                        if key.startswith(COMMON_PREFIXES):
+                            return key
+                path = unquote(parsed.path or "").replace("\\", "/").lstrip("/")
+                for prefix in COMMON_PREFIXES:
+                    idx = path.find(prefix)
+                    if idx >= 0:
+                        return path[idx:]
+            return None
+        except Exception:
+            return None
+
+    def extract_urls_from_result(result: dict) -> set:
+        urls = set()
+        files = result.get("files") or []
+        if isinstance(files, list):
+            for f in files:
+                if isinstance(f, dict):
+                    val = f.get("file_url") or f.get("url")
+                    if isinstance(val, str):
+                        urls.add(val)
+        for key in ("imageUrls", "image_urls", "image_url", "url", "videoUrl", "audioUrl"):
+            val = result.get(key)
+            if isinstance(val, str):
+                urls.add(val)
+            elif isinstance(val, list):
+                for v in val:
+                    if isinstance(v, str):
+                        urls.add(v)
+        images = result.get("images") or []
+        if isinstance(images, list):
+            for img in images:
+                if isinstance(img, dict):
+                    val = img.get("url")
+                    if isinstance(val, str):
+                        urls.add(val)
+        return urls
+
+    refreshed = 0
+    failed = 0
+    skipped = 0
+    errors = []
+
+    for task, _username in tasks:
+        if not isinstance(task.result, dict):
+            skipped += 1
+            continue
+
+        urls = extract_urls_from_result(task.result)
+        if not urls:
+            skipped += 1
+            continue
+
+        url_to_new = {}
+        for url in urls:
+            file_key = extract_file_key(url)
+            if not file_key:
+                continue
+            new_url = storage_mgr.regenerate_url(file_key)
+            if new_url:
+                url_to_new[url] = new_url
+            else:
+                failed += 1
+                errors.append(f"{file_key}: 刷新失败")
+
+        if not url_to_new:
+            skipped += 1
+            continue
+
+        new_result = _replace_urls(task.result, url_to_new)
+        try:
+            task_mgr.update_task(db, task.id, TaskUpdate(result=new_result))
+            refreshed += 1
+        except Exception as exc:
+            failed += 1
+            errors.append(f"{task.id}: 更新DB失败: {exc}")
+
+    db.close()
+
+    msg = f"扫描{len(tasks)}条，刷新{refreshed}条，跳过{skipped}条，失败{failed}条"
+    if errors:
+        msg += f"。错误: {'; '.join(errors[:10])}"
+    return _success({
+        "scanned": len(tasks),
+        "refreshed": refreshed,
+        "skipped": skipped,
+        "failed": failed,
+        "errors": errors[:20],
+    }, msg)
+
+
+def _replace_urls(data, mapping: dict):
+    """递归替换 dict/list 中的 URL 值"""
+    if isinstance(data, dict):
+        return {k: _replace_urls(v, mapping) for k, v in data.items()}
+    if isinstance(data, list):
+        return [_replace_urls(v, mapping) for v in data]
+    if isinstance(data, str) and data in mapping:
+        return mapping[data]
+    return data
+
+
 def storage_management_node(
     state: StorageManagementInput,
     config: RunnableConfig,
@@ -869,6 +1003,8 @@ def storage_management_node(
             return _cleanup_expired(state)
         if operation_type == "check_office_conversion":
             return _check_office_conversion()
+        if operation_type == "refresh_task_urls":
+            return _refresh_task_urls(state)
         return _failure(f"不支持的对象储存操作: {operation_type}", code=400, error_code="UNSUPPORTED_OPERATION")
     except ValueError as exc:
         return _failure(str(exc), code=400, error_code="INVALID_REQUEST")

@@ -171,6 +171,7 @@ def route_by_operation_type(state: OperationRouteInput) -> str:
         "regenerate_url",
         "delete_object",
         "cleanup_expired",
+        "refresh_task_urls",
     ]:
         return "对象储存管理"
     else:
