@@ -7,19 +7,25 @@ import langchain_core.language_models
 logger = logging.getLogger(__name__)
 
 # 修复 ContextOverflowError
-if not hasattr(langchain_core.exceptions, 'ContextOverflowError'):
+if not hasattr(langchain_core.exceptions, "ContextOverflowError"):
+
     class ContextOverflowError(langchain_core.exceptions.LangChainException):  # type: ignore[attr-defined]
         """ContextOverflowError - 用于兼容性"""
+
         pass
+
     langchain_core.exceptions.ContextOverflowError = ContextOverflowError  # type: ignore[attr-defined]
 
 # 修复 ModelProfileRegistry
-if not hasattr(langchain_core.language_models, 'ModelProfileRegistry'):
+if not hasattr(langchain_core.language_models, "ModelProfileRegistry"):
+
     class ModelProfileRegistry:  # type: ignore[no-redef]
         """ModelProfileRegistry - 用于兼容性"""
+
         @staticmethod
         def get_default_model_profile(model_name):
             return None
+
     langchain_core.language_models.ModelProfileRegistry = ModelProfileRegistry  # type: ignore[attr-defined]
 
 from langchain_core.runnables import RunnableConfig
@@ -34,9 +40,14 @@ from typing import Any, Dict, Optional, List
 from datetime import datetime
 
 from graphs.state import (
-    UploadInput, UploadOutput, DeleteUploadInput, DeleteUploadOutput,
-    SaveInput, SaveOutput,
-    FormatResponseInput, FormatResponseOutput,
+    UploadInput,
+    UploadOutput,
+    DeleteUploadInput,
+    DeleteUploadOutput,
+    SaveInput,
+    SaveOutput,
+    FormatResponseInput,
+    FormatResponseOutput,
     GlobalState,
     RouterInput,
     RouterOutput,
@@ -52,25 +63,46 @@ from graphs.state import (
     PromptEnhanceOutput,
     UnpackInputDataInput,
     UnpackInputDataOutput,
-    CheckRateLimitInput, CheckRateLimitOutput,
-    CreateUserInput, CreateUserOutput,
-    UpdateRateLimitInput, UpdateRateLimitOutput,
-    SendRegisterCodeInput, SendRegisterCodeOutput,
-    SendPasswordResetCodeInput, SendPasswordResetCodeOutput,
-    RegisterWithLimitInput, RegisterWithLimitOutput,
-    RegisterWithCodeInput, RegisterWithCodeOutput,
-    ResetPasswordWithCodeInput, ResetPasswordWithCodeOutput,
-    GetUserInput, GetUserOutput,
-    GetUserByIdInput, GetUserByIdOutput,
-    UpdateUserInput, UpdateUserOutput,
-    DeleteUserInput, DeleteUserOutput,
-    ListUsersInput, ListUsersOutput,
-    CreateTaskInput, CreateTaskOutput,
-    UpdateTaskInput, UpdateTaskOutput,
-    GetTaskInput, GetTaskOutput,
-    DeleteTaskInput, DeleteTaskOutput,
-    ListTasksInput, ListTasksOutput,
-    TaskRouteInput, TaskRouteOutput
+    CheckRateLimitInput,
+    CheckRateLimitOutput,
+    CreateUserInput,
+    CreateUserOutput,
+    UpdateRateLimitInput,
+    UpdateRateLimitOutput,
+    SendRegisterCodeInput,
+    SendRegisterCodeOutput,
+    SendPasswordResetCodeInput,
+    SendPasswordResetCodeOutput,
+    RegisterWithLimitInput,
+    RegisterWithLimitOutput,
+    RegisterWithCodeInput,
+    RegisterWithCodeOutput,
+    ResetPasswordWithCodeInput,
+    ResetPasswordWithCodeOutput,
+    GetUserInput,
+    GetUserOutput,
+    GetUserByIdInput,
+    GetUserByIdOutput,
+    UpdateUserInput,
+    UpdateUserOutput,
+    DeleteUserInput,
+    DeleteUserOutput,
+    ListUsersInput,
+    ListUsersOutput,
+    CreateTaskInput,
+    CreateTaskOutput,
+    UpdateTaskInput,
+    UpdateTaskOutput,
+    GetTaskInput,
+    GetTaskOutput,
+    DeleteTaskInput,
+    DeleteTaskOutput,
+    ListTasksInput,
+    ListTasksOutput,
+    CountTasksStatsInput,
+    CountTasksStatsOutput,
+    TaskRouteInput,
+    TaskRouteOutput,
 )
 import os
 import requests
@@ -100,23 +132,34 @@ def _to_epoch_ms(dt_val: _dt.datetime) -> int:
         dt_val = dt_val.replace(tzinfo=tz_shanghai)
     return int(dt_val.timestamp() * 1000)
 
+
 # 延迟导入以避免潜在的模块加载问题
 def _get_user_manager():
-    from storage.database.user_manager import UserManager, UserCreate, UserUpdate, RateLimitManager
+    from storage.database.user_manager import (
+        UserManager,
+        UserCreate,
+        UserUpdate,
+        RateLimitManager,
+    )
+
     return UserManager, UserCreate, UserUpdate, RateLimitManager
 
 
 def _get_register_code_manager():
     from storage.database.user_manager import RegisterCodeManager
+
     return RegisterCodeManager
 
 
 def _get_password_reset_code_manager():
     from storage.database.user_manager import PasswordResetCodeManager
+
     return PasswordResetCodeManager
 
 
-def router_node(state: RouterInput, config: RunnableConfig, runtime: Runtime[Context]) -> RouterOutput:
+def router_node(
+    state: RouterInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> RouterOutput:
     """
     title: 路由节点
     desc: 用于条件分支的虚拟节点，传递 call_type
@@ -124,7 +167,9 @@ def router_node(state: RouterInput, config: RunnableConfig, runtime: Runtime[Con
     return RouterOutput(call_type=state.call_type)
 
 
-def operation_route_node(state: OperationRouteInput, config: RunnableConfig, runtime: Runtime[Context]) -> OperationRouteOutput:
+def operation_route_node(
+    state: OperationRouteInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> OperationRouteOutput:
     """
     title: 操作路由节点
     desc: 用于账号管理的二级路由，传递 operation_type
@@ -192,31 +237,35 @@ def parse_file_type(file_type: Optional[str]) -> str:
         return "default"
 
     # 支持的枚举值
-    enum_types = ['image', 'video', 'audio', 'document', 'default']
+    enum_types = ["image", "video", "audio", "document", "default"]
 
     # 如果是枚举值，直接返回
     if file_type in enum_types:
         return file_type
 
     # 如果是 MIME 类型，解析前缀
-    if '/' in file_type:
-        mime_prefix = file_type.split('/')[0].lower()
-        if mime_prefix in enum_types or mime_prefix in ['application', 'text']:
+    if "/" in file_type:
+        mime_prefix = file_type.split("/")[0].lower()
+        if mime_prefix in enum_types or mime_prefix in ["application", "text"]:
             # application/* 和 text/* 归类为 document
-            if mime_prefix in ['application', 'text']:
-                return 'document'
+            if mime_prefix in ["application", "text"]:
+                return "document"
             return mime_prefix
         else:
             # 不支持的 MIME 类型：归类为 document（安全兜底）
-            logger.warning(f"不支持的文件类型前缀: {mime_prefix}（完整类型: {file_type}），归类为 'document'")
-            return 'document'
+            logger.warning(
+                f"不支持的文件类型前缀: {mime_prefix}（完整类型: {file_type}），归类为 'document'"
+            )
+            return "document"
     else:
         # 无效的格式：归类为 document（安全兜底）
         logger.warning(f"无效的文件类型格式: {file_type}，归类为 'document'")
-        return 'document'
+        return "document"
 
 
-def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, runtime: Runtime[Context]) -> UnpackInputDataOutput:
+def unpack_input_data_node(
+    state: UnpackInputDataInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> UnpackInputDataOutput:
     """
     title: 数据解包
     desc: 将 input 对象中的业务字段解包到全局状态中，支持 MIME 类型的 file_type 和密码自动哈希
@@ -244,9 +293,14 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
     password_hash = None
     if input_data:
         password_hash = input_data.password_hash
-        if not password_hash and input_data.password and input_data.operation_type == "register":
+        if (
+            not password_hash
+            and input_data.password
+            and input_data.operation_type == "register"
+        ):
             # 注册操作：如果提供了 password 但没有 password_hash，则自动转换
             from storage.database.user_manager import hash_password
+
             password_hash = hash_password(input_data.password)
 
     return UnpackInputDataOutput(
@@ -282,7 +336,9 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         current_target=input_data.current_target if input_data else None,
         agent_preferences=input_data.agent_preferences if input_data else None,
         capability_hash=input_data.capability_hash if input_data else None,
-        capability_manifest_url=input_data.capability_manifest_url if input_data else None,
+        capability_manifest_url=input_data.capability_manifest_url
+        if input_data
+        else None,
         capability_manifest=input_data.capability_manifest if input_data else None,
         agent_run_id=input_data.agent_run_id if input_data else None,
         agent_step_id=input_data.agent_step_id if input_data else None,
@@ -350,6 +406,7 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         metadata=input_data.metadata if input_data else None,
     )
 
+
 from storage.s3.s3_storage import S3SyncStorage
 
 
@@ -365,7 +422,10 @@ storage = S3SyncStorage(
 
 # ============ 用户管理节点 ============
 
-def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, runtime: Runtime[Context]) -> CheckRateLimitOutput:
+
+def check_rate_limit_node(
+    state: CheckRateLimitInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> CheckRateLimitOutput:
     """
     title: 限流检查
     desc: 检查手机号和IP地址的请求频率限制
@@ -386,7 +446,7 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
                 result={"allowed": False, "reason": "账号已被封禁，请稍后再试"},
                 allowed=False,
                 reason="账号已被封禁，请稍后再试",
-                user_exists=False
+                user_exists=False,
             )
 
         # 2. 检查手机号是否已注册
@@ -396,7 +456,7 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
                 result={"allowed": False, "reason": "该手机号已注册，请直接登录"},
                 allowed=False,
                 reason="该手机号已注册，请直接登录",
-                user_exists=True
+                user_exists=True,
             )
 
         # 3. 计算时间窗口内的请求次数
@@ -407,12 +467,15 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
         if limits["blocked_phone_10min"]:
             # 触发封禁：设置封禁状态
             record = rate_mgr.get_or_create(db, state.phone, state.ip)
-            rate_mgr.block(db, record, block_duration_hours=10/60)  # 10分钟
+            rate_mgr.block(db, record, block_duration_hours=10 / 60)  # 10分钟
             return CheckRateLimitOutput(
-                result={"allowed": False, "reason": "该手机号发送验证码过于频繁，请10分钟后再试"},
+                result={
+                    "allowed": False,
+                    "reason": "该手机号发送验证码过于频繁，请10分钟后再试",
+                },
                 allowed=False,
                 reason="该手机号发送验证码过于频繁，请10分钟后再试",
-                user_exists=False
+                user_exists=False,
             )
 
         if limits["blocked_phone_1hour"]:
@@ -420,26 +483,29 @@ def check_rate_limit_node(state: CheckRateLimitInput, config: RunnableConfig, ru
             record = rate_mgr.get_or_create(db, state.phone, state.ip)
             rate_mgr.block(db, record, block_duration_hours=1)  # 1小时
             return CheckRateLimitOutput(
-                result={"allowed": False, "reason": "该手机号今日发送次数已达上限，请1小时后再试"},
+                result={
+                    "allowed": False,
+                    "reason": "该手机号今日发送次数已达上限，请1小时后再试",
+                },
                 allowed=False,
                 reason="该手机号今日发送次数已达上限，请1小时后再试",
-                user_exists=False
+                user_exists=False,
             )
 
         # IP限制已移除，仅保留手机号限流
 
         # 5. 所有检查通过
         return CheckRateLimitOutput(
-            result={"allowed": True},
-            allowed=True,
-            user_exists=False
+            result={"allowed": True}, allowed=True, user_exists=False
         )
 
     finally:
         db.close()
 
 
-def create_user_node(state: CreateUserInput, config: RunnableConfig, runtime: Runtime[Context]) -> CreateUserOutput:
+def create_user_node(
+    state: CreateUserInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> CreateUserOutput:
     """
     title: 创建用户
     desc: 创建新用户记录
@@ -462,16 +528,13 @@ def create_user_node(state: CreateUserInput, config: RunnableConfig, runtime: Ru
             silver_credits=state.silver_credits,
             role=state.role,
             tier=state.tier or "commercial_registered",
-            account_status=state.account_status
+            account_status=state.account_status,
         )
 
         db_user = user_mgr.create_user(db, user_in)
 
         if db_user is None:
-            return CreateUserOutput(
-                success=False,
-                error="该手机号已被注册"
-            )
+            return CreateUserOutput(success=False, error="该手机号已被注册")
 
         user_data = {
             "user_id": db_user.user_id,
@@ -485,20 +548,22 @@ def create_user_node(state: CreateUserInput, config: RunnableConfig, runtime: Ru
             "tier": db_user.tier,
             "account_status": db_user.account_status,
             "created_at": _to_epoch_ms(db_user.created_at),
-            "updated_at": _to_epoch_ms(db_user.updated_at) if db_user.updated_at else None
+            "updated_at": _to_epoch_ms(db_user.updated_at)
+            if db_user.updated_at
+            else None,
         }
 
         return CreateUserOutput(
-            result={"success": True, "user": user_data},
-            success=True,
-            user=user_data
+            result={"success": True, "user": user_data}, success=True, user=user_data
         )
 
     finally:
         db.close()
 
 
-def update_rate_limit_node(state: UpdateRateLimitInput, config: RunnableConfig, runtime: Runtime[Context]) -> UpdateRateLimitOutput:
+def update_rate_limit_node(
+    state: UpdateRateLimitInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> UpdateRateLimitOutput:
     """
     title: 更新限流记录
     desc: 更新或创建限流记录，并检查是否需要封禁
@@ -525,7 +590,7 @@ def update_rate_limit_node(state: UpdateRateLimitInput, config: RunnableConfig, 
             return UpdateRateLimitOutput(
                 result={"success": True, "blocked": True, "message": "触发限流封禁"},
                 success=True,
-                blocked=True
+                blocked=True,
             )
 
         # IP 限流已移除，仅保留手机号维度限流
@@ -533,7 +598,7 @@ def update_rate_limit_node(state: UpdateRateLimitInput, config: RunnableConfig, 
         return UpdateRateLimitOutput(
             result={"success": True, "blocked": False, "message": "更新成功"},
             success=True,
-            blocked=False
+            blocked=False,
         )
 
     finally:
@@ -553,7 +618,9 @@ def _failure_result(message: str) -> dict:
 PASSWORD_RESET_SEND_SUCCESS_MESSAGE = "验证码已发送"
 
 
-def send_register_code_node(state: SendRegisterCodeInput, config: RunnableConfig, runtime: Runtime[Context]) -> SendRegisterCodeOutput:
+def send_register_code_node(
+    state: SendRegisterCodeInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> SendRegisterCodeOutput:
     """
     title: 发送注册验证码
     desc: 检查手机号、限流、发送短信并持久化验证码哈希
@@ -579,7 +646,11 @@ def send_register_code_node(state: SendRegisterCodeInput, config: RunnableConfig
     )
     if not check_result.allowed:
         reason = check_result.reason or "发送过于频繁,请稍后再试"
-        logger.info("[注册验证码] 限流或重复手机号拦截: phone=%s, reason=%s", masked_phone, reason)
+        logger.info(
+            "[注册验证码] 限流或重复手机号拦截: phone=%s, reason=%s",
+            masked_phone,
+            reason,
+        )
         return SendRegisterCodeOutput(
             result=_failure_result(reason),
             success=False,
@@ -596,14 +667,18 @@ def send_register_code_node(state: SendRegisterCodeInput, config: RunnableConfig
         record = code_mgr.save_code(db, phone, code, ip)
         record_id = record.id
     except RuntimeError as exc:
-        logger.error("[注册验证码] 验证码服务配置错误: phone=%s, error=%s", masked_phone, exc)
+        logger.error(
+            "[注册验证码] 验证码服务配置错误: phone=%s, error=%s", masked_phone, exc
+        )
         return SendRegisterCodeOutput(
             result=_failure_result("验证码服务未配置"),
             success=False,
             error="验证码服务未配置",
         )
     except Exception as exc:
-        logger.exception("[注册验证码] 验证码保存失败: phone=%s, error=%s", masked_phone, exc)
+        logger.exception(
+            "[注册验证码] 验证码保存失败: phone=%s, error=%s", masked_phone, exc
+        )
         return SendRegisterCodeOutput(
             result=_failure_result("验证码保存失败,请稍后重试"),
             success=False,
@@ -619,10 +694,18 @@ def send_register_code_node(state: SendRegisterCodeInput, config: RunnableConfig
             try:
                 code_mgr.delete_code(cleanup_db, record_id)
             except Exception as exc:
-                logger.warning("[注册验证码] 短信失败后的验证码清理失败: phone=%s, error=%s", masked_phone, exc)
+                logger.warning(
+                    "[注册验证码] 短信失败后的验证码清理失败: phone=%s, error=%s",
+                    masked_phone,
+                    exc,
+                )
             finally:
                 cleanup_db.close()
-        logger.info("[注册验证码] 短信发送失败: phone=%s, reason=%s", masked_phone, send_result.message)
+        logger.info(
+            "[注册验证码] 短信发送失败: phone=%s, reason=%s",
+            masked_phone,
+            send_result.message,
+        )
         return SendRegisterCodeOutput(
             result=_failure_result(send_result.message or "发送失败,请稍后重试"),
             success=False,
@@ -633,7 +716,9 @@ def send_register_code_node(state: SendRegisterCodeInput, config: RunnableConfig
     try:
         code_mgr.mark_other_unused_codes_used(cleanup_db, phone, record_id)
     except Exception as exc:
-        logger.warning("[注册验证码] 旧验证码废弃失败: phone=%s, error=%s", masked_phone, exc)
+        logger.warning(
+            "[注册验证码] 旧验证码废弃失败: phone=%s, error=%s", masked_phone, exc
+        )
     finally:
         cleanup_db.close()
 
@@ -645,7 +730,9 @@ def send_register_code_node(state: SendRegisterCodeInput, config: RunnableConfig
         )
         blocked = update_result.blocked
     except Exception as exc:
-        logger.warning("[注册验证码] 限流记录更新失败: phone=%s, error=%s", masked_phone, exc)
+        logger.warning(
+            "[注册验证码] 限流记录更新失败: phone=%s, error=%s", masked_phone, exc
+        )
         blocked = False
     logger.info(
         "[注册验证码] 发送成功: phone=%s, blocked=%s",
@@ -705,11 +792,17 @@ def _record_password_reset_code_attempt(
         )
         return update_result.blocked
     except Exception as exc:
-        logger.warning("[密码重置验证码] 限流记录更新失败: phone=%s, error=%s", _mask_phone(phone), exc)
+        logger.warning(
+            "[密码重置验证码] 限流记录更新失败: phone=%s, error=%s",
+            _mask_phone(phone),
+            exc,
+        )
         return False
 
 
-def _password_reset_code_sent_output(expires_in: int = 300) -> SendPasswordResetCodeOutput:
+def _password_reset_code_sent_output(
+    expires_in: int = 300,
+) -> SendPasswordResetCodeOutput:
     return SendPasswordResetCodeOutput(
         result={
             "success": True,
@@ -744,7 +837,9 @@ def send_password_reset_code_node(
 
     allowed, reason = _check_password_reset_code_rate_limit(phone, ip)
     if not allowed:
-        logger.info("[密码重置验证码] 限流拦截: phone=%s, reason=%s", masked_phone, reason)
+        logger.info(
+            "[密码重置验证码] 限流拦截: phone=%s, reason=%s", masked_phone, reason
+        )
         return SendPasswordResetCodeOutput(
             result=_failure_result(reason),
             success=False,
@@ -760,7 +855,9 @@ def send_password_reset_code_node(
             logger.info("[密码重置验证码] 账号不存在或不可用: phone=%s", masked_phone)
             _record_password_reset_code_attempt(phone, ip, config, runtime)
             PasswordResetCodeManager = _get_password_reset_code_manager()
-            return _password_reset_code_sent_output(PasswordResetCodeManager.code_ttl_seconds)
+            return _password_reset_code_sent_output(
+                PasswordResetCodeManager.code_ttl_seconds
+            )
     finally:
         db.close()
 
@@ -776,13 +873,21 @@ def send_password_reset_code_node(
         record = code_mgr.save_code(db, phone, code, ip)
         record_id = record.id
     except RuntimeError as exc:
-        logger.error("[密码重置验证码] 验证码服务配置错误: phone=%s, error=%s", masked_phone, exc)
+        logger.error(
+            "[密码重置验证码] 验证码服务配置错误: phone=%s, error=%s", masked_phone, exc
+        )
         _record_password_reset_code_attempt(phone, ip, config, runtime)
-        return _password_reset_code_sent_output(PasswordResetCodeManager.code_ttl_seconds)
+        return _password_reset_code_sent_output(
+            PasswordResetCodeManager.code_ttl_seconds
+        )
     except Exception as exc:
-        logger.exception("[密码重置验证码] 验证码保存失败: phone=%s, error=%s", masked_phone, exc)
+        logger.exception(
+            "[密码重置验证码] 验证码保存失败: phone=%s, error=%s", masked_phone, exc
+        )
         _record_password_reset_code_attempt(phone, ip, config, runtime)
-        return _password_reset_code_sent_output(PasswordResetCodeManager.code_ttl_seconds)
+        return _password_reset_code_sent_output(
+            PasswordResetCodeManager.code_ttl_seconds
+        )
     finally:
         db.close()
 
@@ -793,28 +898,44 @@ def send_password_reset_code_node(
             try:
                 code_mgr.delete_code(cleanup_db, record_id)
             except Exception as exc:
-                logger.warning("[密码重置验证码] 短信失败后的验证码清理失败: phone=%s, error=%s", masked_phone, exc)
+                logger.warning(
+                    "[密码重置验证码] 短信失败后的验证码清理失败: phone=%s, error=%s",
+                    masked_phone,
+                    exc,
+                )
             finally:
                 cleanup_db.close()
-        logger.info("[密码重置验证码] 短信发送失败: phone=%s, reason=%s", masked_phone, send_result.message)
+        logger.info(
+            "[密码重置验证码] 短信发送失败: phone=%s, reason=%s",
+            masked_phone,
+            send_result.message,
+        )
         _record_password_reset_code_attempt(phone, ip, config, runtime)
-        return _password_reset_code_sent_output(PasswordResetCodeManager.code_ttl_seconds)
+        return _password_reset_code_sent_output(
+            PasswordResetCodeManager.code_ttl_seconds
+        )
 
     cleanup_db = get_session()
     try:
         code_mgr.mark_other_unused_codes_used(cleanup_db, phone, record_id)
     except Exception as exc:
-        logger.warning("[密码重置验证码] 旧验证码废弃失败: phone=%s, error=%s", masked_phone, exc)
+        logger.warning(
+            "[密码重置验证码] 旧验证码废弃失败: phone=%s, error=%s", masked_phone, exc
+        )
     finally:
         cleanup_db.close()
 
     blocked = _record_password_reset_code_attempt(phone, ip, config, runtime)
 
-    logger.info("[密码重置验证码] 发送成功: phone=%s, blocked=%s", masked_phone, blocked)
+    logger.info(
+        "[密码重置验证码] 发送成功: phone=%s, blocked=%s", masked_phone, blocked
+    )
     return _password_reset_code_sent_output(PasswordResetCodeManager.code_ttl_seconds)
 
 
-def register_with_limit_node(state: RegisterWithLimitInput, config: RunnableConfig, runtime: Runtime[Context]) -> RegisterWithLimitOutput:
+def register_with_limit_node(
+    state: RegisterWithLimitInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> RegisterWithLimitOutput:
     """
     title: 用户注册
     desc: 完整的注册流程：检查限流 -> 创建用户 -> 更新限流记录
@@ -825,23 +946,24 @@ def register_with_limit_node(state: RegisterWithLimitInput, config: RunnableConf
     # 验证必填字段
     if not state.phone or not state.ip or not state.password_hash or not state.username:
         return RegisterWithLimitOutput(
-            result={"success": False, "error": "缺少必要参数：phone、ip、password_hash、username"},
+            result={
+                "success": False,
+                "error": "缺少必要参数：phone、ip、password_hash、username",
+            },
             success=False,
-            error="缺少必要参数：phone、ip、password_hash、username"
+            error="缺少必要参数：phone、ip、password_hash、username",
         )
 
     # 1. 检查限流
     check_result = check_rate_limit_node(
-        CheckRateLimitInput(phone=state.phone, ip=state.ip),
-        config,
-        runtime
+        CheckRateLimitInput(phone=state.phone, ip=state.ip), config, runtime
     )
 
     if not check_result.allowed:
         return RegisterWithLimitOutput(
             result={"success": False, "error": check_result.reason},
             success=False,
-            error=check_result.reason
+            error=check_result.reason,
         )
 
     # 2. 创建用户
@@ -850,34 +972,34 @@ def register_with_limit_node(state: RegisterWithLimitInput, config: RunnableConf
             phone=state.phone,
             password_hash=state.password_hash,
             username=state.username,
-            avatar=state.avatar or "https://example.com/default-avatar.png"
+            avatar=state.avatar or "https://example.com/default-avatar.png",
         ),
         config,
-        runtime
+        runtime,
     )
 
     if not create_result.success:
         return RegisterWithLimitOutput(
             result={"success": False, "error": create_result.error},
             success=False,
-            error=create_result.error
+            error=create_result.error,
         )
 
     # 3. 更新限流记录
     update_result = update_rate_limit_node(
-        UpdateRateLimitInput(phone=state.phone, ip=state.ip),
-        config,
-        runtime
+        UpdateRateLimitInput(phone=state.phone, ip=state.ip), config, runtime
     )
 
     return RegisterWithLimitOutput(
         result={"success": True, "user": create_result.user},
         success=True,
-        user=create_result.user
+        user=create_result.user,
     )
 
 
-def register_with_code_node(state: RegisterWithCodeInput, config: RunnableConfig, runtime: Runtime[Context]) -> RegisterWithCodeOutput:
+def register_with_code_node(
+    state: RegisterWithCodeInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> RegisterWithCodeOutput:
     """
     title: 验证码注册
     desc: 在事务中校验并消费验证码、哈希密码、创建用户
@@ -915,7 +1037,12 @@ def register_with_code_node(state: RegisterWithCodeInput, config: RunnableConfig
             error="验证码格式不正确",
         )
 
-    logger.info("[验证码注册] 开始处理: phone=%s, username=%s, ip=%s", masked_phone, username, ip)
+    logger.info(
+        "[验证码注册] 开始处理: phone=%s, username=%s, ip=%s",
+        masked_phone,
+        username,
+        ip,
+    )
 
     RegisterCodeManager = _get_register_code_manager()
     code_mgr = RegisterCodeManager()
@@ -948,7 +1075,11 @@ def register_with_code_node(state: RegisterWithCodeInput, config: RunnableConfig
             error=message,
         )
 
-    logger.info("[验证码注册] 注册成功: phone=%s, user_id=%s", masked_phone, user.get("user_id") if user else None)
+    logger.info(
+        "[验证码注册] 注册成功: phone=%s, user_id=%s",
+        masked_phone,
+        user.get("user_id") if user else None,
+    )
     return RegisterWithCodeOutput(
         result={
             "success": True,
@@ -1013,7 +1144,9 @@ def reset_password_with_code_node(
             code=code,
         )
     except Exception as exc:
-        logger.exception("[验证码重置密码] 处理异常: phone=%s, error=%s", masked_phone, exc)
+        logger.exception(
+            "[验证码重置密码] 处理异常: phone=%s, error=%s", masked_phone, exc
+        )
         return ResetPasswordWithCodeOutput(
             result=_failure_result("密码重置失败,请稍后重试"),
             success=False,
@@ -1023,7 +1156,9 @@ def reset_password_with_code_node(
         db.close()
 
     if not success:
-        logger.info("[验证码重置密码] 重置失败: phone=%s, reason=%s", masked_phone, message)
+        logger.info(
+            "[验证码重置密码] 重置失败: phone=%s, reason=%s", masked_phone, message
+        )
         return ResetPasswordWithCodeOutput(
             result=_failure_result(message),
             success=False,
@@ -1040,7 +1175,9 @@ def reset_password_with_code_node(
     )
 
 
-def get_user_node(state: GetUserInput, config: RunnableConfig, runtime: Runtime[Context]) -> GetUserOutput:
+def get_user_node(
+    state: GetUserInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> GetUserOutput:
     """
     title: 查询用户
     desc: 根据手机号和密码查询用户信息（用于登录）
@@ -1048,6 +1185,7 @@ def get_user_node(state: GetUserInput, config: RunnableConfig, runtime: Runtime[
     """
     UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
     from storage.database.user_manager import verify_password
+
     ctx = runtime.context
 
     db = get_session()
@@ -1061,7 +1199,7 @@ def get_user_node(state: GetUserInput, config: RunnableConfig, runtime: Runtime[
             return GetUserOutput(
                 result={"success": False, "error": "用户不存在"},
                 success=False,
-                error="用户不存在"
+                error="用户不存在",
             )
 
         # 2. 验证密码
@@ -1069,7 +1207,7 @@ def get_user_node(state: GetUserInput, config: RunnableConfig, runtime: Runtime[
             return GetUserOutput(
                 result={"success": False, "error": "密码错误"},
                 success=False,
-                error="密码错误"
+                error="密码错误",
             )
 
         # 3. 返回用户信息
@@ -1085,20 +1223,22 @@ def get_user_node(state: GetUserInput, config: RunnableConfig, runtime: Runtime[
             "tier": db_user.tier,
             "account_status": db_user.account_status,
             "created_at": _to_epoch_ms(db_user.created_at),
-            "updated_at": _to_epoch_ms(db_user.updated_at) if db_user.updated_at else None
+            "updated_at": _to_epoch_ms(db_user.updated_at)
+            if db_user.updated_at
+            else None,
         }
 
         return GetUserOutput(
-            result={"success": True, "user": user_data},
-            success=True,
-            user=user_data
+            result={"success": True, "user": user_data}, success=True, user=user_data
         )
 
     finally:
         db.close()
 
 
-def get_user_by_id_node(state: GetUserByIdInput, config: RunnableConfig, runtime: Runtime[Context]) -> GetUserByIdOutput:
+def get_user_by_id_node(
+    state: GetUserByIdInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> GetUserByIdOutput:
     """
     title: 查询单个用户
     desc: 根据用户ID查询用户信息
@@ -1118,7 +1258,7 @@ def get_user_by_id_node(state: GetUserByIdInput, config: RunnableConfig, runtime
             return GetUserByIdOutput(
                 result={"success": False, "error": "用户不存在"},
                 success=False,
-                error="用户不存在"
+                error="用户不存在",
             )
 
         # 返回用户信息
@@ -1134,20 +1274,22 @@ def get_user_by_id_node(state: GetUserByIdInput, config: RunnableConfig, runtime
             "tier": db_user.tier,
             "account_status": db_user.account_status,
             "created_at": _to_epoch_ms(db_user.created_at),
-            "updated_at": _to_epoch_ms(db_user.updated_at) if db_user.updated_at else None
+            "updated_at": _to_epoch_ms(db_user.updated_at)
+            if db_user.updated_at
+            else None,
         }
 
         return GetUserByIdOutput(
-            result={"success": True, "user": user_data},
-            success=True,
-            user=user_data
+            result={"success": True, "user": user_data}, success=True, user=user_data
         )
 
     finally:
         db.close()
 
 
-def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Runtime[Context]) -> UpdateUserOutput:
+def update_user_node(
+    state: UpdateUserInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> UpdateUserOutput:
     """
     title: 更新用户
     desc: 更新用户信息（管理员可更新任何用户，普通用户只能更新自己）。支持Base64头像自动转换为永久公开URL
@@ -1160,9 +1302,9 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
     processed_avatar = state.avatar
     base64_data = None
     mime_type = "image/png"  # 默认 MIME 类型
-    
+
     # 检查是否为 Data URL 格式：data:image/png;base64,xxx
-    if state.avatar and state.avatar.startswith('data:image'):
+    if state.avatar and state.avatar.startswith("data:image"):
         try:
             match = re.match(r"data:([^;]+);base64,(.+)", state.avatar)
             if match:
@@ -1181,17 +1323,17 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
             if len(file_content) >= 8:
                 header = file_content[:8]
                 # 检查是否为 PNG 或 JPEG
-                if header[:4] == b'\x89PNG' or header[:3] == b'\xff\xd8\xff':
+                if header[:4] == b"\x89PNG" or header[:3] == b"\xff\xd8\xff":
                     base64_data = state.avatar
                     # 根据文件头确定 MIME 类型
-                    if header[:4] == b'\x89PNG':
+                    if header[:4] == b"\x89PNG":
                         mime_type = "image/png"
-                    elif header[:3] == b'\xff\xd8\xff':
+                    elif header[:3] == b"\xff\xd8\xff":
                         mime_type = "image/jpeg"
         except Exception:
             # 解码失败，保持原样
             pass
-    
+
     # 如果检测到 Base64 数据，则上传到对象存储
     if base64_data:
         try:
@@ -1206,22 +1348,25 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
             elif "webp" in mime_type:
                 filename = "avatar.webp"
             else:
-                filename = f"avatar.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
-            
+                filename = (
+                    f"avatar.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
+                )
+
             # 使用存储管理器上传（自动分类为 avatar）
             from storage.storage_manager import get_storage_manager, StorageCategory
+
             storage_mgr = get_storage_manager()
-            
+
             upload_result = storage_mgr.upload_with_category(
                 file_content=file_content,
                 file_name=filename,
                 category=StorageCategory.AVATAR,  # 头像归类为 avatar（永久）
                 content_type=mime_type,
-                acl='public-read'
+                acl="public-read",
             )
-            
+
             # 使用生成的 URL（永久有效）
-            processed_avatar = upload_result['url']
+            processed_avatar = upload_result["url"]
         except Exception:
             # 处理失败，保持原样
             processed_avatar = state.avatar
@@ -1231,44 +1376,44 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
         user_mgr = UserManager()
 
         # 权限验证：管理员可以更新任何用户，普通用户只能更新自己
-        if state.operator_role != 'admin' and state.operator_user_id != state.user_id:
+        if state.operator_role != "admin" and state.operator_user_id != state.user_id:
             return UpdateUserOutput(
                 result={"success": False, "error": "权限不足，仅管理员可更新其他用户"},
                 success=False,
-                error="权限不足，仅管理员可更新其他用户"
+                error="权限不足，仅管理员可更新其他用户",
             )
 
         # 构造更新字典
         updates = {}
         if state.phone is not None:
-            updates['phone'] = state.phone
+            updates["phone"] = state.phone
         if state.username is not None:
-            updates['username'] = state.username
+            updates["username"] = state.username
         if state.avatar is not None:
-            updates['avatar'] = processed_avatar  # 使用处理后的头像
+            updates["avatar"] = processed_avatar  # 使用处理后的头像
         if "team_id" in state.model_fields_set:
             # 显式传 null 才清除团队；空字符串视为不更新，保留原值
             if state.team_id is None:
-                updates['team_id'] = None
-            elif state.team_id != '':
-                updates['team_id'] = state.team_id
+                updates["team_id"] = None
+            elif state.team_id != "":
+                updates["team_id"] = state.team_id
         if state.gold_credits is not None:
-            updates['gold_credits'] = state.gold_credits
+            updates["gold_credits"] = state.gold_credits
         if state.silver_credits is not None:
-            updates['silver_credits'] = state.silver_credits
+            updates["silver_credits"] = state.silver_credits
         if state.role is not None:
-            updates['role'] = state.role
+            updates["role"] = state.role
         if state.tier is not None:
-            updates['tier'] = state.tier
+            updates["tier"] = state.tier
         if state.account_status is not None:
-            updates['account_status'] = state.account_status
+            updates["account_status"] = state.account_status
 
         # 如果没有提供任何更新字段，返回错误
         if not updates:
             return UpdateUserOutput(
                 result={"success": False, "error": "未提供任何更新字段"},
                 success=False,
-                error="未提供任何更新字段"
+                error="未提供任何更新字段",
             )
 
         user_in = UserUpdate(**updates)
@@ -1278,7 +1423,7 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
             return UpdateUserOutput(
                 result={"success": False, "error": "用户不存在"},
                 success=False,
-                error="用户不存在"
+                error="用户不存在",
             )
 
         user_data = {
@@ -1293,20 +1438,22 @@ def update_user_node(state: UpdateUserInput, config: RunnableConfig, runtime: Ru
             "tier": db_user.tier,
             "account_status": db_user.account_status,
             "created_at": _to_epoch_ms(db_user.created_at),
-            "updated_at": _to_epoch_ms(db_user.updated_at) if db_user.updated_at else None
+            "updated_at": _to_epoch_ms(db_user.updated_at)
+            if db_user.updated_at
+            else None,
         }
 
         return UpdateUserOutput(
-            result={"success": True, "user": user_data},
-            success=True,
-            user=user_data
+            result={"success": True, "user": user_data}, success=True, user=user_data
         )
 
     finally:
         db.close()
 
 
-def delete_user_node(state: DeleteUserInput, config: RunnableConfig, runtime: Runtime[Context]) -> DeleteUserOutput:
+def delete_user_node(
+    state: DeleteUserInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> DeleteUserOutput:
     """
     title: 删除用户
     desc: 软删除用户（管理员功能）
@@ -1316,7 +1463,7 @@ def delete_user_node(state: DeleteUserInput, config: RunnableConfig, runtime: Ru
     ctx = runtime.context
 
     # 验证管理员权限
-    if state.operator_role != 'admin':
+    if state.operator_role != "admin":
         return DeleteUserOutput(success=False, error="权限不足，仅管理员可操作")
 
     db = get_session()
@@ -1328,16 +1475,15 @@ def delete_user_node(state: DeleteUserInput, config: RunnableConfig, runtime: Ru
         if not success:
             return DeleteUserOutput(success=False, error="用户不存在")
 
-        return DeleteUserOutput(
-            result={"success": True, "deleted": True},
-            success=True
-        )
+        return DeleteUserOutput(result={"success": True, "deleted": True}, success=True)
 
     finally:
         db.close()
 
 
-def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runtime[Context]) -> ListUsersOutput:
+def list_users_node(
+    state: ListUsersInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> ListUsersOutput:
     """
     title: 用户列表
     desc: 查询用户列表（管理员功能）
@@ -1347,7 +1493,7 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
     ctx = runtime.context
 
     # 验证管理员权限
-    if state.operator_role != 'admin':
+    if state.operator_role != "admin":
         return ListUsersOutput(success=False, error="权限不足，仅管理员可操作")
 
     db = get_session()
@@ -1359,40 +1505,47 @@ def list_users_node(state: ListUsersInput, config: RunnableConfig, runtime: Runt
             filter_dict = {
                 "role": state.filter.get("role"),
                 "tier": state.filter.get("tier"),
-                "account_status": state.filter.get("account_status")
+                "account_status": state.filter.get("account_status"),
             }
 
         users, total = user_mgr.list_users(
-            db,
-            page=state.page,
-            limit=state.limit,
-            **filter_dict
+            db, page=state.page, limit=state.limit, **filter_dict
         )
 
         users_data = []
         for user in users:
-            users_data.append({
-                "user_id": user.user_id,
-                "phone": user.phone,
-                "username": user.username,
-                "avatar": user.avatar,
-                "team_id": user.team_id,
-                "gold_credits": gold_amount_to_number(user.gold_credits),
-                "silver_credits": user.silver_credits,
-                "role": user.role,
-                "tier": user.tier,
-                "account_status": user.account_status,
-                "created_at": _to_epoch_ms(user.created_at),
-                "updated_at": _to_epoch_ms(user.updated_at) if user.updated_at else None
-            })
+            users_data.append(
+                {
+                    "user_id": user.user_id,
+                    "phone": user.phone,
+                    "username": user.username,
+                    "avatar": user.avatar,
+                    "team_id": user.team_id,
+                    "gold_credits": gold_amount_to_number(user.gold_credits),
+                    "silver_credits": user.silver_credits,
+                    "role": user.role,
+                    "tier": user.tier,
+                    "account_status": user.account_status,
+                    "created_at": _to_epoch_ms(user.created_at),
+                    "updated_at": _to_epoch_ms(user.updated_at)
+                    if user.updated_at
+                    else None,
+                }
+            )
 
         return ListUsersOutput(
-            result={"success": True, "users": users_data, "total": total, "page": state.page, "limit": state.limit},
+            result={
+                "success": True,
+                "users": users_data,
+                "total": total,
+                "page": state.page,
+                "limit": state.limit,
+            },
             success=True,
             users=users_data,
             total=total,
             page=state.page,
-            limit=state.limit
+            limit=state.limit,
         )
 
     finally:
@@ -1417,7 +1570,9 @@ def _normalize_upload_metadata(metadata: Optional[dict]) -> Dict[str, Any]:
     }
 
 
-def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Context]) -> UploadOutput:
+def upload_node(
+    state: UploadInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> UploadOutput:
     """
     title: 文件上传
     desc: 将上传的文件存入对象存储，自动分类管理并生成访问 URL。支持远程 URL、本地路径和 Base64 格式
@@ -1437,19 +1592,27 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
             # 远程 URL：使用 upload_from_url
             file_key = storage.upload_from_url(url=file_url)
             # 生成 URL
-            public_url = storage.generate_presigned_url(key=file_key, expire_time=2592000)
-            return UploadOutput(result={
-                "success": True,
-                "message": "文件上传成功",
-                "public_url": public_url,
-                "file_key": file_key
-            })
+            public_url = storage.generate_presigned_url(
+                key=file_key, expire_time=2592000
+            )
+            return UploadOutput(
+                result={
+                    "success": True,
+                    "message": "文件上传成功",
+                    "public_url": public_url,
+                    "file_key": file_key,
+                }
+            )
 
-        elif file_url.startswith(("data:image", "data:audio", "data:video")) or (file_url.startswith("data:application") and ";base64," in file_url):
+        elif file_url.startswith(("data:image", "data:audio", "data:video")) or (
+            file_url.startswith("data:application") and ";base64," in file_url
+        ):
             # Base64 格式（Data URL 格式）
             match = re.match(r"data:([^;]+);base64,(.+)", file_url)
             if not match:
-                return UploadOutput(result={"success": False, "message": "无效的 Base64 格式"})
+                return UploadOutput(
+                    result={"success": False, "message": "无效的 Base64 格式"}
+                )
 
             mime_type = match.group(1)
             base64_data = match.group(2)
@@ -1458,7 +1621,9 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
             try:
                 file_content = base64.b64decode(base64_data)
             except Exception as e:
-                return UploadOutput(result={"success": False, "message": f"Base64 解码失败: {str(e)}"})
+                return UploadOutput(
+                    result={"success": False, "message": f"Base64 解码失败: {str(e)}"}
+                )
 
             # 根据类型确定文件名
             if "png" in mime_type:
@@ -1509,7 +1674,9 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
             elif "pdf" in mime_type:
                 filename = "upload.pdf"
             else:
-                filename = f"upload.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
+                filename = (
+                    f"upload.{mime_type.split('/')[-1] if '/' in mime_type else 'bin'}"
+                )
 
             # 使用存储管理器上传（自动分类）
             storage_mgr = get_storage_manager()
@@ -1521,17 +1688,19 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
                 category=category,
                 content_type=mime_type,
                 acl=None,
-                metadata=_normalize_upload_metadata(state.metadata)
+                metadata=_normalize_upload_metadata(state.metadata),
             )
 
-            return UploadOutput(result={
-                "success": True,
-                "message": "文件上传成功",
-                "public_url": upload_result['url'],
-                "file_key": upload_result['file_key'],
-                "category": upload_result['category'],
-                "expires_at": upload_result.get('expires_at')
-            })
+            return UploadOutput(
+                result={
+                    "success": True,
+                    "message": "文件上传成功",
+                    "public_url": upload_result["url"],
+                    "file_key": upload_result["file_key"],
+                    "category": upload_result["category"],
+                    "expires_at": upload_result.get("expires_at"),
+                }
+            )
 
         else:
             # 本地路径：读取文件内容后上传
@@ -1539,7 +1708,7 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
             with open(clean_path, "rb") as f:
                 file_content = f.read()
                 filename = os.path.basename(clean_path)
-                
+
                 # 使用存储管理器上传
                 storage_mgr = get_storage_manager()
                 category = _normalize_upload_category(state.category)
@@ -1550,23 +1719,29 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
                     category=category,
                     content_type="application/octet-stream",
                     acl=None,
-                    metadata=_normalize_upload_metadata(state.metadata)
+                    metadata=_normalize_upload_metadata(state.metadata),
                 )
 
-                return UploadOutput(result={
-                    "success": True,
-                    "message": "文件上传成功",
-                    "public_url": upload_result['url'],
-                    "file_key": upload_result['file_key'],
-                    "category": upload_result['category'],
-                    "expires_at": upload_result.get('expires_at')
-                })
+                return UploadOutput(
+                    result={
+                        "success": True,
+                        "message": "文件上传成功",
+                        "public_url": upload_result["url"],
+                        "file_key": upload_result["file_key"],
+                        "category": upload_result["category"],
+                        "expires_at": upload_result.get("expires_at"),
+                    }
+                )
 
     except Exception as e:
-        return UploadOutput(result={"success": False, "message": f"文件上传失败: {str(e)}"})
+        return UploadOutput(
+            result={"success": False, "message": f"文件上传失败: {str(e)}"}
+        )
 
 
-def delete_upload_node(state: DeleteUploadInput, config: RunnableConfig, runtime: Runtime[Context]) -> DeleteUploadOutput:
+def delete_upload_node(
+    state: DeleteUploadInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> DeleteUploadOutput:
     """
     title: 删除上传文件
     desc: 仅允许删除文生图模式生成的临时白底参考图
@@ -1579,8 +1754,14 @@ def delete_upload_node(state: DeleteUploadInput, config: RunnableConfig, runtime
     if not file_key:
         return DeleteUploadOutput(result={"success": False, "message": "缺少 file_key"})
 
-    if not file_key.startswith("temp/") or category != StorageCategory.TEMP or source != "text_to_image_white_reference":
-        return DeleteUploadOutput(result={"success": False, "message": "只允许删除临时白底参考图"})
+    if (
+        not file_key.startswith("temp/")
+        or category != StorageCategory.TEMP
+        or source != "text_to_image_white_reference"
+    ):
+        return DeleteUploadOutput(
+            result={"success": False, "message": "只允许删除临时白底参考图"}
+        )
 
     try:
         storage_mgr = get_storage_manager()
@@ -1588,29 +1769,44 @@ def delete_upload_node(state: DeleteUploadInput, config: RunnableConfig, runtime
         if not metadata:
             exists = storage_mgr.storage.file_exists(file_key=file_key)
             if not exists:
-                return DeleteUploadOutput(result={
-                    "success": True,
-                    "message": "文件不存在或已删除",
-                    "file_key": file_key,
-                    "deleted": False,
-                })
-            return DeleteUploadOutput(result={"success": False, "message": "文件元数据缺失，拒绝删除"})
+                return DeleteUploadOutput(
+                    result={
+                        "success": True,
+                        "message": "文件不存在或已删除",
+                        "file_key": file_key,
+                        "deleted": False,
+                    }
+                )
+            return DeleteUploadOutput(
+                result={"success": False, "message": "文件元数据缺失，拒绝删除"}
+            )
 
-        if metadata.get("category") != StorageCategory.TEMP or metadata.get("source") != "text_to_image_white_reference":
-            return DeleteUploadOutput(result={"success": False, "message": "文件来源校验失败，拒绝删除"})
+        if (
+            metadata.get("category") != StorageCategory.TEMP
+            or metadata.get("source") != "text_to_image_white_reference"
+        ):
+            return DeleteUploadOutput(
+                result={"success": False, "message": "文件来源校验失败，拒绝删除"}
+            )
 
         deleted = storage_mgr.storage.delete_file(file_key=file_key)
-        return DeleteUploadOutput(result={
-            "success": bool(deleted),
-            "message": "临时白底参考图已删除" if deleted else "删除失败",
-            "file_key": file_key,
-            "deleted": bool(deleted),
-        })
+        return DeleteUploadOutput(
+            result={
+                "success": bool(deleted),
+                "message": "临时白底参考图已删除" if deleted else "删除失败",
+                "file_key": file_key,
+                "deleted": bool(deleted),
+            }
+        )
     except Exception as e:
-        return DeleteUploadOutput(result={"success": False, "message": f"删除失败: {str(e)}"})
+        return DeleteUploadOutput(
+            result={"success": False, "message": f"删除失败: {str(e)}"}
+        )
 
 
-def save_node(state: SaveInput, config: RunnableConfig, runtime: Runtime[Context]) -> SaveOutput:
+def save_node(
+    state: SaveInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> SaveOutput:
     """
     title: 保存历史
     desc: 接收用户 ID 和 RunningHub 链接，将图片持久化转存到对象存储
@@ -1619,7 +1815,12 @@ def save_node(state: SaveInput, config: RunnableConfig, runtime: Runtime[Context
     ctx = runtime.context
 
     if not state.user_id or not state.runninghub_link:
-        return SaveOutput(result={"success": False, "message": "缺少必要参数：user_id 或 runninghub_link"})
+        return SaveOutput(
+            result={
+                "success": False,
+                "message": "缺少必要参数：user_id 或 runninghub_link",
+            }
+        )
 
     try:
         # 将 RunningHub 链接中的图片转存到对象存储（持久化）
@@ -1627,19 +1828,25 @@ def save_node(state: SaveInput, config: RunnableConfig, runtime: Runtime[Context
 
         # 生成永久链接（不设置过期时间，或者设置很长的时间）
         # 这里使用 10 年有效期作为"永久"链接
-        permanent_url = storage.generate_presigned_url(key=file_key, expire_time=315360000)
+        permanent_url = storage.generate_presigned_url(
+            key=file_key, expire_time=315360000
+        )
 
-        return SaveOutput(result={
-            "success": True,
-            "message": "保存成功",
-            "permanent_link": permanent_url
-        })
+        return SaveOutput(
+            result={
+                "success": True,
+                "message": "保存成功",
+                "permanent_link": permanent_url,
+            }
+        )
 
     except Exception as e:
         return SaveOutput(result={"success": False, "message": f"保存失败: {str(e)}"})
 
 
-def task_route_node(state: TaskRouteInput, config: RunnableConfig, runtime: Runtime[Context]) -> TaskRouteOutput:
+def task_route_node(
+    state: TaskRouteInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> TaskRouteOutput:
     """
     title: 任务路由
     desc: 用于任务管理的二级路由，传递 operation_type 和相关字段
@@ -1660,7 +1867,7 @@ def task_route_node(state: TaskRouteInput, config: RunnableConfig, runtime: Runt
         status=state.status,
         limit=state.limit,
         operator_role=state.operator_role,
-        operator_user_id=state.operator_user_id
+        operator_user_id=state.operator_user_id,
     )
 
 
@@ -1681,11 +1888,15 @@ def route_by_task_operation_type(state: TaskRouteInput) -> str:
         return "删除任务"
     elif operation_type == "list_tasks":
         return "查询任务列表"
+    elif operation_type == "count_tasks_stats":
+        return "统计任务数量"
     else:
         return "未知操作"
 
 
-def create_task_node(state: CreateTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> CreateTaskOutput:
+def create_task_node(
+    state: CreateTaskInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> CreateTaskOutput:
     """
     title: 创建任务
     desc: 创建新的任务记录（仅限注册用户）
@@ -1694,7 +1905,9 @@ def create_task_node(state: CreateTaskInput, config: RunnableConfig, runtime: Ru
     ctx = runtime.context
 
     if not state.user_id or not state.task_data:
-        return CreateTaskOutput(result={"success": False, "message": "缺少必要参数：user_id 或 task_data"})
+        return CreateTaskOutput(
+            result={"success": False, "message": "缺少必要参数：user_id 或 task_data"}
+        )
 
     try:
         from storage.database.task_manager import TaskManager, TaskCreate
@@ -1704,7 +1917,9 @@ def create_task_node(state: CreateTaskInput, config: RunnableConfig, runtime: Ru
             task_mgr = TaskManager()
 
             # 验证用户权限
-            has_permission, error_msg = task_mgr.verify_user_permission(db, state.user_id)
+            has_permission, error_msg = task_mgr.verify_user_permission(
+                db, state.user_id
+            )
             if not has_permission:
                 return CreateTaskOutput(result={"success": False, "message": error_msg})
 
@@ -1719,26 +1934,32 @@ def create_task_node(state: CreateTaskInput, config: RunnableConfig, runtime: Ru
                 parameter_snapshot=state.task_data.get("parameter_snapshot"),
                 batch_id=state.task_data.get("batch_id"),
                 connection_mode=state.task_data.get("connection_mode", "sse"),
-                deduction_result=state.task_data.get("deduction_result")
+                deduction_result=state.task_data.get("deduction_result"),
             )
 
             db_task = task_mgr.create_task(db, task_in)
 
-            return CreateTaskOutput(result={
-                "success": True,
-                "message": "任务创建成功",
-                "task_id": db_task.id,
-                "status": db_task.status
-            })
+            return CreateTaskOutput(
+                result={
+                    "success": True,
+                    "message": "任务创建成功",
+                    "task_id": db_task.id,
+                    "status": db_task.status,
+                }
+            )
 
         finally:
             db.close()
 
     except Exception as e:
-        return CreateTaskOutput(result={"success": False, "message": f"创建失败: {str(e)}"})
+        return CreateTaskOutput(
+            result={"success": False, "message": f"创建失败: {str(e)}"}
+        )
 
 
-def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> UpdateTaskOutput:
+def update_task_node(
+    state: UpdateTaskInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> UpdateTaskOutput:
     """
     title: 更新任务
     desc: 更新任务状态、结果或错误信息（仅限注册用户）
@@ -1747,7 +1968,9 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
     ctx = runtime.context
 
     if not state.task_id:
-        return UpdateTaskOutput(result={"success": False, "message": "缺少必要参数：task_id"})
+        return UpdateTaskOutput(
+            result={"success": False, "message": "缺少必要参数：task_id"}
+        )
 
     try:
         from storage.database.task_manager import TaskManager, TaskUpdate
@@ -1757,7 +1980,9 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
             task_mgr = TaskManager()
 
             # 验证用户权限
-            has_permission, error_msg = task_mgr.verify_user_permission(db, state.user_id or "")
+            has_permission, error_msg = task_mgr.verify_user_permission(
+                db, state.user_id or ""
+            )
             if not has_permission:
                 return UpdateTaskOutput(result={"success": False, "message": error_msg})
 
@@ -1780,35 +2005,43 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
                     update_kwargs[field] = state.task_updates.get(field)
             # deduction_result 单独处理，只有明确存在时才更新
             if "deduction_result" in state.task_updates:
-                update_kwargs["deduction_result"] = state.task_updates.get("deduction_result")
+                update_kwargs["deduction_result"] = state.task_updates.get(
+                    "deduction_result"
+                )
 
             task_in = TaskUpdate(**update_kwargs)
 
             db_task = task_mgr.update_task(db, state.task_id, task_in)
 
             if not db_task:
-                return UpdateTaskOutput(result={"success": False, "message": "任务不存在"})
+                return UpdateTaskOutput(
+                    result={"success": False, "message": "任务不存在"}
+                )
 
             return UpdateTaskOutput(
                 result={
                     "success": True,
                     "message": "任务更新成功",
                     "task_id": db_task.id,
-                    "status": db_task.status
+                    "status": db_task.status,
                 },
                 task_id=db_task.id,
                 status=db_task.status,
-                task_result=db_task.result
+                task_result=db_task.result,
             )
 
         finally:
             db.close()
 
     except Exception as e:
-        return UpdateTaskOutput(result={"success": False, "message": f"更新失败: {str(e)}"})
+        return UpdateTaskOutput(
+            result={"success": False, "message": f"更新失败: {str(e)}"}
+        )
 
 
-def get_task_node(state: GetTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> GetTaskOutput:
+def get_task_node(
+    state: GetTaskInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> GetTaskOutput:
     """
     title: 查询单个任务
     desc: 根据任务ID或平台任务ID精确查询任务（仅限注册用户；管理员可查任意任务，普通用户只能查自己的任务）
@@ -1819,10 +2052,17 @@ def get_task_node(state: GetTaskInput, config: RunnableConfig, runtime: Runtime[
     query_id = state.query_id or None
 
     if not state.user_id:
-        return GetTaskOutput(result={"success": False, "message": "缺少必要参数：user_id"})
+        return GetTaskOutput(
+            result={"success": False, "message": "缺少必要参数：user_id"}
+        )
 
     if not state.task_id and not state.platform_task_id and not query_id:
-        return GetTaskOutput(result={"success": False, "message": "缺少必要参数：task_id 或 platform_task_id 或 query_id"})
+        return GetTaskOutput(
+            result={
+                "success": False,
+                "message": "缺少必要参数：task_id 或 platform_task_id 或 query_id",
+            }
+        )
 
     try:
         from storage.database.task_manager import TaskManager
@@ -1831,7 +2071,9 @@ def get_task_node(state: GetTaskInput, config: RunnableConfig, runtime: Runtime[
         db = get_session()
         try:
             task_mgr = TaskManager()
-            has_permission, error_msg = task_mgr.verify_user_permission(db, state.user_id)
+            has_permission, error_msg = task_mgr.verify_user_permission(
+                db, state.user_id
+            )
             if not has_permission:
                 return GetTaskOutput(result={"success": False, "message": error_msg})
 
@@ -1842,13 +2084,22 @@ def get_task_node(state: GetTaskInput, config: RunnableConfig, runtime: Runtime[
             if state.task_id:
                 db_task = task_mgr.get_task_by_id(db, state.task_id)
             elif state.platform_task_id and state.platform:
-                db_task = task_mgr.get_task_by_platform_task_id(db, state.platform, state.platform_task_id)
+                db_task = task_mgr.get_task_by_platform_task_id(
+                    db, state.platform, state.platform_task_id
+                )
             elif query_id:
                 db_task = task_mgr.get_task_by_id(db, query_id)
                 if not db_task or db_task.is_deleted:
-                    db_task = task_mgr.get_task_by_platform_task_id_flexible(db, query_id)
+                    db_task = task_mgr.get_task_by_platform_task_id_flexible(
+                        db, query_id
+                    )
             else:
-                return GetTaskOutput(result={"success": False, "message": "使用 platform_task_id 查询时必须同时提供 platform"})
+                return GetTaskOutput(
+                    result={
+                        "success": False,
+                        "message": "使用 platform_task_id 查询时必须同时提供 platform",
+                    }
+                )
 
             if not db_task or db_task.is_deleted:
                 return GetTaskOutput(result={"success": False, "message": "任务不存在"})
@@ -1856,8 +2107,10 @@ def get_task_node(state: GetTaskInput, config: RunnableConfig, runtime: Runtime[
             user = db.query(Users).filter(Users.user_id == state.user_id).first()
             if not user:
                 return GetTaskOutput(result={"success": False, "message": "用户不存在"})
-            if user.role != 'admin' and db_task.user_id != state.user_id:
-                return GetTaskOutput(result={"success": False, "message": "无权访问此任务"})
+            if user.role != "admin" and db_task.user_id != state.user_id:
+                return GetTaskOutput(
+                    result={"success": False, "message": "无权访问此任务"}
+                )
 
             task = {
                 "id": db_task.id,
@@ -1878,18 +2131,24 @@ def get_task_node(state: GetTaskInput, config: RunnableConfig, runtime: Runtime[
                 "completed_at": db_task.completed_at,
                 "batch_id": db_task.batch_id,
                 "connection_mode": db_task.connection_mode,
-                "is_deleted": db_task.is_deleted
+                "is_deleted": db_task.is_deleted,
             }
-            return GetTaskOutput(result={"success": True, "message": "查询成功", "task": task})
+            return GetTaskOutput(
+                result={"success": True, "message": "查询成功", "task": task}
+            )
 
         finally:
             db.close()
 
     except Exception as e:
-        return GetTaskOutput(result={"success": False, "message": f"查询失败: {str(e)}"})
+        return GetTaskOutput(
+            result={"success": False, "message": f"查询失败: {str(e)}"}
+        )
 
 
-def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> DeleteTaskOutput:
+def delete_task_node(
+    state: DeleteTaskInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> DeleteTaskOutput:
     """
     title: 删除任务
     desc: 根据任务ID删除任务（软删除，仅限注册用户；管理员可删除任何任务，普通用户只能删除自己的任务）
@@ -1898,7 +2157,9 @@ def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Ru
     ctx = runtime.context
 
     if not state.task_id or not state.user_id:
-        return DeleteTaskOutput(result={"success": False, "message": "缺少必要参数：task_id 或 user_id"})
+        return DeleteTaskOutput(
+            result={"success": False, "message": "缺少必要参数：task_id 或 user_id"}
+        )
 
     try:
         from storage.database.task_manager import TaskManager
@@ -1907,20 +2168,21 @@ def delete_task_node(state: DeleteTaskInput, config: RunnableConfig, runtime: Ru
         try:
             task_mgr = TaskManager()
             success, message = task_mgr.delete_task(db, state.task_id, state.user_id)
-            
-            return DeleteTaskOutput(result={
-                "success": success,
-                "message": message
-            })
+
+            return DeleteTaskOutput(result={"success": success, "message": message})
 
         finally:
             db.close()
 
     except Exception as e:
-        return DeleteTaskOutput(result={"success": False, "message": f"删除失败: {str(e)}"})
+        return DeleteTaskOutput(
+            result={"success": False, "message": f"删除失败: {str(e)}"}
+        )
 
 
-def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runtime[Context]) -> ListTasksOutput:
+def list_tasks_node(
+    state: ListTasksInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> ListTasksOutput:
     """
     title: 查询任务列表
     desc: 根据用户ID、团队ID查询任务列表，支持状态筛选、时间范围和游标分页（仅限注册用户）。
@@ -1942,9 +2204,19 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
     if is_admin:
         pass  # 跳过 user_id/team_id 校验和权限验证，直接查
     elif not state.user_id and not state.team_id:
-        return ListTasksOutput(result={"success": False, "message": "缺少必要参数：user_id 和 team_id 至少需要提供一个"})
+        return ListTasksOutput(
+            result={
+                "success": False,
+                "message": "缺少必要参数：user_id 和 team_id 至少需要提供一个",
+            }
+        )
     elif state.team_id and not state.user_id:
-        return ListTasksOutput(result={"success": False, "message": "查询团队任务需要同时提供 user_id 用于权限验证"})
+        return ListTasksOutput(
+            result={
+                "success": False,
+                "message": "查询团队任务需要同时提供 user_id 用于权限验证",
+            }
+        )
     else:
         # 验证用户权限（仅当非 admin 且提供了 user_id 时）
         pass
@@ -1952,16 +2224,23 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
     if state.user_id and not is_admin:
         try:
             from storage.database.task_manager import TaskManager
+
             db = get_session()
             try:
                 task_mgr = TaskManager()
-                has_permission, error_msg = task_mgr.verify_user_permission(db, state.user_id)
+                has_permission, error_msg = task_mgr.verify_user_permission(
+                    db, state.user_id
+                )
                 if not has_permission:
-                    return ListTasksOutput(result={"success": False, "message": error_msg})
+                    return ListTasksOutput(
+                        result={"success": False, "message": error_msg}
+                    )
             finally:
                 db.close()
         except Exception as e:
-            return ListTasksOutput(result={"success": False, "message": f"权限验证失败: {str(e)}"})
+            return ListTasksOutput(
+                result={"success": False, "message": f"权限验证失败: {str(e)}"}
+            )
 
     try:
         from storage.database.task_manager import TaskManager
@@ -1996,7 +2275,7 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 end_time=end_time,
                 limit=overfetch_limit,
                 before_time=before_time,
-                admin_full_list=is_admin
+                admin_full_list=is_admin,
             )
 
             # 转换为可序列化的字典列表，过滤无媒体结果的 completed 任务
@@ -2021,11 +2300,13 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "updated_at": task.updated_at,
                     "completed_at": task.completed_at,
                     "started_at": task.started_at,  # 【新增】任务开始时间
-                    "elapsed_time_seconds": task.elapsed_time_seconds if hasattr(task, 'elapsed_time_seconds') else 0,  # 【新增】后端统一计算的耗时(秒)
+                    "elapsed_time_seconds": task.elapsed_time_seconds
+                    if hasattr(task, "elapsed_time_seconds")
+                    else 0,  # 【新增】后端统一计算的耗时(秒)
                     "batch_id": task.batch_id,
                     "connection_mode": task.connection_mode,
                     "is_deleted": task.is_deleted,
-                    "deleted_image_urls": task.deleted_image_urls
+                    "deleted_image_urls": task.deleted_image_urls,
                 }
                 # 过滤：completed 任务必须有媒体结果才展示
                 if task.status == "completed":
@@ -2037,14 +2318,26 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                         if isinstance(files, list) and len(files) > 0:
                             # files 中至少有一个条目包含 url 或 file_url
                             for f in files:
-                                if isinstance(f, dict) and (f.get("url") or f.get("file_url")):
+                                if isinstance(f, dict) and (
+                                    f.get("url") or f.get("file_url")
+                                ):
                                     has_media = True
                                     break
                             if not has_media and len(files) > 0:
                                 has_media = True
-                        elif result_data.get("url") or result_data.get("image_url") or result_data.get("video_url") or result_data.get("audio_url"):
+                        elif (
+                            result_data.get("url")
+                            or result_data.get("image_url")
+                            or result_data.get("video_url")
+                            or result_data.get("audio_url")
+                        ):
                             has_media = True
-                        elif result_data.get("thumbnailUrl") or result_data.get("previewUrl") or result_data.get("thumbnail_url") or result_data.get("preview_url"):
+                        elif (
+                            result_data.get("thumbnailUrl")
+                            or result_data.get("previewUrl")
+                            or result_data.get("thumbnail_url")
+                            or result_data.get("preview_url")
+                        ):
                             has_media = True
                         # 检查 images 数组
                         images = result_data.get("images")
@@ -2061,7 +2354,7 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 team_id=state.team_id,
                 status=state.status,
                 start_time=start_time,
-                end_time=end_time
+                end_time=end_time,
             )
 
             # 如果是 completed 状态查询，用 SQL 精确统计有媒体结果的任务数
@@ -2073,11 +2366,13 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                         team_id=state.team_id,
                         start_time=start_time,
                         end_time=end_time,
-                        before_time=before_time
+                        before_time=before_time,
                     )
                     total = media_total
                 except Exception as e:
-                    logging.getLogger(__name__).warning(f"count_tasks_with_media failed: {e}")
+                    logging.getLogger(__name__).warning(
+                        f"count_tasks_with_media failed: {e}"
+                    )
 
             # 分页：从过滤后的列表中截取当前页
             has_more = len(task_list) > limit
@@ -2092,25 +2387,78 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 except (ValueError, TypeError):
                     next_before_time = None
 
-            return ListTasksOutput(result={
-                "success": True,
-                "message": "查询成功",
-                "tasks": task_list,
-                "total": total,
-                "limit": limit,
-                "days": days,
-                "has_more": has_more,
-                "next_before_time": next_before_time
-            })
+            return ListTasksOutput(
+                result={
+                    "success": True,
+                    "message": "查询成功",
+                    "tasks": task_list,
+                    "total": total,
+                    "limit": limit,
+                    "days": days,
+                    "has_more": has_more,
+                    "next_before_time": next_before_time,
+                }
+            )
 
         finally:
             db.close()
 
     except Exception as e:
-        return ListTasksOutput(result={"success": False, "message": f"查询失败: {str(e)}"})
+        return ListTasksOutput(
+            result={"success": False, "message": f"查询失败: {str(e)}"}
+        )
 
 
-def format_response_node(state: FormatResponseInput, config: RunnableConfig, runtime: Runtime[Context]) -> FormatResponseOutput:
+def count_tasks_stats_node(
+    state: CountTasksStatsInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> CountTasksStatsOutput:
+    """
+    title: 统计任务数量
+    desc: 按状态分组统计任务数量，支持 admin 全表模式。返回各状态计数及 total 总数。
+    integrations: 数据库
+    """
+    try:
+        from storage.database.task_manager import TaskManager
+
+        db = get_session()
+        try:
+            task_mgr = TaskManager()
+
+            is_admin = (state.operator_role or "").strip().lower() == "admin"
+
+            days = state.days or 30
+            current_time = int(time.time() * 1000)
+            start_time = current_time - (days * 24 * 60 * 60 * 1000)
+            end_time = current_time
+
+            stats = task_mgr.count_tasks_stats(
+                db,
+                start_time=start_time,
+                end_time=end_time,
+                admin_full_list=is_admin,
+            )
+
+            return CountTasksStatsOutput(
+                result={
+                    "success": True,
+                    "message": "统计成功",
+                    "stats": stats,
+                    "days": days,
+                }
+            )
+
+        finally:
+            db.close()
+
+    except Exception as e:
+        return CountTasksStatsOutput(
+            result={"success": False, "message": f"统计失败: {str(e)}"}
+        )
+
+
+def format_response_node(
+    state: FormatResponseInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> FormatResponseOutput:
     """
     title: 统一返回
     desc: 将各节点的结果统一格式化为 {code, msg, data} 格式返回
@@ -2126,15 +2474,21 @@ def format_response_node(state: FormatResponseInput, config: RunnableConfig, run
 
         # 处理空结果或 None
         if not isinstance(result, (dict, str)):
-            return FormatResponseOutput(response_data={"code": -1, "msg": "无效的结果格式", "data": None})
+            return FormatResponseOutput(
+                response_data={"code": -1, "msg": "无效的结果格式", "data": None}
+            )
 
         # 处理工具节点的字符串结果
         if isinstance(result, str):
-            return FormatResponseOutput(response_data={"code": 0, "msg": "操作成功", "data": {"result": result}})
+            return FormatResponseOutput(
+                response_data={"code": 0, "msg": "操作成功", "data": {"result": result}}
+            )
 
         # 处理空字典
         if not result:
-            return FormatResponseOutput(response_data={"code": -1, "msg": "无结果返回", "data": None})
+            return FormatResponseOutput(
+                response_data={"code": -1, "msg": "无结果返回", "data": None}
+            )
 
         # 处理不同类型的 dict 结果
         # 情况1: result 中有 success 字段（通用格式）
@@ -2142,7 +2496,9 @@ def format_response_node(state: FormatResponseInput, config: RunnableConfig, run
             if result.get("success"):
                 code = 0
                 msg = result.get("message", "操作成功")
-                data = {k: v for k, v in result.items() if k not in ["success", "message"]}
+                data = {
+                    k: v for k, v in result.items() if k not in ["success", "message"]
+                }
             else:
                 code = -1
                 msg = result.get("error", result.get("message", "操作失败"))
@@ -2152,7 +2508,9 @@ def format_response_node(state: FormatResponseInput, config: RunnableConfig, run
             if result.get("allowed"):
                 code = 0
                 msg = result.get("message", "检查通过")
-                data = {k: v for k, v in result.items() if k not in ["allowed", "message"]}
+                data = {
+                    k: v for k, v in result.items() if k not in ["allowed", "message"]
+                }
             else:
                 code = -1
                 msg = result.get("reason", result.get("message", "检查未通过"))
@@ -2163,16 +2521,23 @@ def format_response_node(state: FormatResponseInput, config: RunnableConfig, run
             msg = "操作成功"
             data = result
 
-        return FormatResponseOutput(response_data={"code": code, "msg": msg, "data": data})
+        return FormatResponseOutput(
+            response_data={"code": code, "msg": msg, "data": data}
+        )
 
     except Exception as e:
         # 异常情况下返回友好的错误信息
-        return FormatResponseOutput(response_data={"code": -1, "msg": f"结果格式化失败: {str(e)}", "data": None})
+        return FormatResponseOutput(
+            response_data={"code": -1, "msg": f"结果格式化失败: {str(e)}", "data": None}
+        )
 
 
 # ============ 工具节点 ============
 
-def tool_route_node(state: ToolRouteInput, config: RunnableConfig, runtime: Runtime[Context]) -> ToolRouteOutput:
+
+def tool_route_node(
+    state: ToolRouteInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> ToolRouteOutput:
     """
     title: 工具路由
     desc: 根据 tool_type 将请求路由到不同的工具节点
@@ -2181,7 +2546,9 @@ def tool_route_node(state: ToolRouteInput, config: RunnableConfig, runtime: Runt
     return ToolRouteOutput(tool_type=state.tool_type)
 
 
-def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime: Runtime[Context]) -> ReverseImageOutput:
+def reverse_image_node(
+    state: ReverseImageInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> ReverseImageOutput:
     """
     title: 提示词生成
     desc: 使用视觉模型分析图像，生成提示词
@@ -2190,12 +2557,16 @@ def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime
     ctx = runtime.context
 
     if not state.file:
-        return ReverseImageOutput(result={"success": False, "message": "未提供图像文件"})
+        return ReverseImageOutput(
+            result={"success": False, "message": "未提供图像文件"}
+        )
 
     try:
         # 读取配置文件
-        cfg_file = os.path.join(os.getenv("COZE_WORKSPACE_PATH"), config['metadata']['llm_cfg'])
-        with open(cfg_file, 'r') as fd:
+        cfg_file = os.path.join(
+            os.getenv("COZE_WORKSPACE_PATH"), config["metadata"]["llm_cfg"]
+        )
+        with open(cfg_file, "r") as fd:
             _cfg = json.load(fd)
 
         llm_config = _cfg.get("config", {})
@@ -2215,16 +2586,12 @@ def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime
         # 构造多模态消息
         messages = [
             SystemMessage(content=system_prompt_content),
-            HumanMessage(content=[
-                {
-                    "type": "text",
-                    "text": user_prompt_content
-                },
-                {
-                    "type": "image_url",
-                    "image_url": {"url": state.file.url}
-                }
-            ])
+            HumanMessage(
+                content=[
+                    {"type": "text", "text": user_prompt_content},
+                    {"type": "image_url", "image_url": {"url": state.file.url}},
+                ]
+            ),
         ]
 
         # 调用模型
@@ -2232,16 +2599,26 @@ def reverse_image_node(state: ReverseImageInput, config: RunnableConfig, runtime
             messages=messages,
             model=llm_config.get("model"),
             temperature=llm_config.get("temperature", 0.7),
-            max_tokens=llm_config.get("max_tokens", 1000)
+            max_tokens=llm_config.get("max_tokens", 1000),
         )
 
-        return ReverseImageOutput(result={"success": True, "message": "提示词生成成功", "result": response.content})
+        return ReverseImageOutput(
+            result={
+                "success": True,
+                "message": "提示词生成成功",
+                "result": response.content,
+            }
+        )
 
     except Exception as e:
-        return ReverseImageOutput(result={"success": False, "message": f"提示词生成失败: {str(e)}"})
+        return ReverseImageOutput(
+            result={"success": False, "message": f"提示词生成失败: {str(e)}"}
+        )
 
 
-def translate_doubao_node(state: TranslateDoubaoInput, config: RunnableConfig, runtime: Runtime[Context]) -> TranslateDoubaoOutput:
+def translate_doubao_node(
+    state: TranslateDoubaoInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> TranslateDoubaoOutput:
     """
     title: 翻译
     desc: 使用豆包平衡模型进行中英互译
@@ -2251,8 +2628,10 @@ def translate_doubao_node(state: TranslateDoubaoInput, config: RunnableConfig, r
 
     try:
         # 读取配置文件
-        cfg_file = os.path.join(os.getenv("COZE_WORKSPACE_PATH"), config['metadata']['llm_cfg'])
-        with open(cfg_file, 'r') as fd:
+        cfg_file = os.path.join(
+            os.getenv("COZE_WORKSPACE_PATH"), config["metadata"]["llm_cfg"]
+        )
+        with open(cfg_file, "r") as fd:
             _cfg = json.load(fd)
 
         llm_config = _cfg.get("config", {})
@@ -2269,7 +2648,7 @@ def translate_doubao_node(state: TranslateDoubaoInput, config: RunnableConfig, r
         # 构造消息
         messages = [
             SystemMessage(content=sp),
-            HumanMessage(content=user_prompt_content)
+            HumanMessage(content=user_prompt_content),
         ]
 
         # 调用模型
@@ -2277,16 +2656,22 @@ def translate_doubao_node(state: TranslateDoubaoInput, config: RunnableConfig, r
             messages=messages,
             model=llm_config.get("model"),
             temperature=llm_config.get("temperature", 0.3),
-            max_tokens=llm_config.get("max_tokens", 2000)
+            max_tokens=llm_config.get("max_tokens", 2000),
         )
 
-        return TranslateDoubaoOutput(result={"success": True, "message": "翻译成功", "result": response.content})
+        return TranslateDoubaoOutput(
+            result={"success": True, "message": "翻译成功", "result": response.content}
+        )
 
     except Exception as e:
-        return TranslateDoubaoOutput(result={"success": False, "message": f"翻译失败: {str(e)}"})
+        return TranslateDoubaoOutput(
+            result={"success": False, "message": f"翻译失败: {str(e)}"}
+        )
 
 
-def prompt_enhance_node(state: PromptEnhanceInput, config: RunnableConfig, runtime: Runtime[Context]) -> PromptEnhanceOutput:
+def prompt_enhance_node(
+    state: PromptEnhanceInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> PromptEnhanceOutput:
     """
     title: 提示词增强
     desc: 使用视觉模型理解图片，根据用户的提示词生成增强后的内容
@@ -2296,12 +2681,16 @@ def prompt_enhance_node(state: PromptEnhanceInput, config: RunnableConfig, runti
 
     # 验证文件数量
     if len(state.file_list) > 4:
-        return PromptEnhanceOutput(result={"success": False, "message": "最多支持 4 个图片文件"})
+        return PromptEnhanceOutput(
+            result={"success": False, "message": "最多支持 4 个图片文件"}
+        )
 
     try:
         # 读取配置文件
-        cfg_file = os.path.join(os.getenv("COZE_WORKSPACE_PATH"), config['metadata']['llm_cfg'])
-        with open(cfg_file, 'r') as fd:
+        cfg_file = os.path.join(
+            os.getenv("COZE_WORKSPACE_PATH"), config["metadata"]["llm_cfg"]
+        )
+        with open(cfg_file, "r") as fd:
             _cfg = json.load(fd)
 
         llm_config = _cfg.get("config", {})
@@ -2313,10 +2702,9 @@ def prompt_enhance_node(state: PromptEnhanceInput, config: RunnableConfig, runti
         system_prompt_content = sp_tpl.render({"prompt": state.prompt})
 
         up_tpl = Template(up)
-        user_prompt_content = up_tpl.render({
-            "file_list": [f.url for f in state.file_list],
-            "prompt": state.prompt
-        })
+        user_prompt_content = up_tpl.render(
+            {"file_list": [f.url for f in state.file_list], "prompt": state.prompt}
+        )
 
         # 初始化 LLM 客户端
         client = LLMClient(ctx=ctx)
@@ -2325,31 +2713,29 @@ def prompt_enhance_node(state: PromptEnhanceInput, config: RunnableConfig, runti
         if state.file_list:
             content = [{"type": "text", "text": user_prompt_content}]
             for file in state.file_list:
-                content.append({
-                    "type": "image_url",
-                    "image_url": {"url": file.url}
-                })
+                content.append({"type": "image_url", "image_url": {"url": file.url}})
             human_msg = HumanMessage(content=content)
         else:
             human_msg = HumanMessage(content=user_prompt_content)
 
-        messages = [
-            SystemMessage(content=system_prompt_content),
-            human_msg
-        ]
+        messages = [SystemMessage(content=system_prompt_content), human_msg]
 
         # 调用模型
         response = client.invoke(
             messages=messages,
             model=llm_config.get("model"),
             temperature=llm_config.get("temperature", 0.7),
-            max_tokens=llm_config.get("max_tokens", 2000)
+            max_tokens=llm_config.get("max_tokens", 2000),
         )
 
-        return PromptEnhanceOutput(result={"success": True, "message": "增强成功", "result": response.content})
+        return PromptEnhanceOutput(
+            result={"success": True, "message": "增强成功", "result": response.content}
+        )
 
     except Exception as e:
-        return PromptEnhanceOutput(result={"success": False, "message": f"增强失败: {str(e)}"})
+        return PromptEnhanceOutput(
+            result={"success": False, "message": f"增强失败: {str(e)}"}
+        )
 
 
 # ============ 团队余额初始化节点 ============

@@ -29,7 +29,7 @@ from graphs.state import (
     SystemNotificationOutput,
     AnnouncementInput,
     AnnouncementOutput,
-    CheckNeedTagsOutput
+    CheckNeedTagsOutput,
 )
 from graphs.node import (
     upload_node,
@@ -63,9 +63,12 @@ from graphs.node import (
     update_task_node,
     get_task_node,
     delete_task_node,
-    list_tasks_node
+    list_tasks_node,
+    count_tasks_stats_node,
 )
-from graphs.nodes.system_notification_handler_node import system_notification_handler_node
+from graphs.nodes.system_notification_handler_node import (
+    system_notification_handler_node,
+)
 from graphs.nodes.announcement_handler_node import announcement_handler_node
 from graphs.nodes.image_tagging_node import image_tagging_node
 from graphs.nodes.save_image_tags_node import save_image_tags_node
@@ -80,7 +83,10 @@ from graphs.nodes.team_records_node import team_records_node
 from graphs.nodes.runninghub_error_analysis_node import runninghub_error_analysis_node
 from graphs.nodes.agent_intent_node import agent_intent_node
 from graphs.nodes.agent_run_node import agent_run_node
-from graphs.nodes.billing_route_node import billing_route_node, route_by_billing_operation_type
+from graphs.nodes.billing_route_node import (
+    billing_route_node,
+    route_by_billing_operation_type,
+)
 from graphs.nodes.get_balance_node import get_balance_node
 from graphs.nodes.billing_deduct_node import billing_deduct_node
 from graphs.nodes.billing_refund_node import billing_refund_node
@@ -107,7 +113,11 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "对象储存管理"
     elif call_type == "save":
         return "保存历史"
-    elif call_type == "task_management" or call_type == "user_task_management" or call_type == "list_tasks":
+    elif (
+        call_type == "task_management"
+        or call_type == "user_task_management"
+        or call_type == "list_tasks"
+    ):
         return "任务管理"
     elif call_type == "tool":
         return "工具中心"
@@ -163,8 +173,6 @@ def route_by_need_tags(state: CheckNeedTagsOutput) -> str:
         return "直接返回"
 
 
-
-
 # 创建状态图，指定图的入参和出参
 builder = StateGraph(GlobalState, input_schema=GraphInput, output_schema=GraphOutput)
 
@@ -194,16 +202,33 @@ builder.add_node("update_task", update_task_node)
 builder.add_node("get_task", get_task_node)
 builder.add_node("delete_task", delete_task_node)
 builder.add_node("list_tasks", list_tasks_node)
+builder.add_node("count_tasks_stats", count_tasks_stats_node)
 builder.add_node("system_notification_handler", system_notification_handler_node)
 builder.add_node("announcement_handler", announcement_handler_node)
 builder.add_node("format_response", format_response_node)
 builder.add_node("check_need_tags", check_need_tags_node)
-builder.add_node("image_tagging", image_tagging_node, metadata={"type": "agent", "llm_cfg": "config/image_tagging_cfg.json"})
+builder.add_node(
+    "image_tagging",
+    image_tagging_node,
+    metadata={"type": "agent", "llm_cfg": "config/image_tagging_cfg.json"},
+)
 builder.add_node("save_image_tags", save_image_tags_node)
 builder.add_node("tool_route", tool_route_node)
-builder.add_node("reverse_image", reverse_image_node, metadata={"type": "agent", "llm_cfg": "config/reverse_image_cfg.json"})
-builder.add_node("translate_doubao", translate_doubao_node, metadata={"type": "agent", "llm_cfg": "config/translate_doubao_cfg.json"})
-builder.add_node("prompt_enhance", prompt_enhance_node, metadata={"type": "agent", "llm_cfg": "config/prompt_enhance_cfg.json"})
+builder.add_node(
+    "reverse_image",
+    reverse_image_node,
+    metadata={"type": "agent", "llm_cfg": "config/reverse_image_cfg.json"},
+)
+builder.add_node(
+    "translate_doubao",
+    translate_doubao_node,
+    metadata={"type": "agent", "llm_cfg": "config/translate_doubao_cfg.json"},
+)
+builder.add_node(
+    "prompt_enhance",
+    prompt_enhance_node,
+    metadata={"type": "agent", "llm_cfg": "config/prompt_enhance_cfg.json"},
+)
 builder.add_node("team_route", team_route_node)
 builder.add_node("team_init", team_init_node)
 builder.add_node("team_manage", team_manage_node)
@@ -211,8 +236,16 @@ builder.add_node("team_recharge", team_recharge_node)
 builder.add_node("team_deduct", team_deduct_node)
 builder.add_node("team_refund", team_refund_node)
 builder.add_node("team_records", team_records_node)
-builder.add_node("runninghub_error_analysis", runninghub_error_analysis_node, metadata={"type": "agent", "llm_cfg": "config/runninghub_error_analysis_cfg.json"})
-builder.add_node("agent_intent", agent_intent_node, metadata={"type": "agent", "llm_cfg": "config/agent_intent_cfg.json"})
+builder.add_node(
+    "runninghub_error_analysis",
+    runninghub_error_analysis_node,
+    metadata={"type": "agent", "llm_cfg": "config/runninghub_error_analysis_cfg.json"},
+)
+builder.add_node(
+    "agent_intent",
+    agent_intent_node,
+    metadata={"type": "agent", "llm_cfg": "config/agent_intent_cfg.json"},
+)
 builder.add_node("agent_run", agent_run_node)
 builder.add_node("billing_route", billing_route_node)
 builder.add_node("get_balance", get_balance_node)
@@ -249,8 +282,8 @@ builder.add_conditional_edges(
         "Agent Run": "agent_run",
         "资金扣费": "billing_route",
         "favorite_image_management": "favorite_image_handler",
-        "Seat Map Management": "seat_map_handler"
-    }
+        "Seat Map Management": "seat_map_handler",
+    },
 )
 
 # 添加二级条件分支（根据 tool_type）
@@ -260,8 +293,8 @@ builder.add_conditional_edges(
     path_map={
         "反推图像": "reverse_image",
         "翻译推荐": "translate_doubao",
-        "提示词增强": "prompt_enhance"
-    }
+        "提示词增强": "prompt_enhance",
+    },
 )
 
 # 添加二级条件分支（根据 operation_type）
@@ -281,8 +314,8 @@ builder.add_conditional_edges(
         "更新用户": "update_user",
         "删除用户": "delete_user",
         "用户列表": "list_users",
-        "对象储存管理": "storage_management"
-    }
+        "对象储存管理": "storage_management",
+    },
 )
 
 # 添加任务管理二级条件分支
@@ -294,8 +327,9 @@ builder.add_conditional_edges(
         "查询单个任务": "get_task",
         "更新任务": "update_task",
         "删除任务": "delete_task",
-        "查询任务列表": "list_tasks"
-    }
+        "查询任务列表": "list_tasks",
+        "统计任务数量": "count_tasks_stats",
+    },
 )
 
 # 添加团队余额二级条件分支
@@ -308,9 +342,9 @@ builder.add_conditional_edges(
         "团队充值": "team_recharge",
         "团队扣费": "team_deduct",
         "团队退款": "team_refund",
-        "消费记录": "team_records"
-    }
-    )
+        "消费记录": "team_records",
+    },
+)
 
 # 添加资金扣费二级条件分支
 builder.add_conditional_edges(
@@ -321,8 +355,8 @@ builder.add_conditional_edges(
         "扣费": "billing_deduct",
         "退款": "billing_refund",
         "结算": "billing_settle",
-        "账单记录": "billing_records"
-    }
+        "账单记录": "billing_records",
+    },
 )
 
 # 各业务分支汇聚到统一返回节点
@@ -347,6 +381,7 @@ builder.add_edge("update_task", "format_response")  # 暂时禁用图像自动�
 builder.add_edge("get_task", "format_response")
 builder.add_edge("delete_task", "format_response")
 builder.add_edge("list_tasks", "format_response")
+builder.add_edge("count_tasks_stats", "format_response")
 builder.add_edge("system_notification_handler", "format_response")
 builder.add_edge("announcement_handler", "format_response")
 builder.add_edge("reverse_image", "format_response")
