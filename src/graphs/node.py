@@ -171,6 +171,7 @@ def route_by_operation_type(state: OperationRouteInput) -> str:
         "regenerate_url",
         "delete_object",
         "cleanup_expired",
+        "refresh_task_urls",
     ]:
         return "对象储存管理"
     else:
@@ -314,6 +315,9 @@ def unpack_input_data_node(state: UnpackInputDataInput, config: RunnableConfig, 
         status=input_data.status if input_data else None,
         # 任务管理相关字段
         task_id=input_data.task_id if input_data else None,
+        platform=input_data.platform if input_data else None,
+        platform_task_id=input_data.platform_task_id if input_data else None,
+        query_id=input_data.query_id if input_data else None,
         task_data=input_data.task_data if input_data else None,
         task_updates=input_data.task_updates if input_data else None,
         # 系统通知相关字段
@@ -1433,7 +1437,7 @@ def upload_node(state: UploadInput, config: RunnableConfig, runtime: Runtime[Con
             # 远程 URL：使用 upload_from_url
             file_key = storage.upload_from_url(url=file_url)
             # 生成 URL
-            public_url = storage.generate_presigned_url(key=file_key, expire_time=86400)
+            public_url = storage.generate_presigned_url(key=file_key, expire_time=2592000)
             return UploadOutput(result={
                 "success": True,
                 "message": "文件上传成功",
@@ -1644,6 +1648,9 @@ def task_route_node(state: TaskRouteInput, config: RunnableConfig, runtime: Runt
         operation_type=state.operation_type,
         user_id=state.user_id,
         task_id=state.task_id,
+        platform=state.platform,
+        platform_task_id=state.platform_task_id,
+        query_id=state.query_id,
         task_data=state.task_data,
         task_updates=state.task_updates,
         start_time=state.start_time,
@@ -1651,7 +1658,9 @@ def task_route_node(state: TaskRouteInput, config: RunnableConfig, runtime: Runt
         before_time=state.before_time,
         team_id=state.team_id,
         status=state.status,
-        limit=state.limit
+        limit=state.limit,
+        operator_role=state.operator_role,
+        operator_user_id=state.operator_user_id
     )
 
 
@@ -1760,6 +1769,7 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
                 "result",
                 "error",
                 "completed_at",
+                "started_at",  # 【新增】允许更新 started_at
                 "user_friendly_message",
                 "workflow_parameters",
                 "parameter_snapshot",
@@ -1801,13 +1811,18 @@ def update_task_node(state: UpdateTaskInput, config: RunnableConfig, runtime: Ru
 def get_task_node(state: GetTaskInput, config: RunnableConfig, runtime: Runtime[Context]) -> GetTaskOutput:
     """
     title: 查询单个任务
-    desc: 根据任务ID精确查询任务（仅限注册用户；管理员可查任意任务，普通用户只能查自己的任务）
+    desc: 根据任务ID或平台任务ID精确查询任务（仅限注册用户；管理员可查任意任务，普通用户只能查自己的任务）
     integrations: 数据库
     """
     ctx = runtime.context
 
-    if not state.task_id or not state.user_id:
-        return GetTaskOutput(result={"success": False, "message": "缺少必要参数：task_id 或 user_id"})
+    query_id = state.query_id or None
+
+    if not state.user_id:
+        return GetTaskOutput(result={"success": False, "message": "缺少必要参数：user_id"})
+
+    if not state.task_id and not state.platform_task_id and not query_id:
+        return GetTaskOutput(result={"success": False, "message": "缺少必要参数：task_id 或 platform_task_id 或 query_id"})
 
     try:
         from storage.database.task_manager import TaskManager
@@ -1820,7 +1835,21 @@ def get_task_node(state: GetTaskInput, config: RunnableConfig, runtime: Runtime[
             if not has_permission:
                 return GetTaskOutput(result={"success": False, "message": error_msg})
 
-            db_task = task_mgr.get_task_by_id(db, state.task_id)
+            # 支持三种查询模式：
+            #   1. task_id（前端主键）
+            #   2. platform + platform_task_id（平台任务ID）
+            #   3. query_id（自动匹配 id 或 platform_task_id）
+            if state.task_id:
+                db_task = task_mgr.get_task_by_id(db, state.task_id)
+            elif state.platform_task_id and state.platform:
+                db_task = task_mgr.get_task_by_platform_task_id(db, state.platform, state.platform_task_id)
+            elif query_id:
+                db_task = task_mgr.get_task_by_id(db, query_id)
+                if not db_task or db_task.is_deleted:
+                    db_task = task_mgr.get_task_by_platform_task_id_flexible(db, query_id)
+            else:
+                return GetTaskOutput(result={"success": False, "message": "使用 platform_task_id 查询时必须同时提供 platform"})
+
             if not db_task or db_task.is_deleted:
                 return GetTaskOutput(result={"success": False, "message": "任务不存在"})
 
@@ -1908,16 +1937,19 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
     """
     ctx = runtime.context
 
-    # 至少需要 user_id 或 team_id 其中之一
-    if not state.user_id and not state.team_id:
+    # admin 模式：不要求 user_id 或 team_id，跳过权限验证，查全表
+    is_admin = (state.operator_role or "").strip().lower() == "admin"
+    if is_admin:
+        pass  # 跳过 user_id/team_id 校验和权限验证，直接查
+    elif not state.user_id and not state.team_id:
         return ListTasksOutput(result={"success": False, "message": "缺少必要参数：user_id 和 team_id 至少需要提供一个"})
-
-    # 如果提供了 team_id，必须提供用户 ID 进行权限验证
-    if state.team_id and not state.user_id:
+    elif state.team_id and not state.user_id:
         return ListTasksOutput(result={"success": False, "message": "查询团队任务需要同时提供 user_id 用于权限验证"})
+    else:
+        # 验证用户权限（仅当非 admin 且提供了 user_id 时）
+        pass
 
-    # 验证用户权限（仅当提供了 user_id 时）
-    if state.user_id:
+    if state.user_id and not is_admin:
         try:
             from storage.database.task_manager import TaskManager
             db = get_session()
@@ -1963,7 +1995,8 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                 start_time=start_time,
                 end_time=end_time,
                 limit=overfetch_limit,
-                before_time=before_time
+                before_time=before_time,
+                admin_full_list=is_admin
             )
 
             # 转换为可序列化的字典列表，过滤无媒体结果的 completed 任务
@@ -1987,6 +2020,8 @@ def list_tasks_node(state: ListTasksInput, config: RunnableConfig, runtime: Runt
                     "created_at": task.created_at,
                     "updated_at": task.updated_at,
                     "completed_at": task.completed_at,
+                    "started_at": task.started_at,  # 【新增】任务开始时间
+                    "elapsed_time_seconds": task.elapsed_time_seconds if hasattr(task, 'elapsed_time_seconds') else 0,  # 【新增】后端统一计算的耗时(秒)
                     "batch_id": task.batch_id,
                     "connection_mode": task.connection_mode,
                     "is_deleted": task.is_deleted,

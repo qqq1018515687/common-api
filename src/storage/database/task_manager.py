@@ -3,6 +3,7 @@ import time
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from storage.database.shared.model import Tasks, Users
 import time
@@ -30,6 +31,7 @@ class TaskUpdate(BaseModel):
     result: Optional[dict] = Field(default=None, description="生成结果")
     error: Optional[str] = Field(default=None, description="错误信息")
     completed_at: Optional[int] = Field(default=None, description="完成时间")
+    started_at: Optional[int] = Field(default=None, description="任务真正开始执行时间(毫秒)")
     workflow_parameters: Optional[dict] = Field(default=None, description="工作流参数")
     parameter_snapshot: Optional[dict] = Field(default=None, description="完整参数快照")
     connection_mode: Optional[str] = Field(default=None, description="连接模式")
@@ -41,9 +43,27 @@ class TaskUpdate(BaseModel):
 class TaskManager:
     """任务管理类"""
 
+    _task_schema_checked = False
+
     @staticmethod
     def _pending_platform_task_id(task_id: str) -> str:
         return f"pending:{task_id}"
+
+    @classmethod
+    def _ensure_task_schema(cls, db: Session) -> None:
+        """Ensure optional task columns exist before ORM queries select them."""
+        if cls._task_schema_checked:
+            return
+
+        try:
+            db.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deleted_image_urls JSON"))
+            db.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS started_at VARCHAR(20)"))
+            db.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS elapsed_time_seconds INTEGER DEFAULT 0"))
+            db.commit()
+            cls._task_schema_checked = True
+        except Exception:
+            db.rollback()
+            raise
 
     @staticmethod
     def verify_user_permission(db: Session, user_id: str) -> tuple[bool, Optional[str]]:
@@ -73,6 +93,7 @@ class TaskManager:
 
     def create_task(self, db: Session, task_in: TaskCreate) -> Tasks:
         """创建任务"""
+        self._ensure_task_schema(db)
         existing_task = self.get_task_by_id(db, task_in.id)
         if existing_task:
             task_data = task_in.model_dump(exclude_unset=True)
@@ -112,6 +133,7 @@ class TaskManager:
         task_data['status'] = 'running'
         task_data['created_at'] = current_time
         task_data['updated_at'] = current_time
+        task_data['started_at'] = current_time  # 【新增】任务创建时即记录开始时间
 
         db_task = Tasks(**task_data)
         db.add(db_task)
@@ -125,6 +147,7 @@ class TaskManager:
 
     def get_task_by_id(self, db: Session, task_id: str) -> Optional[Tasks]:
         """根据任务ID获取任务"""
+        self._ensure_task_schema(db)
         return db.query(Tasks).filter(Tasks.id == task_id).first()
 
     def get_tasks_by_user_id(
@@ -151,6 +174,7 @@ class TaskManager:
         Returns:
             任务列表（按 created_at DESC 排序）
         """
+        self._ensure_task_schema(db)
         # 限制最大返回数量
         limit = min(limit, 500)
 
@@ -191,6 +215,7 @@ class TaskManager:
         end_time: Optional[int] = None,
         limit: int = 50,
         before_time: Optional[int] = None,
+        admin_full_list: bool = False,
     ) -> List[tuple]:
         """灵活查询任务列表
 
@@ -203,6 +228,7 @@ class TaskManager:
             end_time: 查询结束时间戳（毫秒，可选）
             limit: 返回数量限制（默认50，最大1000）
             before_time: 游标分页，查询早于该时间戳的记录（毫秒，可选）
+            admin_full_list: 管理员全量模式，跳过 user_id/team_id 筛选查全表
 
         Returns:
             任务列表（按 created_at DESC 排序），每个元素是 (Task, username) 元组
@@ -210,8 +236,9 @@ class TaskManager:
         查询规则：
             - 如果只提供 user_id（没有 team_id）：查询该用户的所有任务
             - 如果提供 team_id（不管有没有 user_id）：查询该团队的所有任务
-            - 如果既没有 user_id 也没有 team_id：返回空列表
+            - 如果既没有 user_id 也没有 team_id 且不是 admin_full_list：返回空列表
         """
+        self._ensure_task_schema(db)
         # 限制最大返回数量
         limit = min(limit, 1000)
 
@@ -225,7 +252,7 @@ class TaskManager:
             query = query.filter(Tasks.team_id == team_id)
         elif user_id:
             query = query.filter(Tasks.user_id == user_id)
-        else:
+        elif not admin_full_list:
             return []
 
         # 时间范围筛选
@@ -252,12 +279,65 @@ class TaskManager:
         platform_task_id: str
     ) -> Optional[Tasks]:
         """根据平台和平台任务ID获取任务"""
+        self._ensure_task_schema(db)
         if not platform_task_id:
             return None
         return db.query(Tasks).filter(
             Tasks.platform == platform,
             Tasks.platform_task_id == platform_task_id
         ).first()
+
+    def get_task_by_platform_task_id_flexible(
+        self,
+        db: Session,
+        platform_task_id: str
+    ) -> Optional[Tasks]:
+        """仅根据平台任务ID获取任务（不限制平台，按 updated_at 降序返回最新一条）"""
+        self._ensure_task_schema(db)
+        if not platform_task_id:
+            return None
+        return db.query(Tasks).filter(
+            Tasks.platform_task_id == platform_task_id
+        ).order_by(Tasks.updated_at.desc()).first()
+
+    def calculate_elapsed_time(self, task: Tasks) -> int:
+        """
+        【共享函数】统一计算任务耗时(秒)
+
+        计算逻辑:
+        1. 如果有 started_at 和 completed_at: elapsed = (completed_at - started_at) / 1000
+        2. 如果没有 started_at,用 created_at 兜底: elapsed = (completed_at - created_at) / 1000
+        3. 如果 completed_at 为空或任务未完成: 返回 0
+
+        异常处理:
+        - 负数或无效值返回 0
+        - 超大值(>24小时=86400秒)截断到 86400
+
+        Args:
+            task: 任务对象
+
+        Returns:
+            耗时秒数(int),范围 0~86400
+        """
+        if not task.completed_at:
+            return 0
+
+        try:
+            completed = int(task.completed_at)
+            started = int(task.started_at) if task.started_at else int(task.created_at)
+
+            elapsed_ms = completed - started
+            elapsed_seconds = elapsed_ms // 1000
+
+            # 异常值校验
+            if elapsed_seconds < 0:
+                return 0
+            if elapsed_seconds > 86400:  # 超过24小时,截断
+                elapsed_seconds = 86400
+
+            return elapsed_seconds
+        except (ValueError, TypeError):
+            return 0
 
     def update_task(
         self,
@@ -276,6 +356,11 @@ class TaskManager:
         for field, value in update_data.items():
             if hasattr(db_task, field):
                 setattr(db_task, field, value)
+
+        # 【新增】如果任务完成,自动计算耗时并写入 elapsed_time_seconds
+        if 'completed_at' in update_data and update_data['completed_at']:
+            elapsed_seconds = self.calculate_elapsed_time(db_task)
+            db_task.elapsed_time_seconds = elapsed_seconds
 
         db.add(db_task)
         try:
@@ -357,6 +442,7 @@ class TaskManager:
         Returns:
             任务数量
         """
+        self._ensure_task_schema(db)
         query = db.query(Tasks).filter(
             Tasks.user_id == user_id,
             Tasks.is_deleted == False
@@ -388,6 +474,7 @@ class TaskManager:
         before_time: Optional[int] = None
     ) -> int:
         """统计有可展示媒体结果的 completed 任务数量（与前端展示逻辑一致）"""
+        self._ensure_task_schema(db)
         from sqlalchemy import func, text
 
         query = db.query(Tasks).filter(
@@ -462,6 +549,7 @@ class TaskManager:
             - 如果提供 team_id（不管有没有 user_id）：统计该团队的所有任务（包含团队所有成员的任务）
             - 如果既没有 user_id 也没有 team_id：返回 0
         """
+        self._ensure_task_schema(db)
         # 基础查询条件：自动过滤已删除的任务
         query = db.query(Tasks).filter(Tasks.is_deleted == False)
 

@@ -87,6 +87,9 @@ class InputData(BaseModel):
 
     # 任务管理相关字段
     task_id: Optional[str] = Field(default=None, description="任务ID（get_task/update_task/delete_task 使用）")
+    platform: Optional[str] = Field(default=None, description="平台标识，与 platform_task_id 配合使用")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID，与 platform 配合使用")
+    query_id: Optional[str] = Field(default=None, description="通用查询ID：自动匹配 id 或 platform_task_id")
     task_data: Optional[dict] = Field(default=None, description="任务数据（create_task 使用）")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据（update_task 使用）")
 
@@ -201,6 +204,9 @@ class GlobalState(BaseModel):
 
     # 任务管理相关字段
     task_id: Optional[str] = Field(default=None, description="任务ID（get_task/update_task/delete_task 使用）")
+    platform: Optional[str] = Field(default=None, description="平台标识，与 platform_task_id 配合使用")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID，与 platform 配合使用")
+    query_id: Optional[str] = Field(default=None, description="通用查询ID：自动匹配 id 或 platform_task_id")
     task_data: Optional[dict] = Field(default=None, description="任务数据（create_task 使用）")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据（update_task 使用）")
 
@@ -600,8 +606,11 @@ class UpdateTaskOutput(BaseModel):
 
 class GetTaskInput(BaseModel):
     """查询单个任务节点的输入（仅限注册用户）"""
-    user_id: str = Field(..., description="用户ID（必须是已注册的活跃用户）")
-    task_id: str = Field(..., description="任务ID")
+    user_id: Optional[str] = Field(default=None, description="用户ID（必须是已注册的活跃用户）")
+    task_id: Optional[str] = Field(default=None, description="任务ID（前端主键）")
+    platform: Optional[str] = Field(default=None, description="平台标识，与 platform_task_id 配合使用")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID（与 platform 配合使用）")
+    query_id: Optional[str] = Field(default=None, description="通用查询ID：自动匹配 id 或 platform_task_id")
 
 
 class GetTaskOutput(BaseModel):
@@ -622,12 +631,14 @@ class DeleteTaskOutput(BaseModel):
 
 class ListTasksInput(BaseModel):
     """查询任务列表节点的输入"""
-    user_id: Optional[str] = Field(default=None, description="用户ID（可选，至少提供 user_id 或 team_id 之一）")
-    team_id: Optional[str] = Field(default=None, description="团队ID筛选（可选，至少提供 user_id 或 team_id 之一）")
+    user_id: Optional[str] = Field(default=None, description="用户ID（可选，至少提供 user_id 或 team_id 之一，admin 可不传）")
+    team_id: Optional[str] = Field(default=None, description="团队ID筛选（可选，至少提供 user_id 或 team_id 之一，admin 可不传）")
     status: Optional[str] = Field(default=None, description="任务状态筛选")
     days: Optional[int] = Field(default=30, description="查询最近N天的数据（默认30天）")
     limit: Optional[int] = Field(default=50, description="返回数量限制（默认50，最大1000）")
     before_time: Optional[int] = Field(default=None, description="游标分页：查询早于该时间戳的记录（毫秒，13位整数）")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色（admin 时不要求 user_id/team_id）")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
 
 
 class ListTasksOutput(BaseModel):
@@ -640,7 +651,10 @@ class TaskRouteInput(BaseModel):
     operation_type: str = Field(..., description="操作类型：create_task/get_task/update_task/delete_task/list_tasks")
     # 任务管理相关字段
     user_id: Optional[str] = Field(default=None, description="用户ID")
-    task_id: Optional[str] = Field(default=None, description="任务ID")
+    task_id: Optional[str] = Field(default=None, description="任务ID（前端主键）")
+    platform: Optional[str] = Field(default=None, description="平台标识")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID")
+    query_id: Optional[str] = Field(default=None, description="通用查询ID")
     task_data: Optional[dict] = Field(default=None, description="任务数据")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据")
     # 时间范围查询字段
@@ -651,6 +665,8 @@ class TaskRouteInput(BaseModel):
     team_id: Optional[str] = Field(default=None, description="团队ID")
     status: Optional[str] = Field(default=None, description="任务状态")
     limit: Optional[int] = Field(default=None, description="最大返回数量")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色（admin 或 user）")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
 
 
 class TaskRouteOutput(BaseModel):
@@ -658,7 +674,10 @@ class TaskRouteOutput(BaseModel):
     operation_type: str = Field(..., description="操作类型")
     # 任务管理相关字段
     user_id: Optional[str] = Field(default=None, description="用户ID")
-    task_id: Optional[str] = Field(default=None, description="任务ID")
+    task_id: Optional[str] = Field(default=None, description="任务ID（前端主键）")
+    platform: Optional[str] = Field(default=None, description="平台标识")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID")
+    query_id: Optional[str] = Field(default=None, description="通用查询ID")
     task_data: Optional[dict] = Field(default=None, description="任务数据")
     task_updates: Optional[dict] = Field(default=None, description="任务更新数据")
     # 时间范围查询字段
@@ -669,6 +688,8 @@ class TaskRouteOutput(BaseModel):
     team_id: Optional[str] = Field(default=None, description="团队ID")
     status: Optional[str] = Field(default=None, description="任务状态")
     limit: Optional[int] = Field(default=None, description="最大返回数量")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色（admin 或 user）")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
 
 
 # 统一返回节点
@@ -779,9 +800,13 @@ class UnpackInputDataOutput(BaseModel):
     status: Optional[str] = Field(default=None, description="任务状态筛选")
     days: Optional[int] = Field(default=None, description="查询天数")
     # 任务管理相关字段
-    task_id: Optional[str] = Field(default=None, description="任务ID")
-    task_data: Optional[dict] = Field(default=None, description="任务数据")
-    task_updates: Optional[dict] = Field(default=None, description="任务更新数据")
+    task_id: Optional[str] = Field(default=None, description="任务ID（get_task/update_task/delete_task 使用）")
+    platform: Optional[str] = Field(default=None, description="平台标识，与 platform_task_id 配合使用")
+    platform_task_id: Optional[str] = Field(default=None, description="平台任务ID，与 platform 配合使用")
+    query_id: Optional[str] = Field(default=None, description="通用查询ID：自动匹配 id 或 platform_task_id")
+    task_data: Optional[dict] = Field(default=None, description="任务数据（create_task 使用）")
+    task_updates: Optional[dict] = Field(default=None, description="任务更新数据（update_task 使用）")
+
     # 系统通知相关字段
     notification_id: Optional[str] = Field(default=None, description="通知ID")
     notification_data: Optional[dict] = Field(default=None, description="通知数据")

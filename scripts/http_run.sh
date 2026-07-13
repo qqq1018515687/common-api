@@ -42,5 +42,18 @@ cd "${WORK_DIR}"
 echo "[DB] Running Alembic migrations..."
 python -m alembic upgrade head
 
+# 确保 users 表字段长度正确（Alembic 迁移 repeat 问题，每次部署兜底修复）
+echo "[DB] 确保 users 表字段长度正确..."
+python << 'PYEOF'
+from sqlalchemy import text
+from storage.database.db import get_engine
+e = get_engine()
+with e.connect() as c:
+    for col in ('role', 'tier', 'account_status'):
+        c.execute(text(f'ALTER TABLE users ALTER COLUMN {col} TYPE varchar(32)'))
+    c.commit()
+    print('✅ users 字段长度已确保为 varchar(32)')
+PYEOF
+
 # 使用 -m 参数运行模块，确保 Python 能正确解析导入
 python -m src.main -m http -p $PORT
