@@ -243,7 +243,7 @@ class S3SyncStorage:
             logger.error(self._error_msg("Error listing files in S3", e))
             raise e
 
-    def generate_presigned_url(self, *, key: str, bucket: Optional[str] = None, expire_time: int = 1800) -> str:
+    def generate_presigned_url(self, *, key: str, bucket: Optional[str] = None, expire_time: int = 2592000) -> str:
         """通过 S3 Proxy 生成签名 URL。"""
         import json
         import urllib.request as urllib_request

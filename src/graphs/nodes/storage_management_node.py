@@ -681,7 +681,7 @@ def _validate_object(state: StorageManagementInput) -> StorageManagementOutput:
         logger.warning("读取对象 head 信息失败，降级返回元数据: %s", exc)
 
     summary = _object_summary(key, raw=raw, metadata=metadata)
-    url_expiry = 315360000 if summary.get("is_permanent") else 86400
+    url_expiry = 315360000 if summary.get("is_permanent") else 2592000
     url = storage_mgr.storage.generate_presigned_url(key=key, expire_time=url_expiry)
     summary["url"] = url
     summary["signed_url"] = url

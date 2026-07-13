@@ -135,8 +135,8 @@ class StorageManager:
                 expires_at = int(time.time() + expiry_seconds)
             
             # 生成签名 URL
-            # 永久文件使用长期签名（10年），临时文件使用短期签名（24小时）
-            url_expiry = 315360000 if StorageCategory.is_permanent(category) else 86400
+            # 永久文件使用长期签名（10年），临时文件使用短期签名（30天）
+            url_expiry = 315360000 if StorageCategory.is_permanent(category) else 2592000
             url = self.storage.generate_presigned_url(key=file_key, expire_time=url_expiry)
             
             return {
@@ -362,9 +362,9 @@ class StorageManager:
             if self.is_expired(file_key):
                 logger.warning(f"文件已过期: {file_key}")
                 return None
-            
+
             # 生成新的签名 URL
-            url_expiry = 315360000 if metadata.get('is_permanent', False) else 86400
+            url_expiry = 315360000 if metadata.get('is_permanent', False) else 2592000
             url = self.storage.generate_presigned_url(key=file_key, expire_time=url_expiry)
             
             return url
