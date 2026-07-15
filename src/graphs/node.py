@@ -369,6 +369,7 @@ def unpack_input_data_node(
         end_time=input_data.end_time if input_data else None,
         before_time=input_data.before_time if input_data else None,
         status=input_data.status if input_data else None,
+        compact=input_data.compact if input_data else False,
         # 任务管理相关字段
         task_id=input_data.task_id if input_data else None,
         platform=input_data.platform if input_data else None,
@@ -1868,6 +1869,7 @@ def task_route_node(
         limit=state.limit,
         operator_role=state.operator_role,
         operator_user_id=state.operator_user_id,
+        compact=state.compact,
     )
 
 
@@ -2260,6 +2262,40 @@ def list_tasks_node(
 
             # 游标分页参数
             before_time = state.before_time
+
+            if is_admin and state.compact:
+                compact_limit = min(limit, 100)
+                compact_tasks = task_mgr.get_admin_tasks_compact(
+                    db,
+                    status=state.status,
+                    start_time=start_time,
+                    end_time=end_time,
+                    limit=compact_limit,
+                    before_time=before_time,
+                )
+                has_more = len(compact_tasks) > compact_limit
+                if has_more:
+                    compact_tasks = compact_tasks[:compact_limit]
+
+                next_before_time = None
+                if compact_tasks:
+                    try:
+                        next_before_time = int(compact_tasks[-1]["created_at"])
+                    except (ValueError, TypeError):
+                        next_before_time = None
+
+                return ListTasksOutput(
+                    result={
+                        "success": True,
+                        "message": "查询成功",
+                        "tasks": compact_tasks,
+                        "total": None,
+                        "limit": compact_limit,
+                        "days": days,
+                        "has_more": has_more,
+                        "next_before_time": next_before_time,
+                    }
+                )
 
             # 过-fetch 任务用于 Python 层过滤媒体结果
             # 由于 completed 任务可能被过滤掉，需要多查一些数据以保证分页准确

@@ -1,7 +1,7 @@
 """任务管理接口"""
 
 import time
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -293,6 +293,156 @@ class TaskManager:
 
         # 按 created_at 降序排列，限制返回数量
         return query.order_by(Tasks.created_at.desc()).limit(limit).all()
+
+    def get_admin_tasks_compact(
+        self,
+        db: Session,
+        status: Optional[str] = None,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
+        limit: int = 50,
+        before_time: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """管理后台任务轻量列表，只读取列表渲染需要的字段。"""
+        self._ensure_task_schema(db)
+        limit = min(max(limit, 1), 100)
+
+        query = (
+            db.query(
+                Tasks.id,
+                Tasks.user_id,
+                Users.username,
+                Tasks.team_id,
+                Tasks.platform,
+                Tasks.platform_task_id,
+                Tasks.type,
+                Tasks.status,
+                Tasks.workflow_parameters,
+                Tasks.parameter_snapshot,
+                Tasks.result,
+                Tasks.error,
+                Tasks.user_friendly_message,
+                Tasks.created_at,
+                Tasks.started_at,
+                Tasks.completed_at,
+                Tasks.elapsed_time_seconds,
+                Tasks.connection_mode,
+            )
+            .outerjoin(Users, Tasks.user_id == Users.user_id)
+            .filter(Tasks.is_deleted == False)
+        )
+
+        if start_time is not None:
+            query = query.filter(Tasks.created_at >= str(start_time))
+        if end_time is not None:
+            query = query.filter(Tasks.created_at <= str(end_time))
+        if before_time is not None:
+            query = query.filter(Tasks.created_at < str(before_time))
+        if status:
+            query = query.filter(Tasks.status == status)
+
+        rows = query.order_by(Tasks.created_at.desc()).limit(limit + 1).all()
+        tasks: List[Dict[str, Any]] = []
+
+        for row in rows:
+            parameter_snapshot = row.parameter_snapshot if isinstance(row.parameter_snapshot, dict) else {}
+            workflow_parameters = row.workflow_parameters if isinstance(row.workflow_parameters, dict) else {}
+            result = row.result if isinstance(row.result, dict) else None
+
+            tasks.append({
+                "id": row.id,
+                "user_id": row.user_id,
+                "username": row.username,
+                "team_id": row.team_id,
+                "platform": row.platform,
+                "platform_task_id": row.platform_task_id,
+                "type": row.type,
+                "status": row.status,
+                "workflow_parameters": self._compact_workflow_parameters(workflow_parameters),
+                "parameter_snapshot": self._compact_parameter_snapshot(parameter_snapshot),
+                "result": self._compact_result(result),
+                "error": row.error,
+                "user_friendly_message": row.user_friendly_message,
+                "created_at": row.created_at,
+                "started_at": row.started_at,
+                "completed_at": row.completed_at,
+                "elapsed_time_seconds": row.elapsed_time_seconds,
+                "deduction_result": None,
+                "connection_mode": row.connection_mode,
+            })
+
+        return tasks
+
+    def _compact_workflow_parameters(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "workflow_id": params.get("workflow_id"),
+            "workflowId": params.get("workflowId"),
+            "workflow": params.get("workflow"),
+            "model_name": params.get("model_name"),
+            "modelName": params.get("modelName"),
+        }
+
+    def _compact_parameter_snapshot(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
+        workflow_params = snapshot.get("workflowParams") if isinstance(snapshot.get("workflowParams"), dict) else {}
+        mapped_params = snapshot.get("mappedParams") if isinstance(snapshot.get("mappedParams"), dict) else {}
+        parsed_input = mapped_params.get("parsedInput") if isinstance(mapped_params.get("parsedInput"), dict) else {}
+
+        return {
+            "workflowName": snapshot.get("workflowName"),
+            "workflowId": snapshot.get("workflowId"),
+            "modelName": snapshot.get("modelName"),
+            "workflowParams": {
+                "workflow_id": workflow_params.get("workflow_id"),
+                "workflowId": workflow_params.get("workflowId"),
+                "model_name": workflow_params.get("model_name"),
+                "modelName": workflow_params.get("modelName"),
+                "selected_account": workflow_params.get("selected_account"),
+                "selectedAccount": workflow_params.get("selectedAccount"),
+            },
+            "mappedParams": {
+                "parsedInput": {
+                    "workflow_id": parsed_input.get("workflow_id"),
+                    "workflowId": parsed_input.get("workflowId"),
+                    "model_name": parsed_input.get("model_name"),
+                    "modelName": parsed_input.get("modelName"),
+                }
+            },
+        }
+
+    def _compact_result(self, result: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        if not result:
+            return None
+
+        compact: Dict[str, Any] = {}
+        files = result.get("files")
+        if isinstance(files, list):
+            compact_files = []
+            for item in files:
+                if isinstance(item, dict):
+                    url = item.get("url") or item.get("file_url")
+                    if url:
+                        compact_files.append({"url": url, "file_url": item.get("file_url")})
+            if compact_files:
+                compact["files"] = compact_files
+
+        image_urls = result.get("imageUrls")
+        if isinstance(image_urls, list):
+            compact["imageUrls"] = [url for url in image_urls if isinstance(url, str)]
+
+        for key in ("videoUrl", "audioUrl", "image_url"):
+            if isinstance(result.get(key), str):
+                compact[key] = result.get(key)
+
+        images = result.get("images")
+        if isinstance(images, list):
+            compact_images = []
+            for image in images:
+                if isinstance(image, dict) and image.get("url"):
+                    compact_images.append({"url": image.get("url")})
+            if compact_images:
+                compact["images"] = compact_images
+
+        return compact or None
 
     def get_task_by_platform_task_id(
         self, db: Session, platform: str, platform_task_id: str

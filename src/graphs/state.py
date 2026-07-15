@@ -150,6 +150,7 @@ class InputData(BaseModel):
     days: Optional[int] = Field(
         default=None, description="查询最近N天的数据（list_tasks 使用）"
     )
+    compact: Optional[bool] = Field(default=False, description="是否返回轻量列表字段")
 
     # 任务管理相关字段
     task_id: Optional[str] = Field(
@@ -432,6 +433,7 @@ class GlobalState(BaseModel):
     )
     description: Optional[str] = Field(default=None, description="操作描述")
     days: Optional[int] = Field(default=None, description="查询天数")
+    compact: Optional[bool] = Field(default=False, description="是否返回轻量列表字段")
     name: Optional[str] = Field(default=None, description="团队名称（创建团队使用）")
     target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
     target_username: Optional[str] = Field(default=None, description="目标用户名")
@@ -955,6 +957,7 @@ class ListTasksInput(BaseModel):
         default=None, description="操作者角色（admin 时不要求 user_id/team_id）"
     )
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    compact: Optional[bool] = Field(default=False, description="是否返回轻量列表字段")
 
 
 class ListTasksOutput(BaseModel):
@@ -1010,6 +1013,7 @@ class TaskRouteInput(BaseModel):
         default=None, description="操作者角色（admin 或 user）"
     )
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    compact: Optional[bool] = Field(default=False, description="是否返回轻量列表字段")
 
 
 class TaskRouteOutput(BaseModel):
@@ -1040,6 +1044,7 @@ class TaskRouteOutput(BaseModel):
         default=None, description="操作者角色（admin 或 user）"
     )
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    compact: Optional[bool] = Field(default=False, description="是否返回轻量列表字段")
 
 
 # 统一返回节点
@@ -1193,6 +1198,7 @@ class UnpackInputDataOutput(BaseModel):
     )
     status: Optional[str] = Field(default=None, description="任务状态筛选")
     days: Optional[int] = Field(default=None, description="查询天数")
+    compact: Optional[bool] = Field(default=False, description="是否返回轻量列表字段")
     # 任务管理相关字段
     task_id: Optional[str] = Field(
         default=None, description="任务ID（get_task/update_task/delete_task 使用）"
