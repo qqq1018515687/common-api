@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Optional
 
-from sqlalchemy import text
+from sqlalchemy import func, text
 
 from storage.database.amounts import amount_to_response_number, gold_amount_to_number, normalize_gold_amount
 from storage.database.billing_manager import _insert_billing_record
@@ -98,8 +98,8 @@ def _resolve_redeem_credit_type(code_credit_type: str, target_credit_type: Optio
     raise ValueError("不支持的兑换码类型")
 
 
-def _serialize_batch(batch: RechargeCodeBatches) -> dict[str, Any]:
-    return {
+def _serialize_batch(batch: RechargeCodeBatches, stats: Optional[dict[str, int]] = None) -> dict[str, Any]:
+    data = {
         "id": batch.id,
         "name": batch.name,
         "credit_type": batch.credit_type,
@@ -113,6 +113,9 @@ def _serialize_batch(batch: RechargeCodeBatches) -> dict[str, Any]:
         "created_at": _to_epoch_ms(batch.created_at),
         "updated_at": _to_epoch_ms(batch.updated_at),
     }
+    if stats:
+        data["stats"] = stats
+    return data
 
 
 def _serialize_code(code: RechargeCodes) -> dict[str, Any]:
@@ -244,7 +247,28 @@ def list_batches(*, status: Optional[str] = None, limit: int = 100) -> dict[str,
         if status:
             query = query.filter(RechargeCodeBatches.status == status)
         batches = query.order_by(RechargeCodeBatches.created_at.desc()).limit(safe_limit).all()
-        return {"batches": [_serialize_batch(batch) for batch in batches]}
+        batch_ids = [batch.id for batch in batches]
+        stats_map: dict[str, dict[str, int]] = {
+            batch_id: {"unused": 0, "used": 0, "disabled": 0, "expired": 0, "total": 0}
+            for batch_id in batch_ids
+        }
+        if batch_ids:
+            rows = db.query(
+                RechargeCodes.batch_id,
+                RechargeCodes.status,
+                func.count(RechargeCodes.id),
+            ).filter(
+                RechargeCodes.batch_id.in_(batch_ids)
+            ).group_by(
+                RechargeCodes.batch_id,
+                RechargeCodes.status,
+            ).all()
+            for batch_id, code_status, count in rows:
+                stats = stats_map.setdefault(batch_id, {"unused": 0, "used": 0, "disabled": 0, "expired": 0, "total": 0})
+                status_key = code_status or "unknown"
+                stats[status_key] = int(count)
+                stats["total"] += int(count)
+        return {"batches": [_serialize_batch(batch, stats_map.get(batch.id)) for batch in batches]}
     finally:
         db.close()
 
