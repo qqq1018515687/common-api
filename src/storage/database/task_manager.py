@@ -41,6 +41,7 @@ class TaskUpdate(BaseModel):
     parameter_snapshot: Optional[dict] = Field(default=None, description="完整参数快照")
     connection_mode: Optional[str] = Field(default=None, description="连接模式")
     deduction_result: Optional[dict] = Field(default=None, description="扣费结果记录")
+    elapsed_time_seconds: Optional[int] = Field(default=None, description="任务耗时秒数")
     user_friendly_message: Optional[str] = Field(
         default=None, description="LLM 生成的用户友好错误提示"
     )
@@ -57,6 +58,29 @@ class TaskManager:
     @staticmethod
     def _pending_platform_task_id(task_id: str) -> str:
         return f"pending:{task_id}"
+
+    @staticmethod
+    def _is_real_platform_task_id(platform_task_id: Any) -> bool:
+        if not isinstance(platform_task_id, str):
+            return False
+        task_id = platform_task_id.strip()
+        return bool(task_id) and not task_id.startswith("pending:")
+
+    @staticmethod
+    def _has_displayable_result(result: Any) -> bool:
+        if not isinstance(result, dict):
+            return False
+
+        for key in ("files", "imageUrls", "outputs"):
+            value = result.get(key)
+            if isinstance(value, list) and len(value) > 0:
+                return True
+
+        return False
+
+    @staticmethod
+    def _is_completed_with_result(task: Tasks) -> bool:
+        return task.status == "completed" and TaskManager._has_displayable_result(task.result)
 
     @classmethod
     def _ensure_task_schema(cls, db: Session) -> None:
@@ -118,6 +142,7 @@ class TaskManager:
         existing_task = self.get_task_by_id(db, task_in.id)
         if existing_task:
             task_data = task_in.model_dump(exclude_unset=True)
+            current_time = str(int(time.time() * 1000))
             for field in [
                 "platform_task_id",
                 "workflow_parameters",
@@ -136,8 +161,14 @@ class TaskManager:
                         and current_value.startswith("pending:")
                     ):
                         setattr(existing_task, field, value)
+                        if (
+                            field == "platform_task_id"
+                            and self._is_real_platform_task_id(value)
+                            and not existing_task.started_at
+                        ):
+                            existing_task.started_at = current_time
 
-            existing_task.updated_at = str(int(time.time() * 1000))
+            existing_task.updated_at = current_time
             db.add(existing_task)
             try:
                 db.commit()
@@ -154,7 +185,7 @@ class TaskManager:
         task_data["status"] = "running"
         task_data["created_at"] = current_time
         task_data["updated_at"] = current_time
-        task_data["started_at"] = current_time  # 【新增】任务创建时即记录开始时间
+        task_data["started_at"] = current_time if self._is_real_platform_task_id(task_data.get("platform_task_id")) else None
 
         db_task = Tasks(**task_data)
         db.add(db_task)
@@ -521,6 +552,41 @@ class TaskManager:
             return None
 
         update_data = task_in.model_dump(exclude_unset=True)
+
+        if "elapsed_time_seconds" in update_data:
+            elapsed_time_seconds = update_data.get("elapsed_time_seconds")
+            if not isinstance(elapsed_time_seconds, int) or elapsed_time_seconds < 0:
+                update_data.pop("elapsed_time_seconds", None)
+            elif elapsed_time_seconds > 86400:
+                update_data["elapsed_time_seconds"] = 86400
+
+        if self._is_completed_with_result(db_task):
+            incoming_status = update_data.get("status")
+            if incoming_status in ("failed", "cancelled"):
+                update_data.pop("status", None)
+                update_data.pop("error", None)
+                update_data.pop("user_friendly_message", None)
+                update_data.pop("completed_at", None)
+
+            if incoming_status == "completed":
+                update_data.pop("completed_at", None)
+
+        if (
+            update_data.get("status") == "completed"
+            and self._has_displayable_result(update_data.get("result"))
+        ):
+            update_data["error"] = None
+            update_data["user_friendly_message"] = None
+            if db_task.completed_at:
+                update_data.pop("completed_at", None)
+
+        if (
+            self._is_real_platform_task_id(update_data.get("platform_task_id"))
+            and not db_task.started_at
+            and "started_at" not in update_data
+        ):
+            update_data["started_at"] = str(int(time.time() * 1000))
+
         update_data["updated_at"] = str(int(time.time() * 1000))
 
         for field, value in update_data.items():
@@ -528,7 +594,7 @@ class TaskManager:
                 setattr(db_task, field, value)
 
         # 【新增】如果任务完成,自动计算耗时并写入 elapsed_time_seconds
-        if "completed_at" in update_data and update_data["completed_at"]:
+        if "completed_at" in update_data and update_data["completed_at"] and "elapsed_time_seconds" not in update_data:
             elapsed_seconds = self.calculate_elapsed_time(db_task)
             db_task.elapsed_time_seconds = elapsed_seconds
 

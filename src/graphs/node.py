@@ -1997,6 +1997,7 @@ def update_task_node(
                 "error",
                 "completed_at",
                 "started_at",  # 【新增】允许更新 started_at
+                "elapsed_time_seconds",
                 "user_friendly_message",
                 "workflow_parameters",
                 "parameter_snapshot",
