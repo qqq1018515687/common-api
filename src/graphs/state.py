@@ -84,7 +84,7 @@ class InputData(BaseModel):
     )
     operation_type: Optional[str] = Field(
         default=None,
-        description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/send_password_reset_code/register/register_with_code/reset_password_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/get_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、公告管理(get_active_popup/get_all/create/update/disable)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、RunningHub错误分析(runninghub_error_analysis)",
+        description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/send_password_reset_code/register/register_with_code/reset_password_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/get_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、公告管理(get_active_popup/get_all/create/update/disable)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、兑换码(create_batch/list_batches/list_codes/redeem/disable_code/disable_batch/list_redemptions)、RunningHub错误分析(runninghub_error_analysis)",
     )
     assets: Optional[List[dict]] = Field(
         default=None, description="Agent 意图判断素材摘要列表"
@@ -213,6 +213,15 @@ class InputData(BaseModel):
         default=None, description="筛选用户ID（消费记录查询使用）"
     )
 
+    # 兑换码相关字段
+    batch_id: Optional[str] = Field(default=None, description="兑换码批次ID")
+    code_id: Optional[str] = Field(default=None, description="兑换码ID")
+    recharge_code: Optional[str] = Field(default=None, description="用户输入的兑换码")
+    channel: Optional[str] = Field(default=None, description="兑换码渠道")
+    note: Optional[str] = Field(default=None, description="兑换码备注")
+    expires_at: Optional[object] = Field(default=None, description="兑换码过期时间")
+    search: Optional[str] = Field(default=None, description="兑换码搜索关键字")
+
     # RunningHub 错误分析相关字段
     error_response: Optional[dict] = Field(
         default=None,
@@ -252,7 +261,7 @@ class GlobalState(BaseModel):
 
     call_type: str = Field(
         ...,
-        description="调用类型：account_management/upload/delete_upload/storage_management/save/tool/user_task_management/notification_management/announcement_management/team_balance/billing/agent_intent/agent_run",
+        description="调用类型：account_management/upload/delete_upload/storage_management/save/tool/user_task_management/notification_management/announcement_management/team_balance/billing/recharge_code/agent_intent/agent_run",
     )
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
     username: Optional[str] = Field(default=None, description="用户名")
@@ -1245,6 +1254,15 @@ class UnpackInputDataOutput(BaseModel):
     filter_user_id: Optional[str] = Field(
         default=None, description="筛选用户ID（查询消费记录用）"
     )
+
+    # 兑换码相关字段
+    batch_id: Optional[str] = Field(default=None, description="兑换码批次ID")
+    code_id: Optional[str] = Field(default=None, description="兑换码ID")
+    recharge_code: Optional[str] = Field(default=None, description="用户输入的兑换码")
+    channel: Optional[str] = Field(default=None, description="兑换码渠道")
+    note: Optional[str] = Field(default=None, description="兑换码备注")
+    expires_at: Optional[object] = Field(default=None, description="兑换码过期时间")
+    search: Optional[str] = Field(default=None, description="兑换码搜索关键字")
 
     # RunningHub 错误分析相关字段
     error_response: Optional[dict] = Field(

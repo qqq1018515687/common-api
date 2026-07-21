@@ -405,6 +405,14 @@ def unpack_input_data_node(
         final_amount=input_data.final_amount if input_data else None,
         billing_metadata=input_data.billing_metadata if input_data else None,
         metadata=input_data.metadata if input_data else None,
+        # 兑换码相关字段
+        batch_id=input_data.batch_id if input_data else None,
+        code_id=input_data.code_id if input_data else None,
+        recharge_code=input_data.recharge_code if input_data else None,
+        channel=input_data.channel if input_data else None,
+        note=input_data.note if input_data else None,
+        expires_at=input_data.expires_at if input_data else None,
+        search=input_data.search if input_data else None,
     )
 
 

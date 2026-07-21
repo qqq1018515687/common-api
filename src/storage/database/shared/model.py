@@ -364,6 +364,85 @@ class TeamConsumptionRecords(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
 
 
+class RechargeCodeBatches(Base):
+    __tablename__ = 'recharge_code_batches'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='recharge_code_batches_pkey'),
+        Index('ix_recharge_code_batches_status', 'status'),
+        Index('ix_recharge_code_batches_created_at', 'created_at'),
+        {'comment': '金豆兑换码批次表'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='批次ID')
+    name: Mapped[str] = mapped_column(String(100), nullable=False, comment='批次名称')
+    credit_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='personal_gold/team_gold')
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, comment='单码充值金额')
+    code_count: Mapped[int] = mapped_column(Integer, nullable=False, comment='生成数量')
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'active'"), comment='active/disabled')
+    channel: Mapped[Optional[str]] = mapped_column(String(32), comment='售卖/发放渠道')
+    expires_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='过期时间')
+    note: Mapped[Optional[str]] = mapped_column(Text, comment='备注')
+    created_by: Mapped[str] = mapped_column(String(36), nullable=False, comment='创建管理员')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
+
+
+class RechargeCodes(Base):
+    __tablename__ = 'recharge_codes'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='recharge_codes_pkey'),
+        UniqueConstraint('code_hash', name='recharge_codes_code_hash_key'),
+        Index('ix_recharge_codes_batch', 'batch_id'),
+        Index('ix_recharge_codes_status', 'status'),
+        Index('ix_recharge_codes_used_by', 'used_by'),
+        Index('ix_recharge_codes_suffix', 'code_suffix'),
+        {'comment': '金豆兑换码表，仅保存 hash 和后缀'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='兑换码ID')
+    batch_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='批次ID')
+    code_hash: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, comment='兑换码哈希')
+    code_suffix: Mapped[str] = mapped_column(String(12), nullable=False, comment='兑换码后缀')
+    credit_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='personal_gold/team_gold')
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, comment='充值金额')
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'unused'"), comment='unused/used/disabled/expired')
+    used_by: Mapped[Optional[str]] = mapped_column(String(36), comment='兑换用户')
+    used_team_id: Mapped[Optional[str]] = mapped_column(String(64), comment='团队码入账团队')
+    used_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='兑换时间')
+    billing_record_id: Mapped[Optional[str]] = mapped_column(String(64), comment='个人金豆账单ID')
+    team_record_id: Mapped[Optional[str]] = mapped_column(String(64), comment='团队金豆流水ID')
+    expires_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='过期时间')
+    created_by: Mapped[str] = mapped_column(String(36), nullable=False, comment='创建管理员')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
+
+
+class RechargeRedemptions(Base):
+    __tablename__ = 'recharge_redemptions'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='recharge_redemptions_pkey'),
+        UniqueConstraint('code_id', name='recharge_redemptions_code_id_key'),
+        Index('ix_recharge_redemptions_user_time', 'user_id', 'created_at'),
+        Index('ix_recharge_redemptions_team_time', 'team_id', 'created_at'),
+        {'comment': '金豆兑换记录表'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='兑换记录ID')
+    code_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, comment='兑换码ID')
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='兑换用户')
+    team_id: Mapped[Optional[str]] = mapped_column(String(64), comment='入账团队')
+    credit_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='personal_gold/team_gold')
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, comment='充值金额')
+    balance_before: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), comment='入账前余额')
+    balance_after: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), comment='入账后余额')
+    billing_record_id: Mapped[Optional[str]] = mapped_column(String(64), comment='个人金豆账单ID')
+    team_record_id: Mapped[Optional[str]] = mapped_column(String(64), comment='团队金豆流水ID')
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'completed'"), comment='completed/failed')
+    error_message: Mapped[Optional[str]] = mapped_column(Text, comment='失败原因')
+    extra_data: Mapped[Optional[dict]] = mapped_column('metadata', JSON, comment='扩展信息')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+
+
 class SeatMaps(Base):
     """Seat map data storage with version control"""
     __tablename__ = 'seat_maps'
@@ -383,4 +462,3 @@ class SeatMaps(Base):
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), server_default=text('now()'), nullable=False, comment='Last update time')
     updated_by_label: Mapped[Optional[str]] = mapped_column(String(40), comment='Updater label')
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), server_default=text('now()'), nullable=False, comment='Creation time')
-
