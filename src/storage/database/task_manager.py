@@ -357,6 +357,7 @@ class TaskManager:
                 Tasks.started_at,
                 Tasks.completed_at,
                 Tasks.elapsed_time_seconds,
+                Tasks.deduction_result,
                 Tasks.connection_mode,
             )
             .outerjoin(Users, Tasks.user_id == Users.user_id)
@@ -398,7 +399,7 @@ class TaskManager:
                 "started_at": row.started_at,
                 "completed_at": row.completed_at,
                 "elapsed_time_seconds": row.elapsed_time_seconds,
-                "deduction_result": None,
+                "deduction_result": row.deduction_result,
                 "connection_mode": row.connection_mode,
             })
 
