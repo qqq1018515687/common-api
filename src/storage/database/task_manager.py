@@ -422,13 +422,15 @@ class TaskManager:
             "workflowName": snapshot.get("workflowName"),
             "workflowId": snapshot.get("workflowId"),
             "modelName": snapshot.get("modelName"),
+            "selected_account": snapshot.get("selected_account"),
+            "selectedAccount": snapshot.get("selectedAccount"),
             "workflowParams": {
                 "workflow_id": workflow_params.get("workflow_id"),
                 "workflowId": workflow_params.get("workflowId"),
                 "model_name": workflow_params.get("model_name"),
                 "modelName": workflow_params.get("modelName"),
-                "selected_account": workflow_params.get("selected_account"),
-                "selectedAccount": workflow_params.get("selectedAccount"),
+                "selected_account": workflow_params.get("selected_account") or snapshot.get("selected_account"),
+                "selectedAccount": workflow_params.get("selectedAccount") or snapshot.get("selectedAccount"),
             },
             "mappedParams": {
                 "parsedInput": {
