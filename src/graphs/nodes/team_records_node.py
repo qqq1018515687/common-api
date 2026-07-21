@@ -2,7 +2,7 @@ import os
 import json
 import logging
 from typing import Optional
-from sqlalchemy import text
+from sqlalchemy import or_, text
 from langchain_core.runnables import RunnableConfig
 from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
@@ -29,6 +29,10 @@ def _to_epoch_ms(dt_val: _dt.datetime) -> int:
 from storage.database.shared.model import Teams, Users, TeamConsumptionRecords
 
 logger = logging.getLogger(__name__)
+
+
+def _active_user_filter():
+    return or_(Users.account_status.is_(None), Users.account_status != "deleted")
 
 
 class TeamRecordsInput(BaseModel):
@@ -97,6 +101,7 @@ def _query_member_stats(db, team_id: str, request_user_id: str, is_admin: bool, 
             and r.user_id = u.user_id
             {records_time_filter}
         where u.team_id = :team_id
+            and coalesce(u.account_status, 'active') != 'deleted'
             {member_scope_filter}
         group by u.user_id, u.username, u.role
         order by net_consumption desc, u.username asc
@@ -222,7 +227,10 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
             team = db.query(Teams).filter(Teams.id == user.team_id).first()
 
             # 查询所有该团队的成员
-            members = db.query(Users).filter(Users.team_id == user.team_id).all()
+            members = db.query(Users).filter(
+                Users.team_id == user.team_id,
+                _active_user_filter()
+            ).all()
             member_consumption_map = {
                 item["user_id"]: item
                 for item in _query_member_stats(db, user.team_id, state.user_id, True, None)

@@ -8,12 +8,17 @@ from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
 from pydantic import BaseModel, Field
 from datetime import datetime
+from sqlalchemy import or_
 
 from storage.database.db import get_session
 from storage.database.shared.model import Teams, Users
 from storage.database.amounts import gold_amount_to_number
 
 logger = logging.getLogger(__name__)
+
+
+def _active_user_filter():
+    return or_(Users.account_status.is_(None), Users.account_status != "deleted")
 
 
 class TeamManageInput(BaseModel):
@@ -139,7 +144,10 @@ def team_manage_node(state: TeamManageInput, config: RunnableConfig, runtime: Ru
                 )
             
             # 查询所有该团队的成员
-            members = db.query(Users).filter(Users.team_id == user.team_id).all()
+            members = db.query(Users).filter(
+                Users.team_id == user.team_id,
+                _active_user_filter()
+            ).all()
             
             member_list = [
                 {
