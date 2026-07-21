@@ -221,6 +221,9 @@ class InputData(BaseModel):
     note: Optional[str] = Field(default=None, description="兑换码备注")
     expires_at: Optional[object] = Field(default=None, description="兑换码过期时间")
     search: Optional[str] = Field(default=None, description="兑换码搜索关键字")
+    target_credit_type: Optional[str] = Field(
+        default=None, description="兑换到账类型：personal_gold/team_gold"
+    )
 
     # RunningHub 错误分析相关字段
     error_response: Optional[dict] = Field(
@@ -1263,6 +1266,9 @@ class UnpackInputDataOutput(BaseModel):
     note: Optional[str] = Field(default=None, description="兑换码备注")
     expires_at: Optional[object] = Field(default=None, description="兑换码过期时间")
     search: Optional[str] = Field(default=None, description="兑换码搜索关键字")
+    target_credit_type: Optional[str] = Field(
+        default=None, description="兑换到账类型：personal_gold/team_gold"
+    )
 
     # RunningHub 错误分析相关字段
     error_response: Optional[dict] = Field(

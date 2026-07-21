@@ -22,6 +22,7 @@ class RechargeCodeInput(BaseModel):
     recharge_code: Optional[str] = Field(default=None, description="用户输入的兑换码")
     name: Optional[str] = Field(default=None, description="批次名称")
     credit_type: Optional[str] = Field(default=None, description="personal_gold/team_gold")
+    target_credit_type: Optional[str] = Field(default=None, description="兑换到账类型 personal_gold/team_gold")
     amount: Optional[float] = Field(default=None, description="充值金额")
     limit: Optional[int] = Field(default=None, description="返回数量")
     status: Optional[str] = Field(default=None, description="状态筛选")
@@ -57,7 +58,11 @@ def recharge_code_node(state: RechargeCodeInput, config: RunnableConfig, runtime
                 return _failure("用户未登录", 401)
             if not state.recharge_code:
                 return _failure("兑换码不能为空")
-            return _success(recharge_code_manager.redeem(raw_code=state.recharge_code, user_id=state.user_id), "兑换成功")
+            return _success(recharge_code_manager.redeem(
+                raw_code=state.recharge_code,
+                user_id=state.user_id,
+                target_credit_type=state.target_credit_type,
+            ), "兑换成功")
 
         if operation_type == "list_redemptions":
             if not _is_admin(state) and not state.user_id:
@@ -78,7 +83,7 @@ def recharge_code_node(state: RechargeCodeInput, config: RunnableConfig, runtime
                 return _failure("管理员ID不能为空")
             return _success(recharge_code_manager.create_batch(
                 name=state.name or "金豆兑换码",
-                credit_type=state.credit_type or "personal_gold",
+                credit_type=state.credit_type or "gold",
                 amount=state.amount,
                 code_count=state.limit or 1,
                 created_by=operator_user_id,

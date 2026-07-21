@@ -21,7 +21,9 @@ from storage.database.shared.model import (
 )
 
 
-VALID_CREDIT_TYPES = {"personal_gold", "team_gold"}
+UNIVERSAL_CREDIT_TYPE = "gold"
+VALID_CREDIT_TYPES = {UNIVERSAL_CREDIT_TYPE, "personal_gold", "team_gold"}
+VALID_REDEEM_TARGETS = {"personal_gold", "team_gold"}
 VALID_CHANNELS = {"wechat", "xianyu", "manual", "campaign", "compensation"}
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
@@ -86,6 +88,14 @@ def _format_code(raw: str) -> str:
 def _generate_code() -> str:
     raw = "".join(secrets.choice(CODE_ALPHABET) for _ in range(16))
     return _format_code(raw)
+
+
+def _resolve_redeem_credit_type(code_credit_type: str, target_credit_type: Optional[str]) -> str:
+    if code_credit_type in VALID_REDEEM_TARGETS:
+        return code_credit_type
+    if code_credit_type == UNIVERSAL_CREDIT_TYPE:
+        return target_credit_type if target_credit_type in VALID_REDEEM_TARGETS else "personal_gold"
+    raise ValueError("不支持的兑换码类型")
 
 
 def _serialize_batch(batch: RechargeCodeBatches) -> dict[str, Any]:
@@ -159,7 +169,7 @@ def create_batch(
     if not batch_name:
         raise ValueError("批次名称不能为空")
     if credit_type not in VALID_CREDIT_TYPES:
-        raise ValueError("兑换码类型只能是个人金豆或团队金豆")
+        raise ValueError("兑换码类型无效")
     amount_value = normalize_gold_amount(amount)
     safe_count = int(code_count or 0)
     if safe_count < 1 or safe_count > 500:
@@ -309,7 +319,7 @@ def disable_batch(*, batch_id: str) -> dict[str, Any]:
         db.close()
 
 
-def redeem(*, raw_code: str, user_id: str) -> dict[str, Any]:
+def redeem(*, raw_code: str, user_id: str, target_credit_type: Optional[str] = None) -> dict[str, Any]:
     if not user_id:
         raise ValueError("用户未登录")
     code_hash = hash_code(raw_code)
@@ -343,7 +353,9 @@ def redeem(*, raw_code: str, user_id: str) -> dict[str, Any]:
         team_record_id = None
         team_id = None
 
-        if code.credit_type == "personal_gold":
+        redeem_credit_type = _resolve_redeem_credit_type(code.credit_type, target_credit_type)
+
+        if redeem_credit_type == "personal_gold":
             row = db.execute(text(
                 "UPDATE users SET gold_credits = gold_credits + :amount "
                 "WHERE user_id = :user_id "
@@ -369,7 +381,7 @@ def redeem(*, raw_code: str, user_id: str) -> dict[str, Any]:
                 description=f"兑换码充值 · {batch.name}",
                 extra_data={"batch_id": batch.id, "code_suffix": code.code_suffix, "channel": batch.channel},
             )
-        elif code.credit_type == "team_gold":
+        elif redeem_credit_type == "team_gold":
             if not user.team_id:
                 raise ValueError("当前账号未加入团队，不能兑换团队金豆码")
             team = db.query(Teams).filter(Teams.id == user.team_id).with_for_update().first()
@@ -415,7 +427,7 @@ def redeem(*, raw_code: str, user_id: str) -> dict[str, Any]:
             code_id=code.id,
             user_id=user_id,
             team_id=team_id,
-            credit_type=code.credit_type,
+            credit_type=redeem_credit_type,
             amount=amount,
             balance_before=balance_before,
             balance_after=balance_after,
@@ -430,10 +442,10 @@ def redeem(*, raw_code: str, user_id: str) -> dict[str, Any]:
         return {
             "code": _serialize_code(code),
             "redemption": _serialize_redemption(redemption),
-            "credit_type": code.credit_type,
-            "amount": amount_to_response_number(code.credit_type, amount),
-            "balance_before": amount_to_response_number(code.credit_type, balance_before),
-            "balance_after": amount_to_response_number(code.credit_type, balance_after),
+            "credit_type": redeem_credit_type,
+            "amount": amount_to_response_number(redeem_credit_type, amount),
+            "balance_before": amount_to_response_number(redeem_credit_type, balance_before),
+            "balance_after": amount_to_response_number(redeem_credit_type, balance_after),
         }
     except Exception:
         db.rollback()

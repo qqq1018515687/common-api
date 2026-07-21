@@ -413,6 +413,7 @@ def unpack_input_data_node(
         note=input_data.note if input_data else None,
         expires_at=input_data.expires_at if input_data else None,
         search=input_data.search if input_data else None,
+        target_credit_type=input_data.target_credit_type if input_data else None,
     )
 
 
