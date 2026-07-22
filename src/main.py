@@ -9,7 +9,7 @@ import contextvars
 import cozeloop
 import uvicorn
 import time
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse, JSONResponse, Response
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph, END
@@ -26,6 +26,7 @@ from utils.messages.server import (
     MESSAGE_END_CODE_CANCELED,
 )
 from storage.s3.s3_storage import S3SyncStorage
+from storage.storage_manager import get_storage_manager, StorageCategory
 import os
 
 setup_logging(
@@ -322,6 +323,108 @@ SENSITIVE_LOG_KEYS = {
     "access_key_secret",
     "token",
 }
+
+MAX_MULTIPART_UPLOAD_BYTES = 30 * 1024 * 1024
+ALLOWED_MULTIPART_UPLOAD_TYPES = {
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp",
+    "image/gif",
+    "image/bmp",
+}
+
+
+def require_backend_authorization(authorization: Optional[str]) -> None:
+    expected_token = os.getenv("COZE_BACKEND_TOKEN", "")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing backend authorization")
+    if not expected_token:
+        logger.error("COZE_BACKEND_TOKEN is not configured; rejecting multipart upload")
+        raise HTTPException(status_code=500, detail="Backend token is not configured")
+    expected_header = f"Bearer {expected_token}"
+    if authorization != expected_header:
+        raise HTTPException(status_code=401, detail="Invalid backend authorization")
+
+
+def normalize_multipart_upload_category(category: Optional[str]) -> str:
+    if category == StorageCategory.TEMP:
+        return StorageCategory.TEMP
+    if category == StorageCategory.AVATAR:
+        return StorageCategory.AVATAR
+    return StorageCategory.UPLOAD
+
+
+def normalize_multipart_metadata(metadata_text: Optional[str]) -> Dict[str, Any]:
+    if not metadata_text:
+        return {}
+    try:
+        parsed = json.loads(metadata_text)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Invalid metadata JSON") from exc
+    if not isinstance(parsed, dict):
+        raise HTTPException(status_code=400, detail="metadata must be an object")
+    return {
+        str(key): value
+        for key, value in parsed.items()
+        if isinstance(key, str) and value is not None
+    }
+
+
+@app.post("/upload")
+async def http_multipart_upload(
+    file: UploadFile = File(...),
+    category: Optional[str] = Form(default=StorageCategory.UPLOAD),
+    metadata: Optional[str] = Form(default=None),
+    authorization: Optional[str] = Header(default=None),
+) -> Dict[str, Any]:
+    """
+    二进制文件上传入口，供主站服务端转发插件图片使用。
+    只接受后端 Bearer token，不暴露给插件端直接调用。
+    """
+    require_backend_authorization(authorization)
+
+    content_type = (file.content_type or "application/octet-stream").lower()
+    if content_type not in ALLOWED_MULTIPART_UPLOAD_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported content type: {content_type}")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+    if len(content) > MAX_MULTIPART_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Uploaded file is too large")
+
+    upload_metadata = normalize_multipart_metadata(metadata)
+    upload_category = normalize_multipart_upload_category(category)
+    file_name = file.filename or "upload"
+
+    logger.info(
+        "Received multipart upload: "
+        f"filename={file_name}, content_type={content_type}, size={len(content)}, category={upload_category}"
+    )
+
+    try:
+        storage_mgr = get_storage_manager()
+        upload_result = storage_mgr.upload_with_category(
+            file_content=content,
+            file_name=file_name,
+            category=upload_category,
+            content_type=content_type,
+            acl=None,
+            metadata=upload_metadata,
+        )
+    except Exception as exc:
+        logger.error(f"Multipart upload failed: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Multipart upload failed") from exc
+
+    return {
+        "success": True,
+        "message": "文件上传成功",
+        "public_url": upload_result["url"],
+        "file_key": upload_result["file_key"],
+        "category": upload_result["category"],
+        "expires_at": upload_result.get("expires_at"),
+    }
 
 
 def redact_sensitive_payload(value: Any) -> Any:
