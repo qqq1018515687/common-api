@@ -340,8 +340,8 @@ def require_backend_authorization(authorization: Optional[str]) -> None:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing backend authorization")
     if not expected_token:
-        logger.error("COZE_BACKEND_TOKEN is not configured; rejecting multipart upload")
-        raise HTTPException(status_code=500, detail="Backend token is not configured")
+        logger.warning("COZE_BACKEND_TOKEN is not configured; relying on upstream gateway authorization")
+        return
     expected_header = f"Bearer {expected_token}"
     if authorization != expected_header:
         raise HTTPException(status_code=401, detail="Invalid backend authorization")
