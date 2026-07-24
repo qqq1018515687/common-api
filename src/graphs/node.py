@@ -432,6 +432,56 @@ storage = S3SyncStorage(
     region=os.getenv("COZE_BUCKET_REGION", "cn-beijing"),
 )
 
+USER_UPDATE_ALLOWED_FIELDS = {
+    "phone",
+    "username",
+    "avatar",
+    "team_id",
+    "gold_credits",
+    "silver_credits",
+    "role",
+    "tier",
+    "account_status",
+}
+
+
+def build_user_updates_from_patch(patch: dict) -> dict:
+    """仅更新 patch 对象里显式出现的白名单字段。"""
+    updates = {}
+    for key, value in patch.items():
+        if key not in USER_UPDATE_ALLOWED_FIELDS:
+            continue
+        if key == "team_id" and value == "":
+            continue
+        updates[key] = value
+    return updates
+
+
+def build_legacy_user_updates(state, processed_avatar):
+    updates = {}
+    if state.phone is not None:
+        updates["phone"] = state.phone
+    if state.username is not None:
+        updates["username"] = state.username
+    if state.avatar is not None:
+        updates["avatar"] = processed_avatar
+    if state.provided_fields and "team_id" in state.provided_fields:
+        if state.team_id is None:
+            updates["team_id"] = None
+        elif state.team_id != "":
+            updates["team_id"] = state.team_id
+    if state.gold_credits is not None:
+        updates["gold_credits"] = state.gold_credits
+    if state.silver_credits is not None:
+        updates["silver_credits"] = state.silver_credits
+    if state.role is not None:
+        updates["role"] = state.role
+    if state.tier is not None:
+        updates["tier"] = state.tier
+    if state.account_status is not None:
+        updates["account_status"] = state.account_status
+    return updates
+
 
 # ============ 用户管理节点 ============
 
@@ -1396,30 +1446,13 @@ def update_user_node(
                 error="权限不足，仅管理员可更新其他用户",
             )
 
-        # 构造更新字典
-        updates = {}
-        if state.phone is not None:
-            updates["phone"] = state.phone
-        if state.username is not None:
-            updates["username"] = state.username
-        if state.avatar is not None:
-            updates["avatar"] = processed_avatar  # 使用处理后的头像
-        if state.provided_fields and "team_id" in state.provided_fields:
-            # 显式传 null 才清除团队；空字符串视为不更新，保留原值
-            if state.team_id is None:
-                updates["team_id"] = None
-            elif state.team_id != "":
-                updates["team_id"] = state.team_id
-        if state.gold_credits is not None:
-            updates["gold_credits"] = state.gold_credits
-        if state.silver_credits is not None:
-            updates["silver_credits"] = state.silver_credits
-        if state.role is not None:
-            updates["role"] = state.role
-        if state.tier is not None:
-            updates["tier"] = state.tier
-        if state.account_status is not None:
-            updates["account_status"] = state.account_status
+        # 构造更新字典。优先使用 updates 补丁对象，避免 Coze schema 把未传字段补成 null。
+        if isinstance(state.updates, dict):
+            updates = build_user_updates_from_patch(state.updates)
+            if "avatar" in updates and updates["avatar"] == state.avatar:
+                updates["avatar"] = processed_avatar
+        else:
+            updates = build_legacy_user_updates(state, processed_avatar)
 
         # 如果没有提供任何更新字段，返回错误
         if not updates:
