@@ -303,6 +303,8 @@ def unpack_input_data_node(
 
             password_hash = hash_password(input_data.password)
 
+    provided_fields = list(input_data.model_fields_set) if input_data else []
+
     return UnpackInputDataOutput(
         call_type=state.call_type,
         tool_type=state.tool_type,
@@ -359,6 +361,7 @@ def unpack_input_data_node(
         tier=input_data.tier if input_data else None,
         account_status=input_data.account_status if input_data else None,
         updates=input_data.updates if input_data else None,
+        provided_fields=provided_fields,
         operator_role=input_data.operator_role if input_data else None,
         operator_user_id=input_data.operator_user_id if input_data else None,
         page=input_data.page if input_data else None,
@@ -1401,7 +1404,7 @@ def update_user_node(
             updates["username"] = state.username
         if state.avatar is not None:
             updates["avatar"] = processed_avatar  # 使用处理后的头像
-        if "team_id" in state.model_fields_set:
+        if state.provided_fields and "team_id" in state.provided_fields:
             # 显式传 null 才清除团队；空字符串视为不更新，保留原值
             if state.team_id is None:
                 updates["team_id"] = None

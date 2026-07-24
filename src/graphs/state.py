@@ -252,6 +252,10 @@ class InputData(BaseModel):
         default=None,
         description="通用元数据（含 billing_metadata 嵌套结构，main 透传）",
     )
+    provided_fields: Optional[List[str]] = Field(
+        default=None,
+        description="input 中实际显式传入的字段名，用于区分字段缺失和显式传 null",
+    )
 
     @field_validator("silver_credits", mode="before")
     @classmethod
@@ -375,6 +379,10 @@ class GlobalState(BaseModel):
     tier: Optional[str] = Field(default=None, description="用户等级")
     account_status: Optional[str] = Field(default=None, description="账号状态")
     updates: Optional[dict] = Field(default=None, description="更新字段")
+    provided_fields: Optional[List[str]] = Field(
+        default=None,
+        description="input 中实际显式传入的字段名，用于区分字段缺失和显式传 null",
+    )
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
     page: Optional[int] = Field(default=None, description="页码")
@@ -775,6 +783,10 @@ class UpdateUserInput(BaseModel):
     account_status: Optional[str] = Field(default=None, description="账号状态")
     updates: Optional[dict] = Field(
         default=None, description="更新字段（已废弃，使用上面的具体字段）"
+    )
+    provided_fields: Optional[List[str]] = Field(
+        default=None,
+        description="input 中实际显式传入的字段名，用于区分字段缺失和显式传 null",
     )
 
     @field_validator("silver_credits", mode="before")
@@ -1195,6 +1207,10 @@ class UnpackInputDataOutput(BaseModel):
     tier: Optional[str] = Field(default=None, description="用户等级")
     account_status: Optional[str] = Field(default=None, description="账号状态")
     updates: Optional[dict] = Field(default=None, description="更新字段")
+    provided_fields: Optional[List[str]] = Field(
+        default=None,
+        description="input 中实际显式传入的字段名，用于区分字段缺失和显式传 null",
+    )
     operator_role: Optional[str] = Field(default=None, description="操作者角色")
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
     page: Optional[int] = Field(default=None, description="页码")
