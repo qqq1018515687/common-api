@@ -27,6 +27,8 @@ from utils.messages.server import (
 )
 from storage.s3.s3_storage import S3SyncStorage
 from storage.storage_manager import get_storage_manager, StorageCategory
+from storage.database.db import get_session
+from storage.database.ops_briefing_manager import OpsBriefingIngestInput, OpsBriefingManager
 import os
 
 setup_logging(
@@ -449,6 +451,49 @@ def safe_body_for_log(body_text: str) -> str:
     return json.dumps(redact_sensitive_payload(data), ensure_ascii=False)
 
 
+def is_ops_briefing_payload(payload: Any) -> bool:
+    return isinstance(payload, dict) and payload.get("call_type") == "ops_briefing"
+
+
+async def handle_ops_briefing(payload: Dict[str, Any], authorization: Optional[str]) -> Dict[str, Any]:
+    require_backend_authorization(authorization)
+    input_data = payload.get("input") if isinstance(payload.get("input"), dict) else {}
+    operation_type = input_data.get("operation_type")
+    db = get_session()
+    try:
+        if operation_type == "ingest":
+            ingest = OpsBriefingIngestInput.model_validate(input_data)
+            success, data, error = OpsBriefingManager.ingest_raw_items(db, ingest)
+            if success and (data.get("inserted", 0) or data.get("updated", 0)):
+                OpsBriefingManager.generate_briefing(db, ingest.briefing_date)
+            return {"success": success, "response_data": {"data": data, "msg": error or "ok"}}
+
+        if operation_type == "generate":
+            success, data, error = OpsBriefingManager.generate_briefing(
+                db,
+                input_data.get("briefing_date") if isinstance(input_data.get("briefing_date"), str) else None,
+            )
+            return {"success": success, "response_data": {"data": data, "msg": error or "ok"}}
+
+        if operation_type == "get_today" or operation_type == "get_by_date":
+            success, data, error = OpsBriefingManager.get_briefing(
+                db,
+                input_data.get("briefing_date") if isinstance(input_data.get("briefing_date"), str) else None,
+            )
+            return {"success": success, "response_data": {"data": data, "msg": error or "ok"}}
+
+        if operation_type == "list_raw":
+            data = OpsBriefingManager.list_raw_items(
+                db,
+                input_data.get("briefing_date") if isinstance(input_data.get("briefing_date"), str) else None,
+            )
+            return {"success": True, "response_data": {"data": data, "msg": "ok"}}
+
+        raise HTTPException(status_code=400, detail=f"Unsupported ops briefing operation: {operation_type}")
+    finally:
+        db.close()
+
+
 @app.post("/run")
 async def http_run(request: Request) -> Dict[str, Any]:
     global result
@@ -474,6 +519,9 @@ async def http_run(request: Request) -> Dict[str, Any]:
 
     try:
         payload = await request.json()
+
+        if is_ops_briefing_payload(payload):
+            return await handle_ops_briefing(payload, request.headers.get("authorization"))
 
         # 创建任务并记录 - 这是关键，让我们可以通过run_id取消任务
         task = asyncio.create_task(service.run(payload, ctx))

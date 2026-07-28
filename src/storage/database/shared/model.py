@@ -462,3 +462,57 @@ class SeatMaps(Base):
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), server_default=text('now()'), nullable=False, comment='Last update time')
     updated_by_label: Mapped[Optional[str]] = mapped_column(String(40), comment='Updater label')
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), server_default=text('now()'), nullable=False, comment='Creation time')
+
+
+class OpsBriefingRawItems(Base):
+    """运营晨报原始采集资料"""
+    __tablename__ = 'ops_briefing_raw_items'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='ops_briefing_raw_items_pkey'),
+        UniqueConstraint('url', name='uq_ops_briefing_raw_items_url'),
+        Index('ix_ops_briefing_raw_items_date', 'briefing_date'),
+        Index('ix_ops_briefing_raw_items_source', 'source_name'),
+        Index('ix_ops_briefing_raw_items_category', 'category'),
+        {'comment': '美国亚马逊运营晨报原始采集资料'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='记录ID')
+    briefing_date: Mapped[str] = mapped_column(String(10), nullable=False, comment='晨报日期 YYYY-MM-DD')
+    title: Mapped[str] = mapped_column(String(500), nullable=False, comment='标题')
+    source_name: Mapped[str] = mapped_column(String(120), nullable=False, comment='来源名称')
+    source_type: Mapped[str] = mapped_column(String(40), nullable=False, comment='official/news/trend/product_signal')
+    url: Mapped[str] = mapped_column(Text, nullable=False, unique=True, comment='原文链接')
+    published_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='原文发布时间')
+    collected_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='采集时间')
+    category: Mapped[str] = mapped_column(String(60), nullable=False, comment='分类')
+    credibility: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'medium'"), comment='可信度 high/medium/low')
+    summary: Mapped[Optional[str]] = mapped_column(Text, comment='原始摘要')
+    raw_payload: Mapped[Optional[dict]] = mapped_column(JSON, comment='原始扩展数据')
+    collector_id: Mapped[Optional[str]] = mapped_column(String(80), comment='采集器标识')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
+
+
+class OpsDailyBriefings(Base):
+    """运营晨报生成结果"""
+    __tablename__ = 'ops_daily_briefings'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='ops_daily_briefings_pkey'),
+        UniqueConstraint('briefing_date', name='uq_ops_daily_briefings_date'),
+        Index('ix_ops_daily_briefings_status', 'status'),
+        {'comment': '美国亚马逊运营晨报每日结果'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='晨报ID')
+    briefing_date: Mapped[str] = mapped_column(String(10), nullable=False, unique=True, comment='晨报日期 YYYY-MM-DD')
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'empty'"), comment='ready/empty/partial_failed')
+    summary: Mapped[Optional[str]] = mapped_column(Text, comment='今日一句话总结')
+    official_updates: Mapped[Optional[list]] = mapped_column(JSON, comment='Amazon 官方动态')
+    ecommerce_news: Mapped[Optional[list]] = mapped_column(JSON, comment='行业资讯快报')
+    product_signals: Mapped[Optional[list]] = mapped_column(JSON, comment='公开选品信号')
+    action_items: Mapped[Optional[list]] = mapped_column(JSON, comment='今日建议动作')
+    warnings: Mapped[Optional[list]] = mapped_column(JSON, comment='数据质量提示')
+    source_stats: Mapped[Optional[dict]] = mapped_column(JSON, comment='来源统计')
+    generated_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='生成时间')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
