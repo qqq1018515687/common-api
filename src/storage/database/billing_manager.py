@@ -745,6 +745,10 @@ def refund(
         if _has_existing_refund(db, original_record_id):
             return _make_error(ALREADY_REFUNDED, "该记录已退款，不能重复退款")
 
+        # 已经结算的扣费记录不能再退款，避免取消/完成竞态导致既 settle 又 refund。
+        if _has_existing_settle(db, original_record_id):
+            return _make_error(ALREADY_REFUNDED, "该记录已结算，不能再退款")
+
         # bltcy 任务退款保护
         original_extra = original.get("extra_data")
         if not isinstance(original_extra, dict):
