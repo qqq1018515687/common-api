@@ -464,8 +464,6 @@ async def handle_ops_briefing(payload: Dict[str, Any], authorization: Optional[s
         if operation_type == "ingest":
             ingest = OpsBriefingIngestInput.model_validate(input_data)
             success, data, error = OpsBriefingManager.ingest_raw_items(db, ingest)
-            if success and (data.get("inserted", 0) or data.get("updated", 0)):
-                OpsBriefingManager.generate_briefing(db, ingest.briefing_date)
             return {"success": success, "response_data": {"data": data, "msg": error or "ok"}}
 
         if operation_type == "generate":
