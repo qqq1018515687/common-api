@@ -28,7 +28,7 @@ from utils.messages.server import (
 from storage.s3.s3_storage import S3SyncStorage
 from storage.storage_manager import get_storage_manager, StorageCategory
 from storage.database.db import get_session
-from storage.database.ops_briefing_manager import OpsBriefingIngestInput, OpsBriefingManager
+from storage.database.ops_briefing_manager import OpsBriefingIngestInput, OpsBriefingManager, OpsDailyBriefingSaveInput
 import os
 
 setup_logging(
@@ -473,6 +473,11 @@ async def handle_ops_briefing(payload: Dict[str, Any], authorization: Optional[s
                 db,
                 input_data.get("briefing_date") if isinstance(input_data.get("briefing_date"), str) else None,
             )
+            return {"success": success, "response_data": {"data": data, "msg": error or "ok"}}
+
+        if operation_type == "save_briefing":
+            briefing_input = OpsDailyBriefingSaveInput.model_validate(input_data.get("briefing") if isinstance(input_data.get("briefing"), dict) else input_data)
+            success, data, error = OpsBriefingManager.save_briefing(db, briefing_input)
             return {"success": success, "response_data": {"data": data, "msg": error or "ok"}}
 
         if operation_type == "get_today" or operation_type == "get_by_date":
