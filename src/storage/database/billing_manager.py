@@ -231,12 +231,12 @@ def _is_bltcy_record(
     - platform = "bltcy"
     - selected_account = "bltcy"
     - provider = "bltcy"
-    - model_name = "model6"
-    - model_key = "model6"
+    - model_name = "model6" / "banana2_tudou" / "banana_pro_tudou"
+    - model_key = "model6" / "banana2_tudou" / "banana_pro_tudou"
     """
     bltcy_keys = {"platform", "selected_account", "provider"}
     model_keys = {"model_name", "model_key"}
-    bltcy_model_value = "model6"
+    no_refund_model_values = {"model6", "banana2_tudou", "banana_pro_tudou"}
 
     sources: List[Dict[str, Any]] = []
     if billing_metadata:
@@ -257,7 +257,7 @@ def _is_bltcy_record(
                 return True
         for key in model_keys:
             val = src.get(key)
-            if isinstance(val, str) and val == bltcy_model_value:
+            if isinstance(val, str) and val in no_refund_model_values:
                 return True
     return False
 
