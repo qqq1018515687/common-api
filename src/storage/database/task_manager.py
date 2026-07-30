@@ -79,6 +79,25 @@ class TaskManager:
         return False
 
     @staticmethod
+    def _contains_non_persisted_image_result(result: Any) -> bool:
+        if not isinstance(result, dict):
+            return False
+
+        marker = "[data-url-pending-persist]"
+
+        def has_bad_value(value: Any) -> bool:
+            if isinstance(value, str):
+                return value.startswith("data:image/") or value == marker
+            if isinstance(value, list):
+                return any(has_bad_value(item) for item in value)
+            if isinstance(value, dict):
+                return any(has_bad_value(item) for item in value.values())
+            return False
+
+        metadata = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
+        return has_bad_value(result) or metadata.get("pendingPersist") is True
+
+    @staticmethod
     def _is_completed_with_result(task: Tasks) -> bool:
         return task.status == "completed" and TaskManager._has_displayable_result(task.result)
 
@@ -578,6 +597,8 @@ class TaskManager:
             update_data.get("status") == "completed"
             and self._has_displayable_result(update_data.get("result"))
         ):
+            if self._contains_non_persisted_image_result(update_data.get("result")):
+                raise ValueError("completed 任务结果仍包含未转存图片，拒绝写库")
             update_data["error"] = None
             update_data["user_friendly_message"] = None
             if db_task.completed_at:
