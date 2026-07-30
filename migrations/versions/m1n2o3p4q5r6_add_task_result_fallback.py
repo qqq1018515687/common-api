@@ -1,7 +1,7 @@
 """add task result fallback
 
 Revision ID: m1n2o3p4q5r6
-Revises: h1i2j3k4l5m6
+Revises: v003_tasks_elapsed
 Create Date: 2026-07-30 07:40:00.000000
 """
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = 'm1n2o3p4q5r6'
-down_revision = 'h1i2j3k4l5m6'
+down_revision = 'v003_tasks_elapsed'
 branch_labels = None
 depends_on = None
 
