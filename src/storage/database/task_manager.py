@@ -48,6 +48,7 @@ class TaskUpdate(BaseModel):
     deleted_image_urls: Optional[List[str]] = Field(
         default=None, description="已删除的图片URL列表（图像级软删除）"
     )
+    result_fallback: Optional[dict] = Field(default=None, description="结果转存失败时保留的原始回退结果")
 
 
 class TaskManager:
@@ -121,6 +122,11 @@ class TaskManager:
             db.execute(
                 text(
                     "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS elapsed_time_seconds INTEGER DEFAULT 0"
+                )
+            )
+            db.execute(
+                text(
+                    "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS result_fallback JSON"
                 )
             )
             db.commit()

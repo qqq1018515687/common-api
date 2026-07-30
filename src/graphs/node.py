@@ -2039,6 +2039,7 @@ def update_task_node(
                 "status",
                 "platform_task_id",
                 "result",
+                "result_fallback",
                 "error",
                 "completed_at",
                 "started_at",  # 【新增】允许更新 started_at
