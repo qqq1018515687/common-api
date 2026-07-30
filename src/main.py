@@ -327,6 +327,7 @@ SENSITIVE_LOG_KEYS = {
 }
 
 MAX_MULTIPART_UPLOAD_BYTES = 30 * 1024 * 1024
+MAX_BACKEND_PERSIST_UPLOAD_BYTES = 60 * 1024 * 1024
 ALLOWED_MULTIPART_UPLOAD_TYPES = {
     "image/png",
     "image/jpeg",
@@ -373,6 +374,11 @@ def normalize_multipart_metadata(metadata_text: Optional[str]) -> Dict[str, Any]
     }
 
 
+def is_backend_persist_upload(metadata: Dict[str, Any]) -> bool:
+    source = str(metadata.get("source") or "").strip().lower()
+    return source == "tudou_server_persist"
+
+
 @app.post("/upload")
 async def http_multipart_upload(
     file: UploadFile = File(...),
@@ -393,16 +399,18 @@ async def http_multipart_upload(
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
-    if len(content) > MAX_MULTIPART_UPLOAD_BYTES:
+    upload_metadata = normalize_multipart_metadata(metadata)
+    max_upload_bytes = MAX_BACKEND_PERSIST_UPLOAD_BYTES if is_backend_persist_upload(upload_metadata) else MAX_MULTIPART_UPLOAD_BYTES
+
+    if len(content) > max_upload_bytes:
         raise HTTPException(status_code=413, detail="Uploaded file is too large")
 
-    upload_metadata = normalize_multipart_metadata(metadata)
     upload_category = normalize_multipart_upload_category(category)
     file_name = file.filename or "upload"
 
     logger.info(
         "Received multipart upload: "
-        f"filename={file_name}, content_type={content_type}, size={len(content)}, category={upload_category}"
+        f"filename={file_name}, content_type={content_type}, size={len(content)}, category={upload_category}, source={upload_metadata.get('source')}, limit={max_upload_bytes}"
     )
 
     try:
