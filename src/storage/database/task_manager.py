@@ -70,6 +70,15 @@ class TaskManager:
         return bool(task_id) and not task_id.startswith("pending:")
 
     @staticmethod
+    def _should_use_platform_task_id_as_started_anchor(platform_task_id: Any) -> bool:
+        if not TaskManager._is_real_platform_task_id(platform_task_id):
+            return False
+        if not isinstance(platform_task_id, str):
+            return False
+        task_id = platform_task_id.strip()
+        return not task_id.startswith("tudou_sync:")
+
+    @staticmethod
     def _has_displayable_result(result: Any) -> bool:
         if not isinstance(result, dict):
             return False
@@ -203,7 +212,7 @@ class TaskManager:
                         setattr(existing_task, field, value)
                         if (
                             field == "platform_task_id"
-                            and self._is_real_platform_task_id(value)
+                            and self._should_use_platform_task_id_as_started_anchor(value)
                             and not existing_task.started_at
                         ):
                             existing_task.started_at = current_time
@@ -225,7 +234,7 @@ class TaskManager:
         task_data["status"] = "running"
         task_data["created_at"] = current_time
         task_data["updated_at"] = current_time
-        task_data["started_at"] = current_time if self._is_real_platform_task_id(task_data.get("platform_task_id")) else None
+        task_data["started_at"] = current_time
 
         db_task = Tasks(**task_data)
         db.add(db_task)
@@ -626,7 +635,7 @@ class TaskManager:
                 update_data.pop("completed_at", None)
 
         if (
-            self._is_real_platform_task_id(update_data.get("platform_task_id"))
+            self._should_use_platform_task_id_as_started_anchor(update_data.get("platform_task_id"))
             and not db_task.started_at
             and "started_at" not in update_data
         ):
