@@ -51,6 +51,7 @@ class TaskUpdate(BaseModel):
     result_fallback: Optional[dict] = Field(default=None, description="结果转存失败时保留的原始回退结果")
     persistence_status: Optional[str] = Field(default=None, description="结果持久化状态：saving/saved/failed")
     persistence_error: Optional[str] = Field(default=None, description="结果持久化失败原因")
+    confirmation_state: Optional[str] = Field(default=None, description="结果确认状态：none/pending/confirmed")
 
 
 class TaskManager:
@@ -89,6 +90,13 @@ class TaskManager:
                 return True
 
         return False
+
+    @staticmethod
+    def _is_confirmation_pending(task: Tasks) -> bool:
+        if getattr(task, "confirmation_state", None) == "pending":
+            return True
+        snapshot = task.parameter_snapshot if isinstance(task.parameter_snapshot, dict) else {}
+        return snapshot.get("confirmationState") == "pending"
 
     @staticmethod
     def _contains_non_persisted_image_result(result: Any) -> bool:
@@ -401,6 +409,7 @@ class TaskManager:
                 Tasks.parameter_snapshot,
                 Tasks.result,
                 Tasks.error,
+                Tasks.confirmation_state,
                 Tasks.user_friendly_message,
                 Tasks.created_at,
                 Tasks.started_at,
@@ -441,6 +450,7 @@ class TaskManager:
                 "status": row.status,
                 "workflow_parameters": self._compact_workflow_parameters(workflow_parameters),
                 "parameter_snapshot": self._compact_parameter_snapshot(parameter_snapshot),
+                "confirmation_state": row.confirmation_state or "none",
                 "result": self._compact_result(result),
                 "error": row.error,
                 "user_friendly_message": row.user_friendly_message,
@@ -622,6 +632,20 @@ class TaskManager:
 
             if incoming_status == "completed":
                 update_data.pop("completed_at", None)
+
+        if self._is_confirmation_pending(db_task):
+            incoming_status = update_data.get("status")
+            incoming_result = update_data.get("result")
+            if incoming_status == "failed" and not self._has_displayable_result(incoming_result):
+                update_data["status"] = "running"
+                merged_snapshot = dict(db_task.parameter_snapshot or {})
+                merged_snapshot["confirmationState"] = "pending"
+                update_data["parameter_snapshot"] = merged_snapshot
+                update_data["confirmation_state"] = "pending"
+                update_data["completed_at"] = None
+
+        if update_data.get("status") in ("completed", "failed", "cancelled") and "confirmation_state" not in update_data:
+            update_data["confirmation_state"] = "confirmed"
 
         if (
             update_data.get("status") == "completed"

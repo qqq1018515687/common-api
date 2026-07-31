@@ -33,6 +33,7 @@ class UpdateTaskRequest(BaseModel):
     workflow_parameters: Optional[dict] = Field(default=None, description="工作流参数")
     parameter_snapshot: Optional[dict] = Field(default=None, description="完整参数快照")
     connection_mode: Optional[str] = Field(default=None, description="连接模式")
+    confirmation_state: Optional[str] = Field(default=None, description="结果确认状态：none/pending/confirmed")
 
 
 class TaskResponse(BaseModel):
@@ -44,6 +45,7 @@ class TaskResponse(BaseModel):
     platform_task_id: Optional[str]
     type: str
     status: str
+    confirmation_state: Optional[str]
     created_at: int
     updated_at: int
     workflow_parameters: Optional[dict]
@@ -127,6 +129,7 @@ async def common_endpoint(
                     "platform_task_id": task.platform_task_id,
                     "type": task.type,
                     "status": task.status,
+                    "confirmation_state": getattr(task, "confirmation_state", None),
                     "created_at": task.created_at,
                     "updated_at": task.updated_at,
                     "workflow_parameters": task.workflow_parameters,
@@ -168,6 +171,7 @@ async def common_endpoint(
                     "platform_task_id": task.platform_task_id,
                     "type": task.type,
                     "status": task.status,
+                    "confirmation_state": getattr(task, "confirmation_state", None),
                     "created_at": task.created_at,
                     "updated_at": task.updated_at,
                     "workflow_parameters": task.workflow_parameters,
@@ -255,6 +259,7 @@ async def update_task(task_id: str, request: UpdateTaskRequest):
             "task": {
                 "id": task.id,
                 "status": task.status,
+                "confirmation_state": getattr(task, "confirmation_state", None),
                 "result": task.result,
                 "error": task.error,
                 "completed_at": task.completed_at,

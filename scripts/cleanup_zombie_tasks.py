@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
 清理僵尸任务工具
-用于清理状态为 'running' 但实际已经失败/超时的任务
+用于清理状态为 'running' 且长时间未更新的任务。
+
+注意：查询超时或平台状态暂不可用不再直接判定为失败，
+而是统一进入“结果确认中”，等待后端继续补查。
 """
 import os
 import sys
@@ -89,13 +92,13 @@ class ZombieTaskCleaner:
         finally:
             session.close()
 
-    def mark_tasks_as_failed(self, task_ids: List[str], error_message: str = "Task timeout - automatically marked as failed") -> int:
+    def mark_tasks_as_confirming(self, task_ids: List[str], status_message: str = "结果确认中，系统正在继续同步...") -> int:
         """
-        批量将任务标记为失败
+        批量将超时任务标记为结果确认中
 
         Args:
             task_ids: 任务ID列表
-            error_message: 错误信息
+            status_message: 状态提示
 
         Returns:
             成功标记的任务数量
@@ -105,36 +108,43 @@ class ZombieTaskCleaner:
 
         session: Session = self.SessionLocal()
         try:
-            # 批量更新任务状态
+            # 批量更新任务状态：保持 running，写入 confirmationState=pending
             update_timestamp = int(datetime.utcnow().timestamp() * 1000)
 
             query = text("""
                 UPDATE tasks
                 SET
-                    status = 'failed',
-                    error = :error_message,
+                    status = 'running',
+                    error = NULL,
+                    user_friendly_message = :status_message,
+                    parameter_snapshot = jsonb_set(
+                        COALESCE(parameter_snapshot, '{}'::jsonb),
+                        '{confirmationState}',
+                        '"pending"'::jsonb,
+                        true
+                    ),
+                    confirmation_state = 'pending',
                     updated_at = :updated_at,
-                    completed_at = :completed_at
+                    completed_at = NULL
                 WHERE id = ANY(:task_ids)
                   AND status = 'running'
             """)
 
             result = session.execute(query, {
-                "error_message": error_message,
+                "status_message": status_message,
                 "updated_at": str(update_timestamp),
-                "completed_at": str(update_timestamp),
                 "task_ids": task_ids
             })
 
             session.commit()
             affected = result.rowcount
 
-            logger.info(f"批量标记了 {affected} 个任务为失败状态")
+            logger.info(f"批量标记了 {affected} 个任务为结果确认中")
             return affected
 
         except Exception as e:
             session.rollback()
-            logger.error(f"批量标记失败: {e}")
+            logger.error(f"批量标记结果确认中失败: {e}")
             return 0
         finally:
             session.close()
@@ -212,7 +222,7 @@ class ZombieTaskCleaner:
             logger.info(f"  ... 还有 {len(zombie_tasks) - 10} 个任务")
 
         if dry_run:
-            logger.info(f"\n[试运行] 将会标记 {len(zombie_tasks)} 个任务为失败状态")
+            logger.info(f"\n[试运行] 将会把 {len(zombie_tasks)} 个任务改为结果确认中")
             return {
                 "total_zombies": len(zombie_tasks),
                 "cleaned": 0,
@@ -224,9 +234,9 @@ class ZombieTaskCleaner:
         logger.info(f"\n正在清理 {len(zombie_tasks)} 个僵尸任务...")
 
         task_ids = [task['id'] for task in zombie_tasks]
-        cleaned = self.mark_tasks_as_failed(
+        cleaned = self.mark_tasks_as_confirming(
             task_ids,
-            error_message=f"Task timeout - exceeded {timeout_minutes} minutes, automatically marked as failed"
+            status_message="结果确认中，系统正在继续同步..."
         )
 
         logger.info(f"成功清理了 {cleaned} 个僵尸任务")

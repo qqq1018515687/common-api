@@ -2378,6 +2378,7 @@ def list_tasks_node(
                     "platform_task_id": task.platform_task_id,
                     "type": task.type,
                     "status": task.status,
+                    "confirmation_state": getattr(task, "confirmation_state", None),
                     "workflow_parameters": task.workflow_parameters,
                     "parameter_snapshot": task.parameter_snapshot,
                     "result": task.result,
