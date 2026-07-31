@@ -49,6 +49,8 @@ class TaskUpdate(BaseModel):
         default=None, description="已删除的图片URL列表（图像级软删除）"
     )
     result_fallback: Optional[dict] = Field(default=None, description="结果转存失败时保留的原始回退结果")
+    persistence_status: Optional[str] = Field(default=None, description="结果持久化状态：saving/saved/failed")
+    persistence_error: Optional[str] = Field(default=None, description="结果持久化失败原因")
 
 
 class TaskManager:
@@ -129,6 +131,16 @@ class TaskManager:
                     "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS result_fallback JSON"
                 )
             )
+            db.execute(
+                text(
+                    "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS persistence_status VARCHAR(20)"
+                )
+            )
+            db.execute(
+                text(
+                    "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS persistence_error TEXT"
+                )
+            )
             db.commit()
             cls._task_schema_checked = True
         except Exception:
@@ -174,6 +186,9 @@ class TaskManager:
                 "parameter_snapshot",
                 "connection_mode",
                 "deduction_result",
+                "result_fallback",
+                "persistence_status",
+                "persistence_error",
                 "team_id",
                 "batch_id",
             ]:
