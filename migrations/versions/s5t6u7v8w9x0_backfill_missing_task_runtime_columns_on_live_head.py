@@ -1,7 +1,7 @@
 """backfill missing task runtime columns on live head
 
 Revision ID: s5t6u7v8w9x0
-Revises: l5m6n7o8p9q0
+Revises: l5m6n7o8p9q0, r4s5t6u7v8w9
 Create Date: 2026-08-03 11:55:00.000000
 """
 
@@ -11,7 +11,7 @@ from alembic import op
 
 
 revision: str = 's5t6u7v8w9x0'
-down_revision: Union[str, Sequence[str], None] = 'l5m6n7o8p9q0'
+down_revision: Union[str, Sequence[str], None] = ('l5m6n7o8p9q0', 'r4s5t6u7v8w9')
 branch_labels = None
 depends_on = None
 
