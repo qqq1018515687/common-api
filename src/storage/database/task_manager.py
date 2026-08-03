@@ -502,6 +502,8 @@ class TaskManager:
             "workflowName": snapshot.get("workflowName"),
             "workflowId": snapshot.get("workflowId"),
             "modelName": snapshot.get("modelName"),
+            "providerMeta": snapshot.get("providerMeta") if isinstance(snapshot.get("providerMeta"), dict) else None,
+            "confirmationState": snapshot.get("confirmationState"),
             "selected_account": snapshot.get("selected_account"),
             "selectedAccount": snapshot.get("selectedAccount"),
             "workflowParams": {
