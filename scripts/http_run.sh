@@ -55,5 +55,39 @@ with e.connect() as c:
     print('✅ users 字段长度已确保为 varchar(32)')
 PYEOF
 
+# 确保 tasks 运行时字段存在（避免 Alembic 已标记但线上漏列）
+echo "[DB] 确保 tasks 运行时字段存在..."
+python << 'PYEOF'
+from sqlalchemy import text
+from storage.database.db import get_engine
+
+e = get_engine()
+with e.connect() as c:
+    c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS started_at VARCHAR(20)"))
+    c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS elapsed_time_seconds INTEGER DEFAULT 0"))
+    c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS confirmation_state VARCHAR(20) DEFAULT 'none'"))
+    c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deleted_image_urls JSON"))
+    c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS result_fallback JSON"))
+    c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS persistence_status VARCHAR(20)"))
+    c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS persistence_error TEXT"))
+    c.execute(text("UPDATE tasks SET started_at = created_at WHERE started_at IS NULL"))
+    c.execute(text("UPDATE tasks SET elapsed_time_seconds = 0 WHERE elapsed_time_seconds IS NULL"))
+    c.execute(text("""
+        UPDATE tasks
+        SET confirmation_state = CASE
+            WHEN status = 'running'
+             AND (
+                (parameter_snapshot->>'confirmationState') = 'pending'
+                OR COALESCE(user_friendly_message, '') LIKE '%结果确认中%'
+             ) THEN 'pending'
+            WHEN status IN ('completed', 'failed', 'cancelled') THEN 'confirmed'
+            ELSE 'none'
+        END
+        WHERE confirmation_state IS NULL
+    """))
+    c.commit()
+    print('✅ tasks 运行时字段已兜底修复')
+PYEOF
+
 # 使用 -m 参数运行模块，确保 Python 能正确解析导入
 python -m src.main -m http -p $PORT

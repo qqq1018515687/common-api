@@ -146,6 +146,11 @@ class TaskManager:
             )
             db.execute(
                 text(
+                    "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS confirmation_state VARCHAR(20) DEFAULT 'none'"
+                )
+            )
+            db.execute(
+                text(
                     "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS elapsed_time_seconds INTEGER DEFAULT 0"
                 )
             )
