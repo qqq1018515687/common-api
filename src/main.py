@@ -30,6 +30,7 @@ from storage.storage_manager import get_storage_manager, StorageCategory
 from storage.database.db import get_session
 from storage.database.ops_briefing_manager import OpsBriefingIngestInput, OpsBriefingManager, OpsDailyBriefingSaveInput
 import os
+import requests
 
 setup_logging(
     log_file=LOG_FILE,
@@ -53,6 +54,9 @@ from utils.log.loop_trace import init_run_config, init_agent_config
 
 # 超时配置常量
 TIMEOUT_SECONDS = 900  # 15分钟
+THIRD_PARTY_TASK_RECOVERY_INTERVAL = 30
+THIRD_PARTY_TASK_RECOVERY_STALE_MS = 45 * 1000
+THIRD_PARTY_TASK_RECOVERY_BATCH_SIZE = 50
 
 class GraphService:
     def __init__(self):
@@ -310,6 +314,8 @@ class GraphService:
 
 service = GraphService()
 app = FastAPI()
+第三方任务补偿停止事件 = threading.Event()
+第三方任务补偿线程: Optional[threading.Thread] = None
 
 # 导入并注册任务管理 API 路由
 from api.tasks import router as tasks_router
@@ -377,6 +383,86 @@ def normalize_multipart_metadata(metadata_text: Optional[str]) -> Dict[str, Any]
 def is_backend_persist_upload(metadata: Dict[str, Any]) -> bool:
     source = str(metadata.get("source") or "").strip().lower()
     return source == "tudou_server_persist"
+
+
+def _fetch_backend_auth_header() -> Optional[str]:
+    token = os.getenv("COZE_BACKEND_TOKEN", "").strip()
+    if not token:
+        logger.warning("[third-party-recovery] COZE_BACKEND_TOKEN 未配置，跳过第三方任务补偿")
+        return None
+    return f"Bearer {token}"
+
+
+def _trigger_third_party_task_recovery() -> None:
+    auth_header = _fetch_backend_auth_header()
+    if not auth_header:
+        return
+
+    db = get_session()
+    try:
+        from storage.database.task_manager import TaskManager
+
+        task_mgr = TaskManager()
+        stale_tasks = task_mgr.list_pending_third_party_tasks(
+            db,
+            limit=THIRD_PARTY_TASK_RECOVERY_BATCH_SIZE,
+            older_than_ms=THIRD_PARTY_TASK_RECOVERY_STALE_MS,
+        )
+    finally:
+        db.close()
+
+    if not stale_tasks:
+        return
+
+    backend_url = os.getenv("COMMON_RECOVERY_BACKEND_URL", "http://127.0.0.1:8000").rstrip("/")
+    for task in stale_tasks:
+        platform_task_id = str(task.platform_task_id or "").strip()
+        if not platform_task_id or platform_task_id.startswith("tudou_sync:") or platform_task_id.startswith("pending:"):
+            continue
+
+        try:
+            response = requests.post(
+                f"{backend_url}/api/coze/common/task/recover-third-party",
+                headers={
+                    "Authorization": auth_header,
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "task_id": task.id,
+                    "platform": task.platform,
+                    "platform_task_id": platform_task_id,
+                },
+                timeout=20,
+            )
+            if response.status_code >= 400:
+                logger.warning("[third-party-recovery] 触发任务补偿失败: task_id=%s status=%s body=%s", task.id, response.status_code, response.text[:300])
+        except Exception as exc:
+            logger.warning("[third-party-recovery] 调用任务补偿异常: task_id=%s error=%s", task.id, exc)
+
+
+def _third_party_task_recovery_loop() -> None:
+    logger.info("[third-party-recovery] 后台补偿线程已启动")
+    while not 第三方任务补偿停止事件.wait(THIRD_PARTY_TASK_RECOVERY_INTERVAL):
+        try:
+            _trigger_third_party_task_recovery()
+        except Exception as exc:
+            logger.error("[third-party-recovery] 后台补偿执行失败: %s", exc)
+    logger.info("[third-party-recovery] 后台补偿线程已停止")
+
+
+@app.on_event("startup")
+def startup_third_party_task_recovery() -> None:
+    global 第三方任务补偿线程
+    if 第三方任务补偿线程 and 第三方任务补偿线程.is_alive():
+        return
+    第三方任务补偿停止事件.clear()
+    第三方任务补偿线程 = threading.Thread(target=_third_party_task_recovery_loop, daemon=True)
+    第三方任务补偿线程.start()
+
+
+@app.on_event("shutdown")
+def shutdown_third_party_task_recovery() -> None:
+    第三方任务补偿停止事件.set()
 
 
 @app.post("/upload")

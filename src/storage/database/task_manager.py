@@ -566,6 +566,31 @@ class TaskManager:
             .first()
         )
 
+    def list_pending_third_party_tasks(
+        self,
+        db: Session,
+        *,
+        limit: int = 100,
+        older_than_ms: int = 0,
+    ) -> List[Tasks]:
+        """查询需要后端继续补偿的第三方运行中任务。"""
+        self._ensure_task_schema(db)
+        limit = min(max(limit, 1), 500)
+
+        query = db.query(Tasks).filter(
+            Tasks.is_deleted == False,
+            Tasks.platform == "bltcy",
+            Tasks.status == "running",
+            Tasks.platform_task_id.isnot(None),
+            Tasks.platform_task_id != "",
+        )
+
+        if older_than_ms > 0:
+            cutoff = str(int(time.time() * 1000) - older_than_ms)
+            query = query.filter(Tasks.updated_at <= cutoff)
+
+        return query.order_by(Tasks.updated_at.asc()).limit(limit).all()
+
     def calculate_elapsed_time(self, task: Tasks) -> int:
         """
         【共享函数】统一计算任务耗时(秒)

@@ -1,6 +1,8 @@
 """任务管理 API 路由"""
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Query
+import os
+import requests
 from pydantic import BaseModel, Field
 
 from storage.database.db import get_session
@@ -55,6 +57,12 @@ class TaskResponse(BaseModel):
     completed_at: Optional[int]
     batch_id: Optional[str]
     connection_mode: Optional[str]
+
+
+class RecoverThirdPartyTaskRequest(BaseModel):
+    task_id: str = Field(..., description="本地任务ID")
+    platform: str = Field(..., description="平台标识")
+    platform_task_id: str = Field(..., description="第三方平台任务ID")
 
 
 @router.post("/common")
@@ -237,6 +245,41 @@ async def create_task(request: CreateTaskRequest):
         raise HTTPException(status_code=500, detail=f"创建任务失败: {str(e)}")
     finally:
         db.close()
+
+
+@router.post("/common/task/recover-third-party")
+async def recover_third_party_task(request: RecoverThirdPartyTaskRequest, authorization: Optional[str] = Header(default=None)):
+    expected_token = os.getenv("COZE_BACKEND_TOKEN", "").strip()
+    if expected_token:
+        if not authorization or authorization != f"Bearer {expected_token}":
+            raise HTTPException(status_code=401, detail="Invalid backend authorization")
+
+    backend_url = os.getenv("COMMON_RECOVERY_BACKEND_URL", "http://127.0.0.1:8000").rstrip("/")
+    payload = {
+        "workflow_id": "workflow_02",
+        "input": {
+            "operation_type": "recover_third_party_task",
+            "task_id": request.task_id,
+            "platform": request.platform,
+            "platform_task_id": request.platform_task_id,
+        }
+    }
+
+    try:
+        response = requests.post(
+            f"{backend_url}/api/coze/main",
+            headers={
+                "Authorization": f"Bearer {expected_token}" if expected_token else (authorization or ""),
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=30,
+        )
+        response.raise_for_status()
+        data = response.json() if response.content else {"success": True}
+        return {"success": True, "result": data}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"recover third party task failed: {exc}") from exc
 
 
 @router.put("/tasks/{task_id}")
