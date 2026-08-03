@@ -1,6 +1,6 @@
 """任务管理 API 路由"""
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 import os
 import requests
 from pydantic import BaseModel, Field
