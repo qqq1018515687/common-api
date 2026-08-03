@@ -58,6 +58,7 @@ class TaskManager:
     """任务管理类"""
 
     _task_schema_checked = False
+    _task_schema_lock = False
 
     @staticmethod
     def _pending_platform_task_id(task_id: str) -> str:
@@ -127,6 +128,11 @@ class TaskManager:
         if cls._task_schema_checked:
             return
 
+        if cls._task_schema_lock:
+            return
+
+        cls._task_schema_lock = True
+
         try:
             db.execute(
                 text(
@@ -163,6 +169,12 @@ class TaskManager:
         except Exception:
             db.rollback()
             raise
+        finally:
+            cls._task_schema_lock = False
+
+    @classmethod
+    def reset_task_schema_cache(cls) -> None:
+        cls._task_schema_checked = False
 
     @staticmethod
     def verify_user_permission(db: Session, user_id: str) -> tuple[bool, Optional[str]]:
@@ -257,7 +269,15 @@ class TaskManager:
     def get_task_by_id(self, db: Session, task_id: str) -> Optional[Tasks]:
         """根据任务ID获取任务"""
         self._ensure_task_schema(db)
-        return db.query(Tasks).filter(Tasks.id == task_id).first()
+        try:
+            return db.query(Tasks).filter(Tasks.id == task_id).first()
+        except Exception as exc:
+            if "column tasks.started_at does not exist" not in str(exc):
+                raise
+            db.rollback()
+            self.reset_task_schema_cache()
+            self._ensure_task_schema(db)
+            return db.query(Tasks).filter(Tasks.id == task_id).first()
 
     def get_tasks_by_user_id(
         self,
