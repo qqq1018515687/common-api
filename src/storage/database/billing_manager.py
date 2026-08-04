@@ -37,8 +37,9 @@ def _build_consumption_title(
       1. metadata.billing_metadata.title
       2. billing_metadata.title
       3. description
-      4. workflow_name + " · " + model_display_name
-      5. "团队消费扣费"
+      4. workflow_name + " · " + model_billing_label
+      5. workflow_name + " · " + model_display_name
+      6. "团队消费扣费"
     """
     # 优先级1：metadata.billing_metadata.title
     if metadata and isinstance(metadata, dict):
@@ -58,22 +59,25 @@ def _build_consumption_title(
     if description and isinstance(description, str) and description.strip():
         return description.strip()
 
-    # 优先级4：workflow_name + model_display_name（从 billing_metadata 或 metadata.billing_metadata）
+    # 优先级4/5：workflow_name + model_billing_label / model_display_name（从 billing_metadata 或 metadata.billing_metadata）
     source_bm = billing_metadata
     if (not source_bm or not isinstance(source_bm, dict)) and metadata and isinstance(metadata, dict):
         source_bm = metadata.get("billing_metadata")
     if source_bm and isinstance(source_bm, dict):
         workflow_name = source_bm.get("workflow_name")
+        model_billing_label = source_bm.get("model_billing_label")
         model_display_name = source_bm.get("model_display_name")
         parts: list = []
         if workflow_name and isinstance(workflow_name, str) and workflow_name.strip():
             parts.append(workflow_name.strip())
-        if model_display_name and isinstance(model_display_name, str) and model_display_name.strip():
+        if model_billing_label and isinstance(model_billing_label, str) and model_billing_label.strip():
+            parts.append(model_billing_label.strip())
+        elif model_display_name and isinstance(model_display_name, str) and model_display_name.strip():
             parts.append(model_display_name.strip())
         if parts:
             return " · ".join(parts)
 
-    # 优先级5：最终 fallback
+    # 优先级6：最终 fallback
     return "团队消费扣费"
 
 
@@ -84,7 +88,8 @@ def _extract_team_record_metadata(
     """从 billing_metadata / metadata.billing_metadata 提取需要存入 team_consumption_records.metadata 的字段"""
     keys_to_extract = [
         "task_id", "billing_task_id", "workflow", "workflow_id",
-        "workflow_name", "model_key", "model_display_name",
+        "workflow_name", "model_key", "model_display_name", "channel_label",
+        "model_billing_label", "platform",
         "source", "task_type", "currency", "number",
         "base_cost_amount", "cost_amount", "pricing_tier", "pricing_multiplier",
         "user_tier", "tier_multiplier", "quote_source",
