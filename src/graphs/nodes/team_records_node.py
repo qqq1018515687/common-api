@@ -31,6 +31,22 @@ from storage.database.shared.model import Teams, Users, TeamConsumptionRecords
 logger = logging.getLogger(__name__)
 
 
+def _build_record_display_description(record: TeamConsumptionRecords) -> str:
+    extra_data = record.extra_data if isinstance(record.extra_data, dict) else {}
+    workflow_name = str(extra_data.get("workflow_name") or "").strip()
+    model_billing_label = str(extra_data.get("model_billing_label") or "").strip()
+    model_display_name = str(extra_data.get("model_display_name") or "").strip()
+
+    if workflow_name and model_billing_label:
+        return f"{workflow_name} · {model_billing_label}"
+
+    if workflow_name and model_display_name:
+        return f"{workflow_name} · {model_display_name}"
+
+    description = str(record.description or "").strip()
+    return description
+
+
 def _active_user_filter():
     return or_(Users.account_status.is_(None), Users.account_status != "deleted")
 
@@ -211,7 +227,7 @@ def team_records_node(state: TeamRecordsInput, config: RunnableConfig, runtime: 
                     "amount": gold_amount_to_number(r.amount),
                     "balance_before": gold_amount_to_number(r.balance_before),
                     "balance_after": gold_amount_to_number(r.balance_after),
-                    "description": r.description,
+                    "description": _build_record_display_description(r),
                     "created_at": _to_epoch_ms(r.created_at),
                     "extra_data": r.extra_data,
                 }
