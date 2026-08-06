@@ -144,6 +144,9 @@ class InputData(BaseModel):
     before_time: Optional[int] = Field(
         default=None, description="游标分页：查询早于该时间戳的记录（毫秒，13位整数）"
     )
+    before_id: Optional[str] = Field(
+        default=None, description="游标分页：配合 before_time，按 (created_at, id) 复合游标避免同毫秒漏数"
+    )
     status: Optional[str] = Field(
         default=None, description="任务状态筛选（list_tasks 使用）"
     )
@@ -977,6 +980,13 @@ class ListTasksInput(BaseModel):
     before_time: Optional[int] = Field(
         default=None, description="游标分页：查询早于该时间戳的记录（毫秒，13位整数）"
     )
+    before_id: Optional[str] = Field(
+        default=None, description="游标分页：配合 before_time，按 (created_at, id) 复合游标避免同毫秒漏数"
+    )
+    start_time: Optional[int] = Field(
+        default=None, description="查询开始时间戳（毫秒，13位整数）"
+    )
+    end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒）")
     operator_role: Optional[str] = Field(
         default=None, description="操作者角色（admin 时不要求 user_id/team_id）"
     )
@@ -1242,6 +1252,9 @@ class UnpackInputDataOutput(BaseModel):
     end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒）")
     before_time: Optional[int] = Field(
         default=None, description="游标分页：查询早于该时间戳的记录（毫秒）"
+    )
+    before_id: Optional[str] = Field(
+        default=None, description="游标分页：配合 before_time，按 (created_at, id) 复合游标避免同毫秒漏数"
     )
     status: Optional[str] = Field(default=None, description="任务状态筛选")
     days: Optional[int] = Field(default=None, description="查询天数")

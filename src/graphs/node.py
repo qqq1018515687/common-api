@@ -373,6 +373,7 @@ def unpack_input_data_node(
         start_time=input_data.start_time if input_data else None,
         end_time=input_data.end_time if input_data else None,
         before_time=input_data.before_time if input_data else None,
+        before_id=input_data.before_id if input_data else None,
         status=input_data.status if input_data else None,
         compact=input_data.compact if input_data else False,
         # 任务管理相关字段
