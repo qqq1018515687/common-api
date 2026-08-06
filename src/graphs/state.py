@@ -994,6 +994,8 @@ class CountTasksStatsInput(BaseModel):
     """统计任务数量节点的输入"""
 
     days: Optional[int] = Field(default=30, description="查询最近N天的数据（默认30天）")
+    start_time: Optional[int] = Field(default=None, description="统计开始时间戳（毫秒）")
+    end_time: Optional[int] = Field(default=None, description="统计结束时间戳（毫秒）")
     operator_role: Optional[str] = Field(
         default=None, description="操作者角色（admin 时不要求 user_id/team_id）"
     )
@@ -1004,6 +1006,20 @@ class CountTasksStatsOutput(BaseModel):
     """统计任务数量节点的输出"""
 
     result: dict = Field(..., description="统计结果，包含 total 及各 status 计数")
+
+
+class LocalComfyUiQueueSnapshotInput(BaseModel):
+    """获取局域网 ComfyUI 队列位置快照节点的输入"""
+
+    task_id: Optional[str] = Field(
+        default=None, description="任务ID（前端主键），指定时仅返回该任务的排队信息"
+    )
+
+
+class LocalComfyUiQueueSnapshotOutput(BaseModel):
+    """获取局域网 ComfyUI 队列位置快照节点的输出"""
+
+    result: dict = Field(..., description="队列快照结果")
 
 
 class TaskRouteInput(BaseModel):
@@ -1028,6 +1044,9 @@ class TaskRouteInput(BaseModel):
     end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒）")
     before_time: Optional[int] = Field(
         default=None, description="游标分页：查询早于该时间戳的记录（毫秒）"
+    )
+    before_id: Optional[str] = Field(
+        default=None, description="游标分页：配合 before_time，按 (created_at, id) 复合游标避免同毫秒漏数"
     )
     # 其他筛选字段
     team_id: Optional[str] = Field(default=None, description="团队ID")

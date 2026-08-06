@@ -348,6 +348,7 @@ class TaskManager:
         end_time: Optional[int] = None,
         limit: int = 50,
         before_time: Optional[int] = None,
+        before_id: Optional[str] = None,
         admin_full_list: bool = False,
     ) -> List[tuple]:
         """灵活查询任务列表
@@ -361,6 +362,7 @@ class TaskManager:
             end_time: 查询结束时间戳（毫秒，可选）
             limit: 返回数量限制（默认50，最大1000）
             before_time: 游标分页，查询早于该时间戳的记录（毫秒，可选）
+            before_id: 游标分页（可选），配合 before_time 使用，解决同一毫秒多条任务被漏的问题
             admin_full_list: 管理员全量模式，跳过 user_id/team_id 筛选查全表
 
         Returns:
@@ -396,15 +398,22 @@ class TaskManager:
         if end_time is not None:
             query = query.filter(Tasks.created_at <= str(end_time))
 
-        # 游标分页：查询早于 before_time 的记录
-        if before_time is not None:
+        # 游标分页：查询早于 before_time 的记录；带 before_id 时按 (created_at, id) 复合游标去重
+        from sqlalchemy import and_, or_
+        if before_time is not None and before_id is not None:
+            query = query.filter(or_(
+                Tasks.created_at < str(before_time),
+                and_(Tasks.created_at == str(before_time), Tasks.id < str(before_id))
+            ))
+        elif before_time is not None:
             query = query.filter(Tasks.created_at < str(before_time))
 
         # 状态筛选
         if status:
             query = query.filter(Tasks.status == status)
 
-        # 按 created_at 降序排列，限制返回数量
+        if before_id is not None:
+            return query.order_by(Tasks.created_at.desc(), Tasks.id.desc()).limit(limit).all()
         return query.order_by(Tasks.created_at.desc()).limit(limit).all()
 
     def get_admin_tasks_compact(
@@ -415,6 +424,7 @@ class TaskManager:
         end_time: Optional[int] = None,
         limit: int = 50,
         before_time: Optional[int] = None,
+        before_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """管理后台任务轻量列表，只读取列表渲染需要的字段。"""
         self._ensure_task_schema(db)
@@ -451,12 +461,22 @@ class TaskManager:
             query = query.filter(Tasks.created_at >= str(start_time))
         if end_time is not None:
             query = query.filter(Tasks.created_at <= str(end_time))
-        if before_time is not None:
+        # 游标分页：带 before_id 时按 (created_at, id) 复合游标，避免同一毫秒任务被漏
+        from sqlalchemy import and_, or_
+        if before_time is not None and before_id is not None:
+            query = query.filter(or_(
+                Tasks.created_at < str(before_time),
+                and_(Tasks.created_at == str(before_time), Tasks.id < str(before_id))
+            ))
+        elif before_time is not None:
             query = query.filter(Tasks.created_at < str(before_time))
         if status:
             query = query.filter(Tasks.status == status)
 
-        rows = query.order_by(Tasks.created_at.desc()).limit(limit + 1).all()
+        if before_id is not None:
+            rows = query.order_by(Tasks.created_at.desc(), Tasks.id.desc()).limit(limit + 1).all()
+        else:
+            rows = query.order_by(Tasks.created_at.desc()).limit(limit + 1).all()
         tasks: List[Dict[str, Any]] = []
 
         for row in rows:
@@ -976,3 +996,57 @@ class TaskManager:
         stats = {status: count for status, count in rows}
         stats["total"] = sum(stats.values())
         return stats
+
+    def list_local_comfyui_queue_snapshot(
+        self,
+        db: Session,
+        task_id: Optional[str] = None,
+    ) -> dict:
+        """获取局域网 ComfyUI 任务的实时队列位置快照。
+
+        Args:
+            db: 数据库会话
+            task_id: 可选，指定某个任务时仅返回该任务的排队信息
+
+        Returns:
+            按 created_at 升序排列的所有排队/执行中的 local_comfyui 任务，
+            每个任务带 position（1 起）与 ahead（前方数量）。
+            running 任务一并计入队列（天然兼容串行执行时仅 1 个 running，
+            以及多实例/重启等瞬间可能出现多个 running 的边界）。
+        """
+        self._ensure_task_schema(db)
+
+        query = (
+            db.query(Tasks)
+            .filter(
+                Tasks.platform == "local_comfyui",
+                Tasks.is_deleted == False,
+                Tasks.status.in_(["queued", "running"]),
+            )
+            .order_by(Tasks.created_at.asc())
+        )
+
+        rows = query.all()
+        entries = []
+        for index, task in enumerate(rows):
+            entry = {
+                "job_id": task.id,
+                "status": task.status,
+                "position": index + 1,
+                "ahead": index,
+            }
+            if task_id is not None and task.id == task_id:
+                target = entry
+            entries.append(entry)
+
+        result = {"queue": entries, "running_count": 0, "queued_count": 0, "total": len(entries)}
+        for entry in entries:
+            if entry["status"] == "running":
+                result["running_count"] += 1
+            elif entry["status"] == "queued":
+                result["queued_count"] += 1
+
+        if task_id is not None:
+            result["task"] = target if "target" in locals() else None
+
+        return result

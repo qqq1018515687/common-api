@@ -101,6 +101,8 @@ from graphs.state import (
     ListTasksOutput,
     CountTasksStatsInput,
     CountTasksStatsOutput,
+    LocalComfyUiQueueSnapshotInput,
+    LocalComfyUiQueueSnapshotOutput,
     TaskRouteInput,
     TaskRouteOutput,
 )
@@ -1937,6 +1939,8 @@ def route_by_task_operation_type(state: TaskRouteInput) -> str:
         return "查询任务列表"
     elif operation_type == "count_tasks_stats":
         return "统计任务数量"
+    elif operation_type == "get_local_queue_snapshot":
+        return "局域网队列快照"
     else:
         return "未知操作"
 
@@ -2303,17 +2307,22 @@ def list_tasks_node(
         try:
             task_mgr = TaskManager()
 
-            # 根据 days 计算时间范围
+            # 时间范围：优先使用前端传入的精确时间窗（自然日），否则按 days 滚动窗口兜底
             days = state.days or 30
             current_time = int(time.time() * 1000)
-            start_time = current_time - (days * 24 * 60 * 60 * 1000)  # N天前
-            end_time = current_time
+            start_time = state.start_time
+            end_time = state.end_time
+            if start_time is None:
+                start_time = current_time - (days * 24 * 60 * 60 * 1000)  # N天前
+            if end_time is None:
+                end_time = current_time
 
             # 返回数量限制
             limit = min(state.limit or 50, 1000)  # 最大1000
 
             # 游标分页参数
             before_time = state.before_time
+            before_id = state.before_id
 
             if is_admin and state.compact:
                 compact_limit = min(limit, 100)
@@ -2324,17 +2333,20 @@ def list_tasks_node(
                     end_time=end_time,
                     limit=compact_limit,
                     before_time=before_time,
+                    before_id=before_id,
                 )
                 has_more = len(compact_tasks) > compact_limit
                 if has_more:
                     compact_tasks = compact_tasks[:compact_limit]
 
                 next_before_time = None
+                next_before_id = None
                 if compact_tasks:
                     try:
                         next_before_time = int(compact_tasks[-1]["created_at"])
                     except (ValueError, TypeError):
                         next_before_time = None
+                    next_before_id = compact_tasks[-1].get("id")
 
                 return ListTasksOutput(
                     result={
@@ -2346,6 +2358,7 @@ def list_tasks_node(
                         "days": days,
                         "has_more": has_more,
                         "next_before_time": next_before_time,
+                        "next_before_id": next_before_id,
                     }
                 )
 
@@ -2363,6 +2376,7 @@ def list_tasks_node(
                 end_time=end_time,
                 limit=overfetch_limit,
                 before_time=before_time,
+                before_id=before_id,
                 admin_full_list=is_admin,
             )
 
@@ -2471,13 +2485,15 @@ def list_tasks_node(
             if has_more:
                 task_list = task_list[:limit]
 
-            # 计算 next_before_time：当前页最后一条记录的 created_at
+            # 计算 next_before_time/next_before_id：当前页最后一条记录的 created_at / id
             next_before_time = None
+            next_before_id = None
             if task_list:
                 try:
                     next_before_time = int(task_list[-1]["created_at"])
                 except (ValueError, TypeError):
                     next_before_time = None
+                next_before_id = task_list[-1].get("id")
 
             return ListTasksOutput(
                 result={
@@ -2489,6 +2505,7 @@ def list_tasks_node(
                     "days": days,
                     "has_more": has_more,
                     "next_before_time": next_before_time,
+                    "next_before_id": next_before_id,
                 }
             )
 
@@ -2520,8 +2537,13 @@ def count_tasks_stats_node(
 
             days = state.days or 30
             current_time = int(time.time() * 1000)
-            start_time = current_time - (days * 24 * 60 * 60 * 1000)
-            end_time = current_time
+            # 优先使用前端传入的精确时间窗（自然日），否则按 days 滚动窗口兜底
+            start_time = state.start_time
+            end_time = state.end_time
+            if start_time is None:
+                start_time = current_time - (days * 24 * 60 * 60 * 1000)
+            if end_time is None:
+                end_time = current_time
 
             stats = task_mgr.count_tasks_stats(
                 db,
@@ -2536,6 +2558,8 @@ def count_tasks_stats_node(
                     "message": "统计成功",
                     "stats": stats,
                     "days": days,
+                    "start_time": start_time,
+                    "end_time": end_time,
                 }
             )
 
@@ -2545,6 +2569,36 @@ def count_tasks_stats_node(
     except Exception as e:
         return CountTasksStatsOutput(
             result={"success": False, "message": f"统计失败: {str(e)}"}
+        )
+
+
+def local_comfyui_queue_snapshot_node(
+    state: TaskRouteInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> LocalComfyUiQueueSnapshotOutput:
+    """
+    title: 局域网 ComfyUI 队列位置快照
+    desc: 按创建时间返回所有排队/执行中的 local_comfyui 任务位置，供前端实时展示前方排队数量
+    integrations: 数据库
+    """
+    try:
+        from storage.database.task_manager import TaskManager
+
+        db = get_session()
+        try:
+            task_mgr = TaskManager()
+            snapshot = task_mgr.list_local_comfyui_queue_snapshot(
+                db,
+                task_id=state.task_id or None,
+            )
+            return LocalComfyUiQueueSnapshotOutput(
+                result={"success": True, "message": "队列快照获取成功", **snapshot}
+            )
+        finally:
+            db.close()
+
+    except Exception as e:
+        return LocalComfyUiQueueSnapshotOutput(
+            result={"success": False, "message": f"队列快照获取失败: {str(e)}"}
         )
 
 
