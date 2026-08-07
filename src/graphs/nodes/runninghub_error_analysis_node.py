@@ -118,11 +118,30 @@ def _build_rule_based_result(error_response: dict) -> Optional[dict]:
     platform = _safe_text(error_response.get("platform")) or "unknown"
 
     if (
+        "balance" in normalized
+        or "insufficient" in normalized
+        or "余额不足" in text
+        or "额度" in text
+        or "quota" in normalized
+        or "欠费" in text
+        or "请充值" in text
+    ):
+        return {
+            "success": True,
+            "error_code": error_response.get("code"),
+            "error_message": error_response.get("msg") or error_response.get("message") or text[:300],
+            "user_friendly_message": "服务商账户余额或额度不足，请联系管理员充值。",
+            "suggestion": "请联系管理员检查服务商账户余额或额度。",
+            "error_category": "服务商余额不足",
+            "platform": platform,
+            "node_name": node_name,
+        }
+
+    if (
         "loadimagefromurl" in normalized
         or "图片链接加载超时" in text
         or "access-control-allow-origin" in normalized
         or "cors" in normalized
-        or "403" in normalized and ("image" in normalized or "图片" in text or "tos.coze" in normalized)
     ):
         return {
             "success": True,
