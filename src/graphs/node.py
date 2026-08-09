@@ -420,6 +420,15 @@ def unpack_input_data_node(
         expires_at=input_data.expires_at if input_data else None,
         search=input_data.search if input_data else None,
         target_credit_type=input_data.target_credit_type if input_data else None,
+        # 充值订单相关字段
+        order_id=input_data.order_id if input_data else None,
+        order_no=input_data.order_no if input_data else None,
+        operator_id=input_data.operator_id if input_data else None,
+        source_type=input_data.source_type if input_data else None,
+        package_id=input_data.package_id if input_data else None,
+        package_name=input_data.package_name if input_data else None,
+        external_order_id=input_data.external_order_id if input_data else None,
+        external_ref=input_data.external_ref if input_data else None,
     )
 
 

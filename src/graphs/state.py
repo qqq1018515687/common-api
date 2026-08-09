@@ -84,7 +84,7 @@ class InputData(BaseModel):
     )
     operation_type: Optional[str] = Field(
         default=None,
-        description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/send_password_reset_code/register/register_with_code/reset_password_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/get_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、公告管理(get_active_popup/get_all/create/update/disable)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、兑换码(create_batch/list_batches/list_codes/redeem/disable_code/disable_batch/list_redemptions)、RunningHub错误分析(runninghub_error_analysis)",
+        description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/send_password_reset_code/register/register_with_code/reset_password_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/get_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、公告管理(get_active_popup/get_all/create/update/disable)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、兑换码(create_batch/list_batches/list_codes/redeem/disable_code/disable_batch/list_redemptions/create_order/list_orders/get_order/order_summary/refund_order/cancel_order)、资金中心(overview/orders/order_summary/risk_exceptions)、RunningHub错误分析(runninghub_error_analysis)",
     )
     assets: Optional[List[dict]] = Field(
         default=None, description="Agent 意图判断素材摘要列表"
@@ -227,6 +227,18 @@ class InputData(BaseModel):
     target_credit_type: Optional[str] = Field(
         default=None, description="兑换到账类型：personal_gold/team_gold"
     )
+
+    # 充值订单相关字段（recharge_code create_order/list_orders/get_order/order_summary/refund_order/cancel_order）
+    order_id: Optional[str] = Field(default=None, description="充值订单ID")
+    order_no: Optional[str] = Field(default=None, description="充值订单号")
+    operator_id: Optional[str] = Field(default=None, description="人工介入操作者ID")
+    source_type: Optional[str] = Field(
+        default=None, description="订单来源类型：paid/manual/compensation/campaign"
+    )
+    package_id: Optional[str] = Field(default=None, description="套餐ID")
+    package_name: Optional[str] = Field(default=None, description="套餐名称")
+    external_order_id: Optional[str] = Field(default=None, description="外部支付订单号")
+    external_ref: Optional[str] = Field(default=None, description="外部参考信息")
 
     # RunningHub 错误分析相关字段
     error_response: Optional[dict] = Field(
@@ -495,6 +507,18 @@ class GlobalState(BaseModel):
         default=None,
         description="通用元数据（含 billing_metadata 嵌套结构，main 透传）",
     )
+
+    # 充值订单相关字段
+    order_id: Optional[str] = Field(default=None, description="充值订单ID")
+    order_no: Optional[str] = Field(default=None, description="充值订单号")
+    operator_id: Optional[str] = Field(default=None, description="人工介入操作者ID")
+    source_type: Optional[str] = Field(
+        default=None, description="订单来源类型：paid/manual/compensation/campaign"
+    )
+    package_id: Optional[str] = Field(default=None, description="套餐ID")
+    package_name: Optional[str] = Field(default=None, description="套餐名称")
+    external_order_id: Optional[str] = Field(default=None, description="外部支付订单号")
+    external_ref: Optional[str] = Field(default=None, description="外部参考信息")
 
     @field_validator("silver_credits", mode="before")
     @classmethod
@@ -1317,6 +1341,18 @@ class UnpackInputDataOutput(BaseModel):
     target_credit_type: Optional[str] = Field(
         default=None, description="兑换到账类型：personal_gold/team_gold"
     )
+
+    # 充值订单相关字段
+    order_id: Optional[str] = Field(default=None, description="充值订单ID")
+    order_no: Optional[str] = Field(default=None, description="充值订单号")
+    operator_id: Optional[str] = Field(default=None, description="人工介入操作者ID")
+    source_type: Optional[str] = Field(
+        default=None, description="订单来源类型：paid/manual/compensation/campaign"
+    )
+    package_id: Optional[str] = Field(default=None, description="套餐ID")
+    package_name: Optional[str] = Field(default=None, description="套餐名称")
+    external_order_id: Optional[str] = Field(default=None, description="外部支付订单号")
+    external_ref: Optional[str] = Field(default=None, description="外部参考信息")
 
     # RunningHub 错误分析相关字段
     error_response: Optional[dict] = Field(
