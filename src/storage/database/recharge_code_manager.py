@@ -8,12 +8,14 @@ from typing import Any, Optional
 
 from sqlalchemy import func, text
 
+from storage.database import recharge_order_manager
 from storage.database.amounts import amount_to_response_number, gold_amount_to_number, normalize_gold_amount
 from storage.database.billing_manager import _insert_billing_record
 from storage.database.db import get_session, to_epoch_ms
 from storage.database.shared.model import (
     RechargeCodeBatches,
     RechargeCodes,
+    RechargeOrders,
     RechargeRedemptions,
     TeamConsumptionRecords,
     Teams,
@@ -167,6 +169,7 @@ def create_batch(
     channel: Optional[str] = None,
     expires_at: Any = None,
     note: Optional[str] = None,
+    order_id: Optional[str] = None,
 ) -> dict[str, Any]:
     batch_name = _normalize_text(name, max_len=100)
     if not batch_name:
@@ -186,6 +189,14 @@ def create_batch(
 
     db = get_session()
     try:
+        bound_order = None
+        if order_id:
+            bound_order = db.query(RechargeOrders).filter(RechargeOrders.id == order_id).first()
+            if not bound_order:
+                raise ValueError("充值订单不存在")
+            if bound_order.status in ("refunded", "cancelled"):
+                raise ValueError(f"订单已{bound_order.status}，不能再发放兑换码")
+
         batch_id = str(uuid.uuid4())
         batch = RechargeCodeBatches(
             id=batch_id,
@@ -217,6 +228,7 @@ def create_batch(
             db.add(RechargeCodes(
                 id=code_id,
                 batch_id=batch_id,
+                order_id=order_id,
                 code_hash=code_hash,
                 code_suffix=normalized_code[-6:],
                 credit_type=credit_type,
@@ -227,6 +239,23 @@ def create_batch(
             plain_codes.append({"id": code_id, "code": plain_code})
 
         db.commit()
+
+        # 若绑定订单：同步订单发码数量与状态（paid -> issued）
+        if bound_order:
+            bound_order_id = bound_order.id
+            issued_count = db.query(func.count(RechargeCodes.id)).filter(RechargeCodes.order_id == bound_order_id).scalar() or 0
+            bound_order.issued_code_count = int(issued_count)
+            bound_order.updated_at = _now()
+            if bound_order.status == "paid":
+                bound_order.status = "issued"
+                if bound_order.issued_at is None:
+                    bound_order.issued_at = _now()
+            elif bound_order.status == "issued":
+                # 已发码继续补齐批次，保持 issued 状态
+                if bound_order.issued_at is None:
+                    bound_order.issued_at = _now()
+            db.commit()
+
         db.refresh(batch)
         return {
             "batch": _serialize_batch(batch),
@@ -343,23 +372,45 @@ def disable_batch(*, batch_id: str) -> dict[str, Any]:
         db.close()
 
 
-def redeem(*, raw_code: str, user_id: str, target_credit_type: Optional[str] = None) -> dict[str, Any]:
+def redeem(*, raw_code: str, user_id: str, target_credit_type: Optional[str] = None, ip: Optional[str] = None) -> dict[str, Any]:
+    """兑换兑换码（含失败尝试审计与订单进度推进）。
+
+    - 各失败分支在上抛前调用 recharge_order_manager.record_failed_attempt 防刷审计。
+    - 成功且兑换码绑定订单时，在同一事务内推进订单入账进度并回填订单号。
+    - ip 为用户请求 IP，供风控审计（撞库/同 IP 多账号防刷）落库。
+    """
     if not user_id:
         raise ValueError("用户未登录")
     code_hash = hash_code(raw_code)
     now_value = _now()
+    user_value = (user_id or "").strip()
 
     db = get_session()
     try:
         code = db.query(RechargeCodes).filter(RechargeCodes.code_hash == code_hash).with_for_update().first()
         if not code:
+            recharge_order_manager.record_failed_attempt(
+                user_id=user_value, code_hash=code_hash, ip=ip, reason_type="unknown", reason="兑换码无效或不可用"
+            )
             raise ValueError("兑换码无效或不可用")
         batch = db.query(RechargeCodeBatches).filter(RechargeCodeBatches.id == code.batch_id).first()
         if not batch or batch.status != "active":
+            recharge_order_manager.record_failed_attempt(
+                user_id=user_value, code_hash=code_hash, code_suffix=code.code_suffix, ip=ip,
+                reason_type="invalid_code", reason="批次不可用",
+            )
             raise ValueError("兑换码无效或不可用")
         if code.status != "unused":
+            recharge_order_manager.record_failed_attempt(
+                user_id=user_value, code_hash=code_hash, code_suffix=code.code_suffix, ip=ip,
+                reason_type="already_used", reason=f"兑换码已使用/状态异常: {code.status}",
+            )
             raise ValueError("兑换码无效或不可用")
         if code.expires_at and code.expires_at <= now_value:
+            recharge_order_manager.record_failed_attempt(
+                user_id=user_value, code_hash=code_hash, code_suffix=code.code_suffix, ip=ip,
+                reason_type="expired", reason="兑换码已过期",
+            )
             code.status = "expired"
             code.updated_at = now_value
             db.commit()
@@ -367,8 +418,16 @@ def redeem(*, raw_code: str, user_id: str, target_credit_type: Optional[str] = N
 
         user = db.query(Users).filter(Users.user_id == user_id).with_for_update().first()
         if not user:
+            recharge_order_manager.record_failed_attempt(
+                user_id=user_value, code_hash=code_hash, code_suffix=code.code_suffix, ip=ip,
+                reason_type="blocked_account", reason="用户不存在",
+            )
             raise ValueError("用户不存在")
         if user.account_status and user.account_status != "active":
+            recharge_order_manager.record_failed_attempt(
+                user_id=user_value, code_hash=code_hash, code_suffix=code.code_suffix, ip=ip,
+                reason_type="blocked_account", reason=f"账号不可用: {user.account_status}",
+            )
             raise ValueError("当前账号不可用，不能兑换")
 
         amount = Decimal(str(code.amount))
@@ -407,9 +466,17 @@ def redeem(*, raw_code: str, user_id: str, target_credit_type: Optional[str] = N
             )
         elif redeem_credit_type == "team_gold":
             if not user.team_id:
+                recharge_order_manager.record_failed_attempt(
+                    user_id=user_value, code_hash=code_hash, code_suffix=code.code_suffix, ip=ip,
+                    reason_type="no_team", reason="账号未加入团队，不能兑换团队金豆码",
+                )
                 raise ValueError("当前账号未加入团队，不能兑换团队金豆码")
             team = db.query(Teams).filter(Teams.id == user.team_id).with_for_update().first()
             if not team or team.status != "active":
+                recharge_order_manager.record_failed_attempt(
+                    user_id=user_value, code_hash=code_hash, code_suffix=code.code_suffix, ip=ip,
+                    reason_type="no_team", reason="当前团队不存在或不可用",
+                )
                 raise ValueError("当前团队不存在或不可用")
             row = db.execute(text(
                 "UPDATE teams SET balance = balance + :amount, updated_at = now() "
@@ -446,6 +513,19 @@ def redeem(*, raw_code: str, user_id: str, target_credit_type: Optional[str] = N
         code.team_record_id = team_record_id
         code.updated_at = now_value
 
+        redemption_metadata = {"batch_id": batch.id, "code_suffix": code.code_suffix}
+        # session 为 autoflush=False，先 flush 让 used 状态对订单进度统计可见
+        db.flush()
+        order_progress = recharge_order_manager.update_order_progress(db, code)
+        order_no = None
+        order_id = None
+        if getattr(code, "order_id", None):
+            order_id = code.order_id
+            order_no = order_progress.get("order", {}).get("order_no") if order_progress else None
+            if order_no:
+                redemption_metadata["order_no"] = order_no
+                redemption_metadata["order_id"] = order_id
+
         redemption = RechargeRedemptions(
             id=redemption_id,
             code_id=code.id,
@@ -457,13 +537,13 @@ def redeem(*, raw_code: str, user_id: str, target_credit_type: Optional[str] = N
             balance_after=balance_after,
             billing_record_id=billing_record_id,
             team_record_id=team_record_id,
-            extra_data={"batch_id": batch.id, "code_suffix": code.code_suffix},
+            extra_data=redemption_metadata,
         )
         db.add(redemption)
         db.commit()
         db.refresh(code)
         db.refresh(redemption)
-        return {
+        result = {
             "code": _serialize_code(code),
             "redemption": _serialize_redemption(redemption),
             "credit_type": redeem_credit_type,
@@ -471,6 +551,10 @@ def redeem(*, raw_code: str, user_id: str, target_credit_type: Optional[str] = N
             "balance_before": amount_to_response_number(redeem_credit_type, balance_before),
             "balance_after": amount_to_response_number(redeem_credit_type, balance_after),
         }
+        if order_id:
+            result["order_id"] = order_id
+            result["order_no"] = order_no
+        return result
     except Exception:
         db.rollback()
         raise
