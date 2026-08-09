@@ -398,11 +398,13 @@ class RechargeCodes(Base):
         Index('ix_recharge_codes_status', 'status'),
         Index('ix_recharge_codes_used_by', 'used_by'),
         Index('ix_recharge_codes_suffix', 'code_suffix'),
+        Index('ix_recharge_codes_order_id', 'order_id'),
         {'comment': '金豆兑换码表，仅保存 hash 和后缀'}
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='兑换码ID')
     batch_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='批次ID')
+    order_id: Mapped[Optional[str]] = mapped_column(String(64), comment='关联充值订单ID')
     code_hash: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, comment='兑换码哈希')
     code_suffix: Mapped[str] = mapped_column(String(12), nullable=False, comment='兑换码后缀')
     credit_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='gold/personal_gold/team_gold')
@@ -443,6 +445,94 @@ class RechargeRedemptions(Base):
     error_message: Mapped[Optional[str]] = mapped_column(Text, comment='失败原因')
     extra_data: Mapped[Optional[dict]] = mapped_column('metadata', JSON, comment='扩展信息')
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+
+
+class RechargeOrders(Base):
+    __tablename__ = 'recharge_orders'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='recharge_orders_pkey'),
+        UniqueConstraint('order_no', name='recharge_orders_order_no_key'),
+        UniqueConstraint('external_order_id', name='recharge_orders_external_order_id_key'),
+        Index('ix_recharge_orders_order_no', 'order_no'),
+        Index('ix_recharge_orders_user_id_created_at', 'user_id', 'created_at'),
+        Index('ix_recharge_orders_status', 'status'),
+        Index('ix_recharge_orders_channel', 'channel'),
+        Index('ix_recharge_orders_source_type', 'source_type'),
+        Index('ix_recharge_orders_created_at', 'created_at'),
+        {'comment': '金豆充值订单表'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='订单ID')
+    order_no: Mapped[str] = mapped_column(String(40), nullable=False, unique=True, comment='订单号')
+    user_id: Mapped[Optional[str]] = mapped_column(String(36), comment='下单用户ID')
+    team_id: Mapped[Optional[str]] = mapped_column(String(64), comment='关联团队ID')
+    package_id: Mapped[Optional[str]] = mapped_column(String(64), comment='套餐ID')
+    package_name: Mapped[Optional[str]] = mapped_column(String(100), comment='套餐名称')
+    amount_paid: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, comment='订单面额（真源）')
+    credited_amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), comment='实际已入账金额（按已兑码累加）')
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, server_default=text("'CNY'"), comment='币种')
+    channel: Mapped[str] = mapped_column(String(32), nullable=False, server_default=text("'manual'"), comment='渠道：wechat/xianyu/manual/campaign/compensation/ldxp')
+    source_type: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'paid'"), comment='来源类型：paid/manual/compensation/campaign')
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'paid'"), comment='状态：pending_payment/paid/issued/redeemed/refunded/cancelled/exception')
+    external_order_id: Mapped[Optional[str]] = mapped_column(String(128), unique=True, comment='外部支付订单号')
+    external_ref: Mapped[Optional[str]] = mapped_column(String(255), comment='外部参考信息')
+    paid_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='支付时间')
+    issued_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='首次发码时间')
+    redeemed_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='全量兑换完成时间')
+    refunded_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='退款时间')
+    cancelled_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='取消时间')
+    issued_code_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='已发码数量')
+    refund_amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), comment='退款金额')
+    operator_id: Mapped[Optional[str]] = mapped_column(String(64), comment='人工介入者 user_id')
+    note: Mapped[Optional[str]] = mapped_column(Text, comment='备注')
+    extra_data: Mapped[Optional[dict]] = mapped_column('metadata', JSON, comment='扩展信息')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
+
+
+class RechargeFailedAttempts(Base):
+    __tablename__ = 'recharge_failed_attempts'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='recharge_failed_attempts_pkey'),
+        Index('ix_failed_attempts_user_time', 'user_id', 'created_at'),
+        Index('ix_failed_attempts_ip_time', 'ip', 'created_at'),
+        Index('ix_failed_attempts_code_hash', 'code_hash', 'created_at'),
+        {'comment': '兑换失败尝试记录表（风控/防刷）'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='记录ID')
+    user_id: Mapped[Optional[str]] = mapped_column(String(36), comment='尝试用户')
+    ip: Mapped[Optional[str]] = mapped_column(String(64), comment='请求IP')
+    code_suffix: Mapped[Optional[str]] = mapped_column(String(12), comment='兑换码后缀')
+    code_hash: Mapped[Optional[str]] = mapped_column(String(128), comment='兑换码哈希')
+    reason_type: Mapped[Optional[str]] = mapped_column(String(32), comment='失败类型：invalid_code/expired/already_used/no_team/blocked_account/unknown')
+    reason: Mapped[Optional[str]] = mapped_column(String(255), comment='失败原因描述')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+
+
+class RechargeReversalRequests(Base):
+    __tablename__ = 'recharge_reversal_requests'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='recharge_reversal_requests_pkey'),
+        UniqueConstraint('order_id', name='recharge_reversal_requests_order_id_key'),
+        Index('ix_reversal_requests_status', 'status'),
+        Index('ix_reversal_requests_created_at', 'created_at'),
+        {'comment': '充值订单冲正申请表'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='申请ID')
+    order_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='订单ID')
+    order_no: Mapped[Optional[str]] = mapped_column(String(40), comment='订单号')
+    user_id: Mapped[Optional[str]] = mapped_column(String(36), comment='下单用户ID')
+    team_id: Mapped[Optional[str]] = mapped_column(String(64), comment='关联团队ID')
+    requested_by: Mapped[Optional[str]] = mapped_column(String(64), comment='申请人 user_id')
+    reason: Mapped[str] = mapped_column(Text, nullable=False, comment='冲正原因')
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'pending'"), comment='pending/approved/rejected/completed')
+    resolution_note: Mapped[Optional[str]] = mapped_column(Text, comment='处理备注')
+    resolved_by: Mapped[Optional[str]] = mapped_column(String(64), comment='处理人 user_id')
+    resolved_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='处理时间')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
 
 
 class SeatMaps(Base):
