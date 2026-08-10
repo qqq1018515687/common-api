@@ -14,12 +14,14 @@ logger = logging.getLogger(__name__)
 SHANGHAI_TZ = timezone(timedelta(hours=8))
 
 # 充值订单 source_type 分账口径（与前端/其他后端全局统一）
-# - paid / paid_commercial：商业收入
-# - manual：人工补款
-# - compensation：补偿赠送
+# - paid / paid_commercial：商业收入（计入 net）
+# - manual：人工补款（计入 net）
+# - compensation：补偿赠送（非经营性收入，不计入 net）
+# - campaign：活动营销发放（与补偿同类非经营性收入，不计入 net）
+# 注意：VALID_SOURCE_TYPES 中所有类型都必须在下面的桶里显式分账，禁止静默丢账。
 COMMERCIAL_SOURCE_TYPES = ("paid", "paid_commercial")
 MANUAL_SOURCE_TYPES = ("manual",)
-COMPENSATION_SOURCE_TYPES = ("compensation",)
+COMPENSATION_SOURCE_TYPES = ("compensation", "campaign")
 
 # 各风险规则默认阈值
 DEFAULT_THRESHOLDS = {
@@ -134,17 +136,21 @@ def overview(days: int = 7) -> Dict[str, Any]:
 
     db = get_session()
     try:
-        # ---------- 今日充值订单分账（按 paid 时间，无 paid_at 回退 created_at） ----------
+        # ---------- 今日充值订单分账（按 paid 时间，仅统计已支付订单） ----------
         # 收入口径：仅统计仍有资金意义的订单状态，排除已冲正/已退款/已取消的订单，
         # 避免「收了钱又扣回」的订单同时霸占收入与退款两个方向。
+        # 关键：必须用 paid_at IS NOT NULL（而非 status NOT IN + COALESCE 兜底）判定，
+        # 否则 paid_at 为空的 pending_payment/exception 订单会被 COALESCE(paid_at, created_at)
+        # 误判为「已支付」，未收款/异常单也被计入收入。
         order_rows = _rows(db, """
             SELECT source_type,
                    SUM(amount_paid) AS total_paid,
                    COUNT(*)         AS order_cnt
             FROM recharge_orders
-            WHERE status NOT IN ('reversed', 'refunded', 'cancelled')
-              AND COALESCE(paid_at, created_at) >= :start
-              AND COALESCE(paid_at, created_at) <  :end
+            WHERE paid_at IS NOT NULL
+              AND status NOT IN ('reversed', 'refunded', 'cancelled')
+              AND paid_at >= :start
+              AND paid_at <  :end
             GROUP BY source_type
         """, {"start": today_start, "end": today_end})
         order_map = {r["source_type"]: r for r in order_rows}
@@ -162,41 +168,58 @@ def overview(days: int = 7) -> Dict[str, Any]:
             elif stype in COMPENSATION_SOURCE_TYPES:
                 recharge_compensation += total_paid
 
-        # 今日到账（recharge_redemptions）
+        # 今日到账（recharge_redemptions，排除已被订单级冲正/退款/取消的入账）
+        # 说明：recharge_redemptions 记录兑换入账，若订单后续被冲正/退款/取消，
+        # 该入账并不被删除，因此必须 join recharge_orders 排除反向订单，否则
+        # 「到账」会把已被扣回的钱算成今日到账（与 net 口径冲突）。
         credited_today = _scalar_sum(db, """
-            SELECT SUM(amount) AS v FROM recharge_redemptions
-            WHERE created_at >= :start AND created_at < :end
+            SELECT SUM(rr.amount) AS v
+            FROM recharge_redemptions rr
+            LEFT JOIN recharge_codes rc ON rc.id = rr.code_id
+            LEFT JOIN recharge_orders ro ON ro.id = rc.order_id
+            WHERE rr.created_at >= :start AND rr.created_at < :end
+              AND rr.status = 'completed'
+              AND (ro.id IS NULL OR ro.status NOT IN ('reversed', 'refunded', 'cancelled'))
         """, {"start": today_start, "end": today_end})
 
-        # 今日消费（billing_records deduct，completed）
+        # 今日消费（billing_records deduct，completed，仅金豆账；银豆是独立账本不混入）
         consumption_today = _scalar_sum(db, """
             SELECT SUM(amount) AS v FROM billing_records
             WHERE operation_type = 'deduct' AND status = 'completed'
+              AND credit_type IN ('personal_gold', 'team_gold')
               AND created_at >= :start AND created_at < :end
         """, {"start": today_start, "end": today_end})
 
         # 今日退款 = billing refund + recharge_orders refunded（不含冲正订单，冲正走 billing refund 与 reversal）
+        # 注意：billing refund 仅统计金豆账，银豆退款不计入金豆资金中心口径。
         billing_refund_today = _scalar_sum(db, """
             SELECT SUM(amount) AS v FROM billing_records
             WHERE operation_type = 'refund' AND status = 'completed'
+              AND credit_type IN ('personal_gold', 'team_gold')
               AND created_at >= :start AND created_at < :end
         """, {"start": today_start, "end": today_end})
         order_refund_today = _scalar_sum(db, """
             SELECT SUM(amount_paid) AS v FROM recharge_orders
-            WHERE status = 'refunded'
-              AND COALESCE(refunded_at, created_at) >= :start
-              AND COALESCE(refunded_at, created_at) <  :end
+            WHERE status = 'refunded' AND refunded_at IS NOT NULL
+              AND refunded_at >= :start
+              AND refunded_at <  :end
         """, {"start": today_start, "end": today_end})
 
         # 今日兑换用户数 / 消费用户数
         redeem_user_rows = _rows(db, """
-            SELECT COUNT(DISTINCT user_id) AS c FROM recharge_redemptions
-            WHERE created_at >= :start AND created_at < :end
+            SELECT COUNT(DISTINCT rr.user_id) AS c
+            FROM recharge_redemptions rr
+            LEFT JOIN recharge_codes rc ON rc.id = rr.code_id
+            LEFT JOIN recharge_orders ro ON ro.id = rc.order_id
+            WHERE rr.created_at >= :start AND rr.created_at < :end
+              AND rr.status = 'completed'
+              AND (ro.id IS NULL OR ro.status NOT IN ('reversed', 'refunded', 'cancelled'))
         """, {"start": today_start, "end": today_end})
         redeem_user_today = int(redeem_user_rows[0].get("c") or 0) if redeem_user_rows else 0
         consume_user_rows = _rows(db, """
             SELECT COUNT(DISTINCT user_id) AS c FROM billing_records
             WHERE operation_type = 'deduct' AND status = 'completed'
+              AND credit_type IN ('personal_gold', 'team_gold')
               AND created_at >= :start AND created_at < :end
         """, {"start": today_start, "end": today_end})
         consume_user_today = int(consume_user_rows[0].get("c") or 0) if consume_user_rows else 0
@@ -205,8 +228,9 @@ def overview(days: int = 7) -> Dict[str, Any]:
         pni_rows = _rows(db, """
             SELECT COUNT(*) AS c FROM recharge_orders
             WHERE status = 'paid' AND issued_code_count = 0
-              AND COALESCE(paid_at, created_at) >= :start
-              AND COALESCE(paid_at, created_at) <  :end
+              AND paid_at IS NOT NULL
+              AND paid_at >= :start
+              AND paid_at <  :end
         """, {"start": today_start, "end": today_end})
         paid_not_issued_today = int(pni_rows[0].get("c") or 0) if pni_rows else 0
 
@@ -279,10 +303,11 @@ def _compute_trend(db, window_start: datetime, days: int) -> List[Dict[str, Any]
     不再做任何 time zone 转换，从根本上避免 8 小时偏移。
     """
     recharge_rows = _rows(db, """
-        SELECT to_char(COALESCE(paid_at, created_at), 'YYYY-MM-DD') AS d,
+        SELECT to_char(paid_at, 'YYYY-MM-DD') AS d,
                SUM(amount_paid) AS v
         FROM recharge_orders
-        WHERE COALESCE(paid_at, created_at) >= :start
+        WHERE paid_at >= :start
+          AND paid_at IS NOT NULL
           AND status NOT IN ('reversed', 'refunded', 'cancelled')
         GROUP BY d
     """, {"start": window_start})
@@ -291,19 +316,24 @@ def _compute_trend(db, window_start: datetime, days: int) -> List[Dict[str, Any]
     # 补偿(campaign/compensation)不计入 net，与 overview.today 统一。
     # 同时排除已冲正/已退款/已取消订单，避免已扣回资金在净额中二次占位。
     net_recharge_rows = _rows(db, """
-        SELECT to_char(COALESCE(paid_at, created_at), 'YYYY-MM-DD') AS d,
+        SELECT to_char(paid_at, 'YYYY-MM-DD') AS d,
                SUM(amount_paid) AS v
         FROM recharge_orders
-        WHERE COALESCE(paid_at, created_at) >= :start
+        WHERE paid_at >= :start
+          AND paid_at IS NOT NULL
           AND source_type IN ('paid', 'paid_commercial', 'manual')
           AND status NOT IN ('reversed', 'refunded', 'cancelled')
         GROUP BY d
     """, {"start": window_start})
 
     credited_rows = _rows(db, """
-        SELECT to_char(created_at, 'YYYY-MM-DD') AS d, SUM(amount) AS v
-        FROM recharge_redemptions
-        WHERE created_at >= :start
+        SELECT to_char(rr.created_at, 'YYYY-MM-DD') AS d, SUM(rr.amount) AS v
+        FROM recharge_redemptions rr
+        LEFT JOIN recharge_codes rc ON rc.id = rr.code_id
+        LEFT JOIN recharge_orders ro ON ro.id = rc.order_id
+        WHERE rr.created_at >= :start
+          AND rr.status = 'completed'
+          AND (ro.id IS NULL OR ro.status NOT IN ('reversed', 'refunded', 'cancelled'))
         GROUP BY d
     """, {"start": window_start})
 
@@ -311,6 +341,7 @@ def _compute_trend(db, window_start: datetime, days: int) -> List[Dict[str, Any]
         SELECT to_char(created_at, 'YYYY-MM-DD') AS d, SUM(amount) AS v
         FROM billing_records
         WHERE operation_type = 'deduct' AND status = 'completed'
+          AND credit_type IN ('personal_gold', 'team_gold')
           AND created_at >= :start
         GROUP BY d
     """, {"start": window_start})
@@ -320,11 +351,12 @@ def _compute_trend(db, window_start: datetime, days: int) -> List[Dict[str, Any]
             SELECT to_char(created_at, 'YYYY-MM-DD') AS d, amount AS v
             FROM billing_records
             WHERE operation_type = 'refund' AND status = 'completed'
+              AND credit_type IN ('personal_gold', 'team_gold')
               AND created_at >= :start_b
             UNION ALL
-            SELECT to_char(COALESCE(refunded_at, created_at), 'YYYY-MM-DD') AS d, amount_paid AS v
+            SELECT to_char(refunded_at, 'YYYY-MM-DD') AS d, amount_paid AS v
             FROM recharge_orders
-            WHERE status = 'refunded' AND COALESCE(refunded_at, created_at) >= :start_o
+            WHERE status = 'refunded' AND refunded_at IS NOT NULL AND refunded_at >= :start_o
         ) sub GROUP BY d
     """, {"start_b": window_start, "start_o": window_start})
 
