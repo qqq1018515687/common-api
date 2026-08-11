@@ -231,17 +231,17 @@ def _is_bltcy_record(
     original_extra_data: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """
-    检查是否为 bltcy 任务记录，bltcy 任务不可退款。
-    匹配规则：任一数据源中包含以下字段之一即为 bltcy：
-    - platform = "bltcy"
-    - selected_account = "bltcy"
-    - provider = "bltcy"
-    - model_name = "model6" / "banana2_tudou" / "banana_pro_tudou"
-    - model_key = "model6" / "banana2_tudou" / "banana_pro_tudou"
+    检查是否为第三方渠道任务记录（bltcy/tudou 等非 RunningHub 历史渠道），这些渠道不可退款。
+    匹配规则：任一数据源中包含第三方渠道标识即为不可退款记录：
+    - platform / selected_account / provider 在第三方渠道白名单内
+    - model_name / model_key 是已知第三方模型（历史兼容）
     """
-    bltcy_keys = {"platform", "selected_account", "provider"}
+    from config.third_party_platforms import THIRD_PARTY_PLATFORMS
+
+    channel_keys = {"platform", "selected_account", "provider"}
     model_keys = {"model_name", "model_key"}
-    no_refund_model_values = {"model6", "banana2_tudou", "banana_pro_tudou"}
+    no_refund_model_values = {"model6", "banana2_tudou", "banana_pro_tudou", "gpt_image_2_tudou"}
+    third_party_platforms = set(THIRD_PARTY_PLATFORMS)
 
     sources: List[Dict[str, Any]] = []
     if billing_metadata:
@@ -256,9 +256,9 @@ def _is_bltcy_record(
         sources.append(original_extra_data)
 
     for src in sources:
-        for key in bltcy_keys:
+        for key in channel_keys:
             val = src.get(key)
-            if isinstance(val, str) and val.lower() == "bltcy":
+            if isinstance(val, str) and val.strip().lower() in third_party_platforms:
                 return True
         for key in model_keys:
             val = src.get(key)

@@ -56,6 +56,7 @@ from utils.log.loop_trace import init_run_config, init_agent_config
 TIMEOUT_SECONDS = 900  # 15分钟
 THIRD_PARTY_TASK_RECOVERY_INTERVAL = 30
 THIRD_PARTY_TASK_RECOVERY_STALE_MS = 45 * 1000
+THIRD_PARTY_TASK_RECOVERY_HARD_TIMEOUT_MS = 10 * 60 * 1000  # 结果确认中超过10分钟强制失败并退款
 THIRD_PARTY_TASK_RECOVERY_BATCH_SIZE = 50
 
 class GraphService:
@@ -385,19 +386,61 @@ def is_backend_persist_upload(metadata: Dict[str, Any]) -> bool:
     return source == "tudou_server_persist"
 
 
-def _fetch_backend_auth_header() -> Optional[str]:
-    token = os.getenv("COZE_BACKEND_TOKEN", "").strip()
-    if not token:
-        logger.warning("[third-party-recovery] COZE_BACKEND_TOKEN 未配置，跳过第三方任务补偿")
-        return None
-    return f"Bearer {token}"
+def _force_fail_stale_pending_task(task: Any, task_mgr: Any, db: Any) -> None:
+    """将 pending 超时的第三方任务强制置失败并尝试退款（绕过 update_task 守卫）。"""
+    try:
+        from storage.database.task_manager import TaskManager
+
+        force_mgr = task_mgr if isinstance(task_mgr, TaskManager) else TaskManager()
+        fail_message = "结果确认超时，任务已强制结束"
+        forced = force_mgr.force_fail_third_party_task(
+            db,
+            task.id,
+            error="第三方平台结果确认超时",
+            user_friendly_message=fail_message,
+        )
+        if not forced:
+            return
+        logger.info(
+            "[third-party-recovery] 强制失败超时任务: task_id=%s platform=%s",
+            task.id,
+            task.platform,
+        )
+    except Exception as exc:
+        logger.error("[third-party-recovery] 强制失败任务异常: task_id=%s error=%s", task.id, exc)
+        return
+
+    try:
+        deduction = task.deduction_result if isinstance(task.deduction_result, dict) else {}
+        original_record_id = str(
+            deduction.get("billing_record_id")
+            or deduction.get("team_record_id")
+            or ""
+        ).strip()
+        if not original_record_id:
+            logger.warning("[third-party-recovery] 任务无扣费记录，跳过退款: task_id=%s", task.id)
+            return
+
+        from storage.database.billing_manager import refund as billing_refund
+
+        user_id = str(task.user_id or "").strip()
+        if not user_id:
+            logger.warning("[third-party-recovery] 任务无 user_id，跳过退款: task_id=%s", task.id)
+            return
+
+        result = billing_refund(
+            user_id=user_id,
+            original_record_id=original_record_id,
+            idempotency_key=f"recover-force-fail:{task.id}",
+            service_secret=os.getenv("SERVICE_SECRET", ""),
+            metadata={"platform": task.platform, "recovery": "stale_pending_force_fail"},
+        )
+        logger.info("[third-party-recovery] 强制失败退款结果: task_id=%s result=%s", task.id, result)
+    except Exception as exc:
+        logger.error("[third-party-recovery] 强制失败退款异常: task_id=%s error=%s", task.id, exc)
 
 
 def _trigger_third_party_task_recovery() -> None:
-    auth_header = _fetch_backend_auth_header()
-    if not auth_header:
-        return
-
     db = get_session()
     try:
         from storage.database.task_manager import TaskManager
@@ -408,36 +451,55 @@ def _trigger_third_party_task_recovery() -> None:
             limit=THIRD_PARTY_TASK_RECOVERY_BATCH_SIZE,
             older_than_ms=THIRD_PARTY_TASK_RECOVERY_STALE_MS,
         )
-    finally:
+    except Exception:
         db.close()
+        raise
 
     if not stale_tasks:
+        db.close()
         return
 
-    backend_url = os.getenv("COMMON_RECOVERY_BACKEND_URL", "http://127.0.0.1:8000").rstrip("/")
+    now_ms = int(time.time() * 1000)
+    hard_timeout_ms = THIRD_PARTY_TASK_RECOVERY_HARD_TIMEOUT_MS
     for task in stale_tasks:
         platform_task_id = str(task.platform_task_id or "").strip()
+
+        # 结果确认中（pending）且超过硬超时阈值 → 直接强制失败并退款，不再转发 recover
+        confirmation_pending = getattr(task, "confirmation_state", None) == "pending"
+        if not confirmation_pending:
+            snapshot = task.parameter_snapshot if isinstance(task.parameter_snapshot, dict) else {}
+            confirmation_pending = snapshot.get("confirmationState") == "pending"
+
+        task_updated_ms = 0
+        try:
+            task_updated_ms = int(str(getattr(task, "updated_at", "") or "0")[:13])
+        except (TypeError, ValueError):
+            task_updated_ms = 0
+        pending_duration_ms = (now_ms - task_updated_ms) if task_updated_ms else 0
+
+        if confirmation_pending and pending_duration_ms >= hard_timeout_ms:
+            _force_fail_stale_pending_task(task, task_mgr, db)
+            continue
+
         if not platform_task_id or platform_task_id.startswith("tudou_sync:") or platform_task_id.startswith("pending:"):
             continue
 
         try:
-            response = requests.post(
-                f"{backend_url}/api/coze/common/task/recover-third-party",
-                headers={
-                    "Authorization": auth_header,
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "task_id": task.id,
-                    "platform": task.platform,
-                    "platform_task_id": platform_task_id,
-                },
-                timeout=20,
+            from utils.third_party_recovery import forward_third_party_recovery
+
+            result = forward_third_party_recovery(
+                task.id,
+                task.platform,
+                platform_task_id,
             )
-            if response.status_code >= 400:
-                logger.warning("[third-party-recovery] 触发任务补偿失败: task_id=%s status=%s body=%s", task.id, response.status_code, response.text[:300])
+            # 平台确认失败 → 强制终态（绕过 confirmation 守卫）+ 退款
+            if isinstance(result, dict) and int(result.get("code", -1)) == 805:
+                _force_fail_stale_pending_task(task, task_mgr, db)
+                continue
+            logger.info("[third-party-recovery] 触发任务补偿完成: task_id=%s result=%s", task.id, result)
         except Exception as exc:
             logger.warning("[third-party-recovery] 调用任务补偿异常: task_id=%s error=%s", task.id, exc)
+    db.close()
 
 
 def _third_party_task_recovery_loop() -> None:

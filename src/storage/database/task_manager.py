@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from storage.database.shared.model import Tasks, Users
+from config.third_party_platforms import THIRD_PARTY_PLATFORMS
 import time
 
 
@@ -626,7 +627,7 @@ class TaskManager:
 
         query = db.query(Tasks).filter(
             Tasks.is_deleted == False,
-            Tasks.platform == "bltcy",
+            Tasks.platform.in_(set(THIRD_PARTY_PLATFORMS)),
             Tasks.status == "running",
             Tasks.platform_task_id.isnot(None),
             Tasks.platform_task_id != "",
@@ -750,6 +751,41 @@ class TaskManager:
 
         db.add(db_task)
         try:
+            db.commit()
+            db.refresh(db_task)
+            return db_task
+        except Exception:
+            db.rollback()
+            raise
+
+    def force_fail_third_party_task(
+        self,
+        db: Session,
+        task_id: str,
+        *,
+        error: str = "",
+        user_friendly_message: str = "",
+    ) -> Optional[Tasks]:
+        """强制终态化第三方渠道卡住任务（绕过 confirmation_state=pending 守卫）。
+
+        背景：main 轮询超时/瞬时错误时会把任务标为 running + confirmation_state=pending
+        （“结果确认中”），而 common 的 update_task 对 pending 任务拒绝对无结果失败，
+        导致任务永远无法收敛。本方法供补偿线程对超时任务直接置失败，不走 update_task。
+        """
+        db_task = self.get_task_by_id(db, task_id)
+        if not db_task:
+            return None
+
+        db_task.status = "failed"
+        db_task.confirmation_state = "confirmed"
+        db_task.error = error or "任务处理超时，已强制结束"
+        if user_friendly_message:
+            db_task.user_friendly_message = user_friendly_message
+        db_task.completed_at = str(int(time.time() * 1000))
+        db_task.updated_at = str(int(time.time() * 1000))
+
+        try:
+            db.add(db_task)
             db.commit()
             db.refresh(db_task)
             return db_task

@@ -2,7 +2,6 @@
 from typing import Optional, List
 from fastapi import APIRouter, Header, HTTPException, Query
 import os
-import requests
 from pydantic import BaseModel, Field
 
 from storage.database.db import get_session
@@ -254,29 +253,15 @@ async def recover_third_party_task(request: RecoverThirdPartyTaskRequest, author
         if not authorization or authorization != f"Bearer {expected_token}":
             raise HTTPException(status_code=401, detail="Invalid backend authorization")
 
-    backend_url = os.getenv("COMMON_RECOVERY_BACKEND_URL", "http://127.0.0.1:8000").rstrip("/")
-    payload = {
-        "workflow_id": "workflow_02",
-        "input": {
-            "operation_type": "recover_third_party_task",
-            "task_id": request.task_id,
-            "platform": request.platform,
-            "platform_task_id": request.platform_task_id,
-        }
-    }
-
     try:
-        response = requests.post(
-            f"{backend_url}/api/coze/main",
-            headers={
-                "Authorization": f"Bearer {expected_token}" if expected_token else (authorization or ""),
-                "Content-Type": "application/json",
-            },
-            json=payload,
-            timeout=30,
+        from utils.third_party_recovery import forward_third_party_recovery
+
+        data = forward_third_party_recovery(
+            request.task_id,
+            request.platform,
+            request.platform_task_id,
+            auth_header=authorization,
         )
-        response.raise_for_status()
-        data = response.json() if response.content else {"success": True}
         return {"success": True, "result": data}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"recover third party task failed: {exc}") from exc
