@@ -14,10 +14,10 @@ logger = logging.getLogger(__name__)
 SHANGHAI_TZ = timezone(timedelta(hours=8))
 
 # 充值订单 source_type 分账口径（与前端/其他后端全局统一）
-# - paid / paid_commercial：商业收入（计入 net）
-# - manual：人工补款（计入 net）
-# - compensation：补偿赠送（非经营性收入，不计入 net）
-# - campaign：活动营销发放（与补偿同类非经营性收入，不计入 net）
+# - paid / paid_commercial：商业收入
+# - manual：人工补款
+# - compensation：补偿赠送（非经营性）
+# - campaign：活动营销发放（非经营性）
 # 注意：VALID_SOURCE_TYPES 中所有类型都必须在下面的桶里显式分账，禁止静默丢账。
 COMMERCIAL_SOURCE_TYPES = ("paid", "paid_commercial")
 MANUAL_SOURCE_TYPES = ("manual",)
@@ -117,18 +117,10 @@ def overview(days: int = 7) -> Dict[str, Any]:
     """资金中心总览：今日指标 + 最近 N 天（Asia/Shanghai 日历日）每日趋势。
 
     口径铁律（SQL 层实现，前端/后端全局统一）：
-    - 消费总额 ONLY 统计 billing_records：deduct 计消费、refund 计退款；
-      team_consumption_records 是团队视图账，绝不合入消费主数字，仅作为
-      团队视角单独字段返回。
-    - 充值/收入从订单层 recharge_orders 按 source_type 分账：
-      paid/paid_commercial 商业收入、manual 人工补款、compensation 补偿赠送。
-    - 收入确认排除资金已回退的订单：status NOT IN ('reversed','refunded','cancelled')，
-      避免「收了钱又冲正/退款/取消」的订单在收入和 net 中二次占位。
-    - 到账 credited 从 recharge_redemptions.amount 统计。
-    - 退款 = billing_records refund 金额 + recharge_orders refunded 金额（各自独立字段）。
-      冲正（reversed）产生的退款仅走 billing_records refund，不再计入订单层 refunded，
-      避免同一笔冲正在两个来源被重复统计。
-    - net = recharge_paid + recharge_manual - consumption + refund。
+    - 订单账：只回答今天收了多少钱、退了多少钱、还有哪些订单异常。
+    - 到账账：只回答今天真正入账多少、冲正/回退多少、净到账多少。
+    - 消费账：只回答今天真实扣费多少、退款多少、实际消耗多少。
+    - 三本账同屏展示，但禁止再合成一个“总净额”，避免跨生命周期数据硬混。
     """
     safe_days = _clamp_days(days)
     today_start, today_end = _shanghai_today_bounds()
@@ -263,28 +255,36 @@ def overview(days: int = 7) -> Dict[str, Any]:
         """, {"start": today_start, "end": today_end})
 
         refund_total = billing_refund_today + order_refund_today
-        net_today = recharge_paid + recharge_manual - consumption_today + refund_total
+        net_credited_today = credited_today - reversal_refund_today
+        actual_consumption_today = consumption_today - billing_refund_today
 
         today = {
             "date": today_start.strftime("%Y-%m-%d"),
-            "recharge_paid": round(recharge_paid, 2),
-            "recharge_manual": round(recharge_manual, 2),
-            "recharge_compensation": round(recharge_compensation, 2),
-            "credited": round(credited_today, 2),
-            "consumption": round(consumption_today, 2),
-            "refund": round(refund_total, 2),
-            "refund_billing": round(billing_refund_today, 2),
-            "refund_order": round(order_refund_today, 2),
-            "net": round(net_today, 2),
-            "order_count": int(order_count),
-            "redeem_user_count": int(redeem_user_today),
-            "consume_user_count": int(consume_user_today),
-            "paid_not_issued_count": int(paid_not_issued_today),
-            "reversal_pending_count": int(reversal_pending_today),
-            "reversal_completed_count": int(reversal_completed_today),
-            "reversal_refund_amount": round(reversal_refund_today, 2),
-            # 团队视角独立字段（团队可用余额变动总和，金额为负表示消费）
-            "team_consumption_records_sum": round(team_view, 2),
+            "orders": {
+                "paid_amount": round(recharge_paid, 2),
+                "manual_amount": round(recharge_manual, 2),
+                "compensation_amount": round(recharge_compensation, 2),
+                "total_paid_amount": round(recharge_paid + recharge_manual + recharge_compensation, 2),
+                "refund_amount": round(order_refund_today, 2),
+                "paid_order_count": int(order_count),
+                "paid_not_issued_count": int(paid_not_issued_today),
+                "reversal_pending_count": int(reversal_pending_today),
+                "reversal_completed_count": int(reversal_completed_today),
+            },
+            "credits": {
+                "credited_amount": round(credited_today, 2),
+                "reversal_refund_amount": round(reversal_refund_today, 2),
+                "net_credited_amount": round(net_credited_today, 2),
+                "credited_user_count": int(redeem_user_today),
+            },
+            "billing": {
+                "deduct_amount": round(consumption_today, 2),
+                "refund_amount": round(billing_refund_today, 2),
+                "actual_consumption_amount": round(actual_consumption_today, 2),
+                "consume_user_count": int(consume_user_today),
+                # 团队视角独立字段（团队可用余额变动总和，金额为负表示消费）
+                "team_consumption_records_sum": round(team_view, 2),
+            },
         }
 
         trend = _compute_trend(db, trend_start, safe_days)
@@ -312,20 +312,6 @@ def _compute_trend(db, window_start: datetime, days: int) -> List[Dict[str, Any]
         GROUP BY d
     """, {"start": window_start})
 
-    # 净额口径：仅计入商业收入(paid/paid_commercial)与人工(manual)，
-    # 补偿(campaign/compensation)不计入 net，与 overview.today 统一。
-    # 同时排除已冲正/已退款/已取消订单，避免已扣回资金在净额中二次占位。
-    net_recharge_rows = _rows(db, """
-        SELECT to_char(paid_at, 'YYYY-MM-DD') AS d,
-               SUM(amount_paid) AS v
-        FROM recharge_orders
-        WHERE paid_at >= :start
-          AND paid_at IS NOT NULL
-          AND source_type IN ('paid', 'paid_commercial', 'manual')
-          AND status NOT IN ('reversed', 'refunded', 'cancelled')
-        GROUP BY d
-    """, {"start": window_start})
-
     credited_rows = _rows(db, """
         SELECT to_char(rr.created_at, 'YYYY-MM-DD') AS d, SUM(rr.amount) AS v
         FROM recharge_redemptions rr
@@ -346,41 +332,66 @@ def _compute_trend(db, window_start: datetime, days: int) -> List[Dict[str, Any]
         GROUP BY d
     """, {"start": window_start})
 
-    refund_rows = _rows(db, """
-        SELECT d, SUM(v) AS v FROM (
-            SELECT to_char(created_at, 'YYYY-MM-DD') AS d, amount AS v
-            FROM billing_records
-            WHERE operation_type = 'refund' AND status = 'completed'
-              AND credit_type IN ('personal_gold', 'team_gold')
-              AND created_at >= :start_b
-            UNION ALL
-            SELECT to_char(refunded_at, 'YYYY-MM-DD') AS d, amount_paid AS v
-            FROM recharge_orders
-            WHERE status = 'refunded' AND refunded_at IS NOT NULL AND refunded_at >= :start_o
-        ) sub GROUP BY d
-    """, {"start_b": window_start, "start_o": window_start})
+    billing_refund_rows = _rows(db, """
+        SELECT to_char(created_at, 'YYYY-MM-DD') AS d, SUM(amount) AS v
+        FROM billing_records
+        WHERE operation_type = 'refund' AND status = 'completed'
+          AND credit_type IN ('personal_gold', 'team_gold')
+          AND created_at >= :start
+        GROUP BY d
+    """, {"start": window_start})
+
+    order_refund_rows = _rows(db, """
+        SELECT to_char(refunded_at, 'YYYY-MM-DD') AS d, SUM(amount_paid) AS v
+        FROM recharge_orders
+        WHERE status = 'refunded'
+          AND refunded_at IS NOT NULL
+          AND refunded_at >= :start
+        GROUP BY d
+    """, {"start": window_start})
+
+    reversal_rows = _rows(db, """
+        SELECT to_char(refunded_at, 'YYYY-MM-DD') AS d, SUM(refund_amount) AS v
+        FROM recharge_orders
+        WHERE status IN ('reversed', 'refunded')
+          AND refunded_at IS NOT NULL
+          AND refunded_at >= :start
+          AND note LIKE :flag
+        GROUP BY d
+    """, {"start": window_start, "flag": '%冲正完成:%'})
 
     recharge_map = {r["d"]: gold_amount_to_number(r.get("v")) for r in recharge_rows}
-    net_recharge_map = {r["d"]: gold_amount_to_number(r.get("v")) for r in net_recharge_rows}
     credited_map = {r["d"]: gold_amount_to_number(r.get("v")) for r in credited_rows}
     consumption_map = {r["d"]: gold_amount_to_number(r.get("v")) for r in consumption_rows}
-    refund_map = {r["d"]: gold_amount_to_number(r.get("v")) for r in refund_rows}
+    billing_refund_map = {r["d"]: gold_amount_to_number(r.get("v")) for r in billing_refund_rows}
+    order_refund_map = {r["d"]: gold_amount_to_number(r.get("v")) for r in order_refund_rows}
+    reversal_map = {r["d"]: gold_amount_to_number(r.get("v")) for r in reversal_rows}
 
     result: List[Dict[str, Any]] = []
     for i in range(days):
         day = (window_start + timedelta(days=i)).strftime("%Y-%m-%d")
         recharge = recharge_map.get(day, 0.0)
-        net_recharge = net_recharge_map.get(day, 0.0)
         credited = credited_map.get(day, 0.0)
         consumption = consumption_map.get(day, 0.0)
-        refund = refund_map.get(day, 0.0)
+        billing_refund = billing_refund_map.get(day, 0.0)
+        order_refund = order_refund_map.get(day, 0.0)
+        reversal = reversal_map.get(day, 0.0)
         result.append({
             "date": day,
-            "recharge": round(recharge, 2),
-            "credited": round(credited, 2),
-            "consumption": round(consumption, 2),
-            "refund": round(refund, 2),
-            "net": round(net_recharge - consumption + refund, 2),
+            "orders": {
+                "paid_amount": round(recharge, 2),
+                "refund_amount": round(order_refund, 2),
+            },
+            "credits": {
+                "credited_amount": round(credited, 2),
+                "reversal_refund_amount": round(reversal, 2),
+                "net_credited_amount": round(credited - reversal, 2),
+            },
+            "billing": {
+                "deduct_amount": round(consumption, 2),
+                "refund_amount": round(billing_refund, 2),
+                "actual_consumption_amount": round(consumption - billing_refund, 2),
+            },
         })
     return result
 
@@ -499,6 +510,8 @@ def orders_query(
                 "amount_paid": gold_amount_to_number(r.get("amount_paid")),
                 "credited_amount": gold_amount_to_number(r.get("credited_amount")),
                 "refund_amount": gold_amount_to_number(r.get("refund_amount")),
+                "order_refund_amount": gold_amount_to_number(r.get("refund_amount")) if r.get("status") == "refunded" else 0.0,
+                "reversal_refund_amount": gold_amount_to_number(r.get("refund_amount")) if r.get("status") == "reversed" else 0.0,
                 "issued_code_count": r.get("issued_code_count") or 0,
                 "created_at": to_epoch_ms(r.get("created_at")),
                 "paid_at": to_epoch_ms(r.get("paid_at")),

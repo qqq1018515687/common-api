@@ -107,6 +107,8 @@ def _serialize_order(order: RechargeOrders, codes: Optional[list[RechargeCodes]]
         "cancelled_at": _to_epoch_ms(order.cancelled_at),
         "issued_code_count": order.issued_code_count,
         "refund_amount": gold_amount_to_number(order.refund_amount),
+        "order_refund_amount": gold_amount_to_number(order.refund_amount) if order.status == "refunded" else 0.0,
+        "reversal_refund_amount": gold_amount_to_number(order.refund_amount) if order.status == "reversed" else 0.0,
         "operator_id": order.operator_id,
         "note": order.note,
         "metadata": order.extra_data,
