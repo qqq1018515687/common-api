@@ -2189,12 +2189,15 @@ def get_task_node(
                     }
                 )
 
-            if not db_task or db_task.is_deleted:
+            if not db_task:
                 return GetTaskOutput(result={"success": False, "message": "任务不存在"})
 
             user = db.query(Users).filter(Users.user_id == state.user_id).first()
             if not user:
                 return GetTaskOutput(result={"success": False, "message": "用户不存在"})
+            # 普通用户不能查看自己已删除的任务，管理员可查看任意任务（含已删除）
+            if db_task.is_deleted and user.role != "admin":
+                return GetTaskOutput(result={"success": False, "message": "任务不存在"})
             if user.role != "admin" and db_task.user_id != state.user_id:
                 return GetTaskOutput(
                     result={"success": False, "message": "无权访问此任务"}
@@ -2411,6 +2414,7 @@ def list_tasks_node(
                 before_time=before_time,
                 before_id=before_id,
                 admin_full_list=is_admin,
+                include_deleted=is_admin,
             )
 
             # 转换为可序列化的字典列表，过滤无媒体结果的 completed 任务
@@ -2494,6 +2498,8 @@ def list_tasks_node(
                 status=state.status,
                 start_time=start_time,
                 end_time=end_time,
+                admin_full_list=is_admin,
+                include_deleted=is_admin,
             )
 
             # 如果是 completed 状态查询，用 SQL 精确统计有媒体结果的任务数
@@ -2506,6 +2512,7 @@ def list_tasks_node(
                         start_time=start_time,
                         end_time=end_time,
                         before_time=before_time,
+                        include_deleted=is_admin,
                     )
                     total = media_total
                 except Exception as e:
@@ -2583,6 +2590,7 @@ def count_tasks_stats_node(
                 start_time=start_time,
                 end_time=end_time,
                 admin_full_list=is_admin,
+                include_deleted=is_admin,
             )
 
             return CountTasksStatsOutput(
@@ -2667,6 +2675,7 @@ def admin_task_dashboard_node(
                 start_time=start_time,
                 end_time=end_time,
                 admin_full_list=True,
+                include_deleted=True,
             )
 
             return AdminTaskDashboardOutput(

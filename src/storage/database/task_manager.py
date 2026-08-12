@@ -351,6 +351,7 @@ class TaskManager:
         before_time: Optional[int] = None,
         before_id: Optional[str] = None,
         admin_full_list: bool = False,
+        include_deleted: bool = False,
     ) -> List[tuple]:
         """灵活查询任务列表
 
@@ -365,6 +366,7 @@ class TaskManager:
             before_time: 游标分页，查询早于该时间戳的记录（毫秒，可选）
             before_id: 游标分页（可选），配合 before_time 使用，解决同一毫秒多条任务被漏的问题
             admin_full_list: 管理员全量模式，跳过 user_id/team_id 筛选查全表
+            include_deleted: 是否包含已删除（软删除）的任务，管理员统计场景使用
 
         Returns:
             任务列表（按 created_at DESC 排序），每个元素是 (Task, username) 元组
@@ -382,8 +384,9 @@ class TaskManager:
         query = (
             db.query(Tasks, Users.username)
             .outerjoin(Users, Tasks.user_id == Users.user_id)
-            .filter(Tasks.is_deleted == False)
         )
+        if not include_deleted:
+            query = query.filter(Tasks.is_deleted == False)
 
         # 查询逻辑
         if team_id:
@@ -453,9 +456,9 @@ class TaskManager:
                 Tasks.elapsed_time_seconds,
                 Tasks.deduction_result,
                 Tasks.connection_mode,
+                Tasks.is_deleted,
             )
             .outerjoin(Users, Tasks.user_id == Users.user_id)
-            .filter(Tasks.is_deleted == False)
         )
 
         if start_time is not None:
@@ -506,6 +509,7 @@ class TaskManager:
                 "elapsed_time_seconds": row.elapsed_time_seconds,
                 "deduction_result": row.deduction_result,
                 "connection_mode": row.connection_mode,
+                "is_deleted": bool(row.is_deleted),
             })
 
         return tasks
@@ -895,14 +899,15 @@ class TaskManager:
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
         before_time: Optional[int] = None,
+        include_deleted: bool = False,
     ) -> int:
         """统计有可展示媒体结果的 completed 任务数量（与前端展示逻辑一致）"""
         self._ensure_task_schema(db)
         from sqlalchemy import func, text
 
-        query = db.query(Tasks).filter(
-            Tasks.is_deleted == False, Tasks.status == "completed"
-        )
+        query = db.query(Tasks).filter(Tasks.status == "completed")
+        if not include_deleted:
+            query = query.filter(Tasks.is_deleted == False)
 
         # 用户/团队筛选
         if team_id:
@@ -952,6 +957,7 @@ class TaskManager:
         end_time: Optional[int] = None,
         before_time: Optional[int] = None,
         admin_full_list: bool = False,
+        include_deleted: bool = False,
     ) -> int:
         """灵活统计任务数量（支持按用户ID、团队ID或两者统计）
 
@@ -964,6 +970,7 @@ class TaskManager:
             end_time: 查询结束时间戳（毫秒，可选）
             before_time: 游标分页，统计早于该时间戳的记录（毫秒，可选）
             admin_full_list: 管理员全量模式，跳过 user_id/team_id 筛选查全表
+            include_deleted: 是否包含已删除（软删除）的任务，管理员统计场景使用
 
         Returns:
             任务数量
@@ -974,7 +981,9 @@ class TaskManager:
             - 如果既没有 user_id 也没有 team_id 且不是 admin_full_list：返回 0
         """
         self._ensure_task_schema(db)
-        query = db.query(Tasks).filter(Tasks.is_deleted == False)
+        query = db.query(Tasks)
+        if not include_deleted:
+            query = query.filter(Tasks.is_deleted == False)
 
         if team_id:
             query = query.filter(Tasks.team_id == team_id)
@@ -1002,6 +1011,7 @@ class TaskManager:
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
         admin_full_list: bool = False,
+        include_deleted: bool = False,
     ) -> dict:
         """按状态分组统计任务数量（支持 admin 全表模式）
 
@@ -1010,6 +1020,7 @@ class TaskManager:
             start_time: 查询开始时间戳（毫秒，可选）
             end_time: 查询结束时间戳（毫秒，可选）
             admin_full_list: 管理员全量模式，跳过 user_id/team_id 筛选查全表
+            include_deleted: 是否包含已删除（软删除）的任务，管理员统计场景使用
 
         Returns:
             { status: count, ... } 包含 total 汇总字段
@@ -1017,9 +1028,9 @@ class TaskManager:
         self._ensure_task_schema(db)
         from sqlalchemy import func
 
-        query = db.query(Tasks.status, func.count(Tasks.id)).filter(
-            Tasks.is_deleted == False
-        )
+        query = db.query(Tasks.status, func.count(Tasks.id))
+        if not include_deleted:
+            query = query.filter(Tasks.is_deleted == False)
 
         if start_time is not None:
             query = query.filter(Tasks.created_at >= str(start_time))
