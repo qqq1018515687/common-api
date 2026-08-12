@@ -148,7 +148,7 @@ def team_manage_node(state: TeamManageInput, config: RunnableConfig, runtime: Ru
                     "name": team.name,
                     "balance": gold_amount_to_number(team.balance),
                     "total_consumed": gold_amount_to_number(team.total_consumed),
-                    "member_count": len(all_members),
+                    "member_count": len(active_members),
                     "anchor_user_id": anchor.user_id if anchor else "",
                     "admin_user_id": admin_member.user_id if admin_member else "",
                     "members_preview": [

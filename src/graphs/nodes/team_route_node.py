@@ -20,6 +20,9 @@ class TeamRouteInput(BaseModel):
     description: Optional[str] = Field(default=None, description="描述")
     original_record_id: Optional[str] = Field(default=None, description="原消费记录ID")
     reason: Optional[str] = Field(default=None, description="退款原因")
+    page: Optional[int] = Field(default=None, description="分页页码")
+    limit: Optional[int] = Field(default=None, description="分页数量")
+    keyword: Optional[str] = Field(default=None, description="搜索关键字")
 
 
 class TeamRouteOutput(BaseModel):
@@ -32,6 +35,9 @@ class TeamRouteOutput(BaseModel):
     description: Optional[str] = Field(default=None, description="描述")
     original_record_id: Optional[str] = Field(default=None, description="原消费记录ID")
     reason: Optional[str] = Field(default=None, description="退款原因")
+    page: Optional[int] = Field(default=None, description="分页页码")
+    limit: Optional[int] = Field(default=None, description="分页数量")
+    keyword: Optional[str] = Field(default=None, description="搜索关键字")
 
 
 def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runtime[Context]) -> TeamRouteOutput:
@@ -54,7 +60,10 @@ def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runt
             amount=state.amount,
             description=state.description,
             original_record_id=state.original_record_id,
-            reason=state.reason
+            reason=state.reason,
+            page=state.page,
+            limit=state.limit,
+            keyword=state.keyword
         )
     
     return TeamRouteOutput(
@@ -65,7 +74,10 @@ def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runt
         amount=state.amount,
         description=state.description,
         original_record_id=state.original_record_id,
-        reason=state.reason
+        reason=state.reason,
+        page=state.page,
+        limit=state.limit,
+        keyword=state.keyword
     )
 
 
@@ -98,5 +110,7 @@ def route_by_team_operation_type(state: TeamRouteOutput) -> str:
         return "消费记录"
     elif operation_type == "get_member_stats":
         return "消费记录"
+    elif operation_type == "list_teams":
+        return "团队管理"
     else:
         return "初始化团队"  # 默认

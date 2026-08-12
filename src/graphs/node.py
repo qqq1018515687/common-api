@@ -2598,6 +2598,11 @@ def admin_task_dashboard_node(
     integrations: 数据库
     """
     try:
+        if (state.operator_role or "").strip().lower() != "admin":
+            return AdminTaskDashboardOutput(
+                result={"success": False, "message": "仅管理员可查询任务总览"}
+            )
+
         from storage.database.task_manager import TaskManager
 
         db = get_session()

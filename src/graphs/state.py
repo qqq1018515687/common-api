@@ -150,10 +150,16 @@ class InputData(BaseModel):
     status: Optional[str] = Field(
         default=None, description="任务状态筛选（list_tasks 使用）"
     )
+    statuses: Optional[List[str]] = Field(
+        default=None, description="按状态分组的任务状态数组（admin_task_dashboard 使用）"
+    )
     days: Optional[int] = Field(
         default=None, description="查询最近N天的数据（list_tasks 使用）"
     )
     compact: Optional[bool] = Field(default=False, description="是否返回轻量列表字段")
+    keyword: Optional[str] = Field(
+        default=None, description="列表搜索关键字（list_teams 使用）"
+    )
 
     # 任务管理相关字段
     task_id: Optional[str] = Field(
