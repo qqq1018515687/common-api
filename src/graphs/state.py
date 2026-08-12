@@ -1042,6 +1042,27 @@ class CountTasksStatsOutput(BaseModel):
     result: dict = Field(..., description="统计结果，包含 total 及各 status 计数")
 
 
+class AdminTaskDashboardInput(BaseModel):
+    """管理端任务总览节点的输入"""
+
+    days: Optional[int] = Field(default=30, description="查询最近N天的数据（默认30天）")
+    start_time: Optional[int] = Field(default=None, description="查询开始时间戳（毫秒）")
+    end_time: Optional[int] = Field(default=None, description="查询结束时间戳（毫秒）")
+    limit: Optional[int] = Field(default=50, description="每个状态分组返回数量上限")
+    statuses: Optional[List[str]] = Field(default=None, description="要按状态分组的任务状态数组（为空表示不按状态过滤）")
+    before_time: Optional[int] = Field(default=None, description="游标分页：查询早于该时间戳的记录（毫秒，13位整数）")
+    before_id: Optional[str] = Field(default=None, description="游标分页：配合 before_time，按 (created_at, id) 复合游标避免同毫秒漏数")
+    compact: Optional[bool] = Field(default=False, description="是否返回轻量列表字段")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色（admin 时不要求 user_id/team_id）")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+
+
+class AdminTaskDashboardOutput(BaseModel):
+    """管理端任务总览节点的输出"""
+
+    result: dict = Field(..., description="按状态分组的任务列表与全局统计")
+
+
 class LocalComfyUiQueueSnapshotInput(BaseModel):
     """获取局域网 ComfyUI 队列位置快照节点的输入"""
 
@@ -1061,7 +1082,7 @@ class TaskRouteInput(BaseModel):
 
     operation_type: str = Field(
         ...,
-        description="操作类型：create_task/get_task/update_task/delete_task/list_tasks/count_tasks_stats",
+        description="操作类型：create_task/get_task/update_task/delete_task/list_tasks/count_tasks_stats/admin_task_dashboard",
     )
     # 任务管理相关字段
     user_id: Optional[str] = Field(default=None, description="用户ID")
@@ -1085,7 +1106,9 @@ class TaskRouteInput(BaseModel):
     # 其他筛选字段
     team_id: Optional[str] = Field(default=None, description="团队ID")
     status: Optional[str] = Field(default=None, description="任务状态")
+    statuses: Optional[List[str]] = Field(default=None, description="按状态分组的任务状态数组（admin_task_dashboard 使用）")
     limit: Optional[int] = Field(default=None, description="最大返回数量")
+    days: Optional[int] = Field(default=None, description="查询最近N天")
     operator_role: Optional[str] = Field(
         default=None, description="操作者角色（admin 或 user）"
     )
@@ -1113,10 +1136,15 @@ class TaskRouteOutput(BaseModel):
     before_time: Optional[int] = Field(
         default=None, description="游标分页：查询早于该时间戳的记录（毫秒）"
     )
+    before_id: Optional[str] = Field(
+        default=None, description="游标分页：配合 before_time，按 (created_at, id) 复合游标避免同毫秒漏数"
+    )
     # 其他筛选字段
     team_id: Optional[str] = Field(default=None, description="团队ID")
     status: Optional[str] = Field(default=None, description="任务状态")
+    statuses: Optional[List[str]] = Field(default=None, description="按状态分组的任务状态数组（admin_task_dashboard 使用）")
     limit: Optional[int] = Field(default=None, description="最大返回数量")
+    days: Optional[int] = Field(default=None, description="查询最近N天")
     operator_role: Optional[str] = Field(
         default=None, description="操作者角色（admin 或 user）"
     )

@@ -8,7 +8,7 @@ from langgraph.runtime import Runtime
 from coze_coding_utils.runtime_ctx.context import Context
 from pydantic import BaseModel, Field
 from datetime import datetime
-from sqlalchemy import or_
+from sqlalchemy import or_, and_, func, exists
 
 from storage.database.db import get_session
 from storage.database.shared.model import Teams, Users
@@ -29,6 +29,9 @@ class TeamManageInput(BaseModel):
     target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
     target_username: Optional[str] = Field(default=None, description="目标用户名")
     target_role: Optional[str] = Field(default=None, description="目标角色")
+    page: Optional[int] = Field(default=1, description="分页页码")
+    limit: Optional[int] = Field(default=50, description="分页数量")
+    keyword: Optional[str] = Field(default=None, description="搜索关键字")
 
 
 class TeamManageOutput(BaseModel):
@@ -88,6 +91,90 @@ def team_manage_node(state: TeamManageInput, config: RunnableConfig, runtime: Ru
                 }
             )
         
+        elif operation_type == "list_teams":
+            # 批量查询团队列表 - 一条聚合查询替代前端全量扫用户 + 逐团队 fan-out
+            page = max(1, int(state.page or 1))
+            limit = min(max(1, int(state.limit or 50)), 200)
+            keyword = (state.keyword or "").strip()
+
+            base = db.query(Teams)
+
+            if keyword:
+                kw = f"%{keyword}%"
+                member_match = exists().where(
+                    and_(
+                        Users.team_id == Teams.id,
+                        or_(Users.username.ilike(kw), Users.user_id.ilike(kw))
+                    )
+                )
+                base = base.filter(
+                    or_(
+                        Teams.id.ilike(kw),
+                        Teams.name.ilike(kw),
+                        member_match
+                    )
+                )
+
+            total = base.count()
+
+            rows = (
+                base.order_by(Teams.created_at.desc())
+                .offset((page - 1) * limit)
+                .limit(limit)
+                .all()
+            )
+
+            team_ids = [t.id for t in rows]
+            members_all: dict[str, list] = {}
+            if team_ids:
+                member_rows = db.query(Users).filter(Users.team_id.in_(team_ids)).all()
+                for m in member_rows:
+                    members_all.setdefault(m.team_id, []).append(m)
+
+            team_list = []
+            for team in rows:
+                all_members = members_all.get(team.id, [])
+                active_members = [
+                    m for m in all_members
+                    if m.account_status is None or m.account_status != "deleted"
+                ]
+                admin_member = next(
+                    (m for m in active_members if str(m.role or "").lower() == "admin"),
+                    None
+                )
+                anchor = admin_member or (active_members[0] if active_members else None)
+                team_list.append({
+                    "team_id": team.id,
+                    "name": team.name,
+                    "balance": gold_amount_to_number(team.balance),
+                    "total_consumed": gold_amount_to_number(team.total_consumed),
+                    "member_count": len(all_members),
+                    "anchor_user_id": anchor.user_id if anchor else "",
+                    "admin_user_id": admin_member.user_id if admin_member else "",
+                    "members_preview": [
+                        {
+                            "user_id": m.user_id,
+                            "username": m.username,
+                            "role": m.role,
+                            "gold_credits": gold_amount_to_number(m.gold_credits)
+                        }
+                        for m in active_members[:6]
+                    ]
+                })
+
+            return TeamManageOutput(
+                response_data={
+                    "code": 0,
+                    "msg": "查询成功",
+                    "data": {
+                        "total": total,
+                        "page": page,
+                        "limit": limit,
+                        "teams": team_list
+                    }
+                }
+            )
+
         elif operation_type == "add_member":
             # 添加成员 - 更新用户的 team_id
             if not state.user_id or not state.target_user_id:

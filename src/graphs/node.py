@@ -101,6 +101,8 @@ from graphs.state import (
     ListTasksOutput,
     CountTasksStatsInput,
     CountTasksStatsOutput,
+    AdminTaskDashboardInput,
+    AdminTaskDashboardOutput,
     LocalComfyUiQueueSnapshotInput,
     LocalComfyUiQueueSnapshotOutput,
     TaskRouteInput,
@@ -1921,9 +1923,12 @@ def task_route_node(
         start_time=state.start_time,
         end_time=state.end_time,
         before_time=state.before_time,
+        before_id=state.before_id,
         team_id=state.team_id,
         status=state.status,
+        statuses=state.statuses,
         limit=state.limit,
+        days=state.days,
         operator_role=state.operator_role,
         operator_user_id=state.operator_user_id,
         compact=state.compact,
@@ -1951,6 +1956,8 @@ def route_by_task_operation_type(state: TaskRouteInput) -> str:
         return "统计任务数量"
     elif operation_type == "get_local_queue_snapshot":
         return "局域网队列快照"
+    elif operation_type == "admin_task_dashboard":
+        return "管理端任务总览"
     else:
         return "未知操作"
 
@@ -2579,6 +2586,86 @@ def count_tasks_stats_node(
     except Exception as e:
         return CountTasksStatsOutput(
             result={"success": False, "message": f"统计失败: {str(e)}"}
+        )
+
+
+def admin_task_dashboard_node(
+    state: AdminTaskDashboardInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> AdminTaskDashboardOutput:
+    """
+    title: 管理端任务总览
+    desc: 一次请求返回按状态分组的任务列表 + 全局统计，替代前端多状态并发查询
+    integrations: 数据库
+    """
+    try:
+        from storage.database.task_manager import TaskManager
+
+        db = get_session()
+        try:
+            task_mgr = TaskManager()
+
+            days = state.days or 30
+            current_time = int(time.time() * 1000)
+            start_time = state.start_time
+            end_time = state.end_time
+            if start_time is None:
+                start_time = current_time - (days * 24 * 60 * 60 * 1000)
+            if end_time is None:
+                end_time = current_time
+
+            limit = min(state.limit or 50, 100)
+            statuses = state.statuses or []
+
+            tasks_by_status: Dict[str, list] = {}
+            if not statuses:
+                rows = task_mgr.get_admin_tasks_compact(
+                    db,
+                    status=None,
+                    start_time=start_time,
+                    end_time=end_time,
+                    limit=limit,
+                    before_time=state.before_time,
+                    before_id=state.before_id,
+                )
+                tasks_by_status["all"] = rows[:limit]
+            else:
+                for status in statuses:
+                    rows = task_mgr.get_admin_tasks_compact(
+                        db,
+                        status=status,
+                        start_time=start_time,
+                        end_time=end_time,
+                        limit=limit,
+                        before_time=state.before_time,
+                        before_id=state.before_id,
+                    )
+                    tasks_by_status[status] = rows[:limit]
+
+            stats = task_mgr.count_tasks_stats(
+                db,
+                start_time=start_time,
+                end_time=end_time,
+                admin_full_list=True,
+            )
+
+            return AdminTaskDashboardOutput(
+                result={
+                    "success": True,
+                    "message": "查询成功",
+                    "tasks_by_status": tasks_by_status,
+                    "stats": stats,
+                    "limit": limit,
+                    "days": days,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                }
+            )
+        finally:
+            db.close()
+
+    except Exception as e:
+        return AdminTaskDashboardOutput(
+            result={"success": False, "message": f"任务总览查询失败: {str(e)}"}
         )
 
 

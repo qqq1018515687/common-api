@@ -65,6 +65,7 @@ from graphs.node import (
     delete_task_node,
     list_tasks_node,
     count_tasks_stats_node,
+    admin_task_dashboard_node,
     local_comfyui_queue_snapshot_node,
 )
 from graphs.nodes.system_notification_handler_node import (
@@ -210,6 +211,7 @@ builder.add_node("get_task", get_task_node)
 builder.add_node("delete_task", delete_task_node)
 builder.add_node("list_tasks", list_tasks_node)
 builder.add_node("count_tasks_stats", count_tasks_stats_node)
+builder.add_node("admin_task_dashboard", admin_task_dashboard_node)
 builder.add_node(
     "local_comfyui_queue_snapshot", local_comfyui_queue_snapshot_node
 )
@@ -344,6 +346,7 @@ builder.add_conditional_edges(
         "查询任务列表": "list_tasks",
         "统计任务数量": "count_tasks_stats",
         "局域网队列快照": "local_comfyui_queue_snapshot",
+        "管理端任务总览": "admin_task_dashboard",
     },
 )
 
@@ -397,6 +400,7 @@ builder.add_edge("get_task", "format_response")
 builder.add_edge("delete_task", "format_response")
 builder.add_edge("list_tasks", "format_response")
 builder.add_edge("count_tasks_stats", "format_response")
+builder.add_edge("admin_task_dashboard", "format_response")
 builder.add_edge("local_comfyui_queue_snapshot", "format_response")
 builder.add_edge("system_notification_handler", "format_response")
 builder.add_edge("announcement_handler", "format_response")
