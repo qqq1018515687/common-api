@@ -1158,6 +1158,19 @@ class TaskRouteOutput(BaseModel):
     compact: Optional[bool] = Field(default=False, description="是否返回轻量列表字段")
 
 
+# 未知操作兜底节点（任务/用户管理等二级路由未识别的操作类型）
+class UnknownOperationInput(BaseModel):
+    """未知操作兜底节点的输入"""
+
+    operation_type: Optional[str] = Field(default=None, description="操作类型")
+
+
+class UnknownOperationOutput(BaseModel):
+    """未知操作兜底节点的输出"""
+
+    response_data: Optional[dict] = Field(default=None, description="错误响应数据")
+
+
 # 统一返回节点
 class FormatResponseInput(BaseModel):
     """统一返回节点的输入"""

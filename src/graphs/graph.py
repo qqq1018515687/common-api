@@ -59,6 +59,7 @@ from graphs.node import (
     list_users_node,
     task_route_node,
     route_by_task_operation_type,
+    unknown_operation_error_node,
     create_task_node,
     update_task_node,
     get_task_node,
@@ -215,6 +216,7 @@ builder.add_node("admin_task_dashboard", admin_task_dashboard_node)
 builder.add_node(
     "local_comfyui_queue_snapshot", local_comfyui_queue_snapshot_node
 )
+builder.add_node("unknown_operation_error", unknown_operation_error_node)
 builder.add_node("system_notification_handler", system_notification_handler_node)
 builder.add_node("announcement_handler", announcement_handler_node)
 builder.add_node("format_response", format_response_node)
@@ -331,6 +333,7 @@ builder.add_conditional_edges(
         "删除用户": "delete_user",
         "用户列表": "list_users",
         "对象储存管理": "storage_management",
+        "未知操作": "unknown_operation_error",
     },
 )
 
@@ -347,6 +350,7 @@ builder.add_conditional_edges(
         "统计任务数量": "count_tasks_stats",
         "局域网队列快照": "local_comfyui_queue_snapshot",
         "管理端任务总览": "admin_task_dashboard",
+        "未知操作": "unknown_operation_error",
     },
 )
 
@@ -401,6 +405,7 @@ builder.add_edge("delete_task", "format_response")
 builder.add_edge("list_tasks", "format_response")
 builder.add_edge("count_tasks_stats", "format_response")
 builder.add_edge("admin_task_dashboard", "format_response")
+builder.add_edge("unknown_operation_error", "format_response")
 builder.add_edge("local_comfyui_queue_snapshot", "format_response")
 builder.add_edge("system_notification_handler", "format_response")
 builder.add_edge("announcement_handler", "format_response")

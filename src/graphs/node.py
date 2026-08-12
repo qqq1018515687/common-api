@@ -107,6 +107,8 @@ from graphs.state import (
     LocalComfyUiQueueSnapshotOutput,
     TaskRouteInput,
     TaskRouteOutput,
+    UnknownOperationInput,
+    UnknownOperationOutput,
 )
 import os
 import requests
@@ -1960,6 +1962,20 @@ def route_by_task_operation_type(state: TaskRouteInput) -> str:
         return "管理端任务总览"
     else:
         return "未知操作"
+
+
+def unknown_operation_error_node(
+    state: UnknownOperationInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> UnknownOperationOutput:
+    """
+    title: 未知操作兜底
+    desc: 未识别的操作类型返回明确业务错误，避免二级路由条件边因缺失 path_map 键导致整图 500
+    integrations: 
+    """
+    op = state.operation_type or "未知"
+    return UnknownOperationOutput(
+        response_data={"code": 400, "msg": f"未知操作: {op}", "data": None}
+    )
 
 
 def create_task_node(
