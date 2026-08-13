@@ -713,7 +713,14 @@ class TaskManager:
         if self._is_confirmation_pending(db_task):
             incoming_status = update_data.get("status")
             incoming_result = update_data.get("result")
-            if incoming_status == "failed" and not self._has_displayable_result(incoming_result):
+            # 明确失败（带非空 error 的原因）应允许收敛为 failed；
+            # 只有“无错误原因的无结果失败”才视为仍需待确认，回退为 running + pending
+            incoming_error = str(update_data.get("error") or "").strip()
+            if (
+                incoming_status == "failed"
+                and not self._has_displayable_result(incoming_result)
+                and not incoming_error
+            ):
                 update_data["status"] = "running"
                 merged_snapshot = dict(db_task.parameter_snapshot or {})
                 merged_snapshot["confirmationState"] = "pending"

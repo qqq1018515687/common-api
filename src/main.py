@@ -496,6 +496,10 @@ def _trigger_third_party_task_recovery() -> None:
             if isinstance(result, dict) and int(result.get("code", -1)) == 805:
                 _force_fail_stale_pending_task(task, task_mgr, db)
                 continue
+            # 用户主动取消（code=806）→ main 已把任务收敛为 cancelled，不退款，直接跳过
+            if isinstance(result, dict) and int(result.get("code", -1)) == 806:
+                logger.info("[third-party-recovery] 用户取消任务已收敛为 cancelled: task_id=%s", task.id)
+                continue
             logger.info("[third-party-recovery] 触发任务补偿完成: task_id=%s result=%s", task.id, result)
         except Exception as exc:
             logger.warning("[third-party-recovery] 调用任务补偿异常: task_id=%s error=%s", task.id, exc)
