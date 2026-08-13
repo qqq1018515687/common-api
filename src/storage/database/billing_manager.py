@@ -130,6 +130,42 @@ ALREADY_REFUNDED = "ALREADY_REFUNDED"
 INTERNAL_ERROR = "INTERNAL_ERROR"
 IDEMPOTENCY_CONFLICT = "IDEMPOTENCY_CONFLICT"
 BLTCY_REFUND_NOT_ALLOWED = "BLTCY_REFUND_NOT_ALLOWED"
+
+_REFUND_CANCEL_REASONS = {"user_cancelled", "user_cancel", "cancelled", "cancel"}
+
+
+def _is_user_cancel_refund(
+    metadata: Optional[Dict[str, Any]] = None,
+    billing_metadata: Optional[Dict[str, Any]] = None,
+) -> bool:
+    """
+    判断退款请求是否为「用户主动取消」退款。
+
+    规则：渠道失败（channel failed）一律可退；用户主动取消时,
+    仅 RunningHub 渠道可退，bltcy/tudou 等低价渠道退不了。
+    因此这里只识别取消语义的退款（cancel_source / refund_reason），
+    其余退款一律视为渠道失败，不做渠道维度拦截。
+    """
+    sources: List[Dict[str, Any]] = []
+    if billing_metadata:
+        sources.append(billing_metadata)
+    if metadata:
+        nested = metadata.get("billing_metadata")
+        if isinstance(nested, dict):
+            sources.append(nested)
+        sources.append(metadata)
+
+    for src in sources:
+        cancel_source = src.get("cancel_source")
+        if isinstance(cancel_source, str) and cancel_source.strip():
+            return True
+        reason = str(src.get("refund_reason") or "").strip().lower()
+        if reason and reason in _REFUND_CANCEL_REASONS:
+            return True
+        cancel_status = str(src.get("cancel_status") or "").strip().lower()
+        if cancel_status == "cancelled":
+            return True
+    return False
 SCHEMA_MISMATCH = "SCHEMA_MISMATCH"
 BILLING_AMOUNT_MISMATCH = "BILLING_AMOUNT_MISMATCH"
 
@@ -231,8 +267,10 @@ def _is_bltcy_record(
     original_extra_data: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """
-    检查是否为第三方渠道任务记录（bltcy/tudou 等非 RunningHub 历史渠道），这些渠道不可退款。
-    匹配规则：任一数据源中包含第三方渠道标识即为不可退款记录：
+    检查是否为第三方渠道任务记录（bltcy/tudou 等非 RunningHub 历史渠道）。
+    该判定只在「用户主动取消」退款时用于拦截（取消不退款规则）；
+    渠道失败（channel_failed）退款不受此限制，一律允许。
+    匹配规则：任一数据源中包含第三方渠道标识即为（取消时不可退款）记录：
     - platform / selected_account / provider 在第三方渠道白名单内
     - model_name / model_key 是已知第三方模型（历史兼容）
     """
@@ -715,6 +753,8 @@ def refund(
     - 退全款（amount=None）或部分退款（amount 指定）
     - 幂等性：通过 idempotency_key 唯一约束保证
     - 同时检查是否已有针对同一 original_record_id 的退款
+    - 渠道失败一律可退（含 bltcy/tudou）；仅「用户主动取消」的 bltcy/tudou 退款被拦截
+    - 取消语义通过 metadata.cancel_source / refund_reason 标记传递
     - billing_metadata: main 透传的元数据，用于生成团队退款记录标题
     - metadata: 通用元数据（含 billing_metadata 嵌套结构），优先级高于 billing_metadata
     """
@@ -754,11 +794,16 @@ def refund(
         if _has_existing_settle(db, original_record_id):
             return _make_error(ALREADY_REFUNDED, "该记录已结算，不能再退款")
 
-        # bltcy 任务退款保护
+        # 渠道维度只出现在「用户主动取消」的退款里：
+        # - 渠道失败（channel_failed）→ 一律可退（含 bltcy/tudou）
+        # - 用户取消 → bltcy/tudou 低价渠道不退款（取消不退款规则）
         original_extra = original.get("extra_data")
         if not isinstance(original_extra, dict):
             original_extra = None
-        if _is_bltcy_record(
+        if _is_user_cancel_refund(
+            metadata=metadata,
+            billing_metadata=billing_metadata,
+        ) and _is_bltcy_record(
             billing_metadata=billing_metadata,
             metadata=metadata,
             original_extra_data=original_extra,

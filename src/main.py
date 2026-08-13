@@ -433,7 +433,11 @@ def _force_fail_stale_pending_task(task: Any, task_mgr: Any, db: Any) -> None:
             original_record_id=original_record_id,
             idempotency_key=f"recover-force-fail:{task.id}",
             service_secret=os.getenv("SERVICE_SECRET", ""),
-            metadata={"platform": task.platform, "recovery": "stale_pending_force_fail"},
+            metadata={
+                "platform": task.platform,
+                "recovery": "stale_pending_force_fail",
+                "refund_reason": "channel_failed",
+            },
         )
         logger.info("[third-party-recovery] 强制失败退款结果: task_id=%s result=%s", task.id, result)
     except Exception as exc:
