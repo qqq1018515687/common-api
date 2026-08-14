@@ -57,6 +57,9 @@ TIMEOUT_SECONDS = 900  # 15分钟
 THIRD_PARTY_TASK_RECOVERY_INTERVAL = 30
 THIRD_PARTY_TASK_RECOVERY_STALE_MS = 45 * 1000
 THIRD_PARTY_TASK_RECOVERY_HARD_TIMEOUT_MS = 10 * 60 * 1000  # 结果确认中超过10分钟强制失败并退款
+# 无法恢复查询任务的强制失败兜底：无真实平台 task_id（空 / tudou_sync: / pending: 前缀）时无法转发 recover，
+# 缩短兜底时间，避免用户长时间卡“结果确认中”。时间从 pending 写入的 updated_at 起算。
+THIRD_PARTY_TASK_RECOVERY_UNRECOVERABLE_FORCE_FAIL_MS = 60 * 1000
 THIRD_PARTY_TASK_RECOVERY_BATCH_SIZE = 50
 
 class GraphService:
@@ -481,11 +484,24 @@ def _trigger_third_party_task_recovery() -> None:
             task_updated_ms = 0
         pending_duration_ms = (now_ms - task_updated_ms) if task_updated_ms else 0
 
-        if confirmation_pending and pending_duration_ms >= hard_timeout_ms:
+        # 无法恢复查询的任务（sync 提交模式：无真实平台 task_id）：不能转发 recover 恢复，
+        # 使用更短的强制失败兜底时间，避免用户长期卡“结果确认中”。
+        is_unrecoverable_task = (
+            not platform_task_id
+            or platform_task_id.startswith("tudou_sync:")
+            or platform_task_id.startswith("pending:")
+        )
+        effective_hard_timeout_ms = (
+            THIRD_PARTY_TASK_RECOVERY_UNRECOVERABLE_FORCE_FAIL_MS
+            if is_unrecoverable_task
+            else hard_timeout_ms
+        )
+
+        if confirmation_pending and pending_duration_ms >= effective_hard_timeout_ms:
             _force_fail_stale_pending_task(task, task_mgr, db)
             continue
 
-        if not platform_task_id or platform_task_id.startswith("tudou_sync:") or platform_task_id.startswith("pending:"):
+        if is_unrecoverable_task:
             continue
 
         try:
