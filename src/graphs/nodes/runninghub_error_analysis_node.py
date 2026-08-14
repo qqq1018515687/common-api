@@ -21,6 +21,38 @@ GENERIC_MESSAGES = {
     "任务可能已被中断或取消，请刷新页面查看最新状态",
 }
 
+# 上游执行中断/服务繁忙特征族（通用分类，非单字符串枚举）
+# prompt_outputs_failed_validation 是 ComfyUI 图输出校验错误：下游节点声明了输出但
+# 上游节点实际未产出 → 典型的上游实例被中断/断连/繁忙，不是用户参数问题。
+TRANSIENT_UPSTREAM_PATTERNS = (
+    re.compile(r"prompt_outputs_failed_validation", re.IGNORECASE),
+    re.compile(r"prompt\s*outputs?\s*(validation|invalid)", re.IGNORECASE),
+    re.compile(r"execution\s*(interrupt|terminate)", re.IGNORECASE),
+    re.compile(r"\binterrupted\b", re.IGNORECASE),
+    re.compile(r"(node|worker|instance)[\s_\-]*(disconnect|unreachable|offline|not[\s_]+connect)", re.IGNORECASE),
+    re.compile(r"(provider|upstream|backend|server)[\s_\-]*(unavailable|overload|busy|fail|error|disconnect|drop)", re.IGNORECASE),
+    re.compile(r"connection\s*(refused|reset|abort|interrupt|closed)", re.IGNORECASE),
+    re.compile(r"(restart|restarted|killed|terminated|crashed|aborted)", re.IGNORECASE),
+    re.compile(r"(overload|overloaded|busy|too many|rate limit|429|concurrency)", re.IGNORECASE),
+    re.compile(r"(execution|run|runtime)[\s_\-]*(environment|env|sandbox)[\s_\-]*(error|fail|not[\s_]+found|unavailable)", re.IGNORECASE),
+    re.compile(r"worker[\s_\-]*lost", re.IGNORECASE),
+)
+
+# 反向护栏：真实模型/参数/代码类错误不得误判为上游繁忙
+TRANSIENT_UPSTREAM_EXCLUDE = (
+    re.compile(r"not in list", re.IGNORECASE),
+    re.compile(r"has no attribute", re.IGNORECASE),
+    re.compile(r"cannot import", re.IGNORECASE),
+    re.compile(r"model not found", re.IGNORECASE),
+)
+
+
+def _match_transient_upstream(normalized: str, text: str) -> bool:
+    """判断错误是否属于上游执行中断/服务繁忙（排除真实模型/参数错误）"""
+    if any(p.search(text) for p in TRANSIENT_UPSTREAM_EXCLUDE):
+        return False
+    return any(p.search(normalized) for p in TRANSIENT_UPSTREAM_PATTERNS)
+
 
 def _get_text_content(content: object) -> str:
     """安全提取 LLM 响应文本内容"""
@@ -186,6 +218,18 @@ def _build_rule_based_result(error_response: dict) -> Optional[dict]:
             "user_friendly_message": "内容未通过安全检查。",
             "suggestion": "请调整提示词或参考图。",
             "error_category": "内容审核未通过",
+            "platform": platform,
+            "node_name": node_name,
+        }
+
+    if _match_transient_upstream(normalized, text):
+        return {
+            "success": True,
+            "error_code": error_response.get("code"),
+            "error_message": error_response.get("msg") or text[:300],
+            "user_friendly_message": "上游生成节点执行中断，服务繁忙，请稍后重试或更换渠道。",
+            "suggestion": "请稍后重试；若多次失败可更换生成渠道。",
+            "error_category": "上游执行中断",
             "platform": platform,
             "node_name": node_name,
         }
