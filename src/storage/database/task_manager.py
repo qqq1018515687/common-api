@@ -5,6 +5,7 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+import json
 
 from storage.database.shared.model import Tasks, Users
 from config.third_party_platforms import THIRD_PARTY_PLATFORMS
@@ -616,6 +617,64 @@ class TaskManager:
             query = query.filter(Tasks.updated_at <= cutoff)
 
         return query.order_by(Tasks.updated_at.asc()).limit(limit).all()
+
+    def list_stale_running_tasks(
+        self,
+        db: Session,
+        *,
+        stale_for_ms: int = 0,
+        limit: int = 50,
+    ) -> List[Dict[str, Any]]:
+        """列出长期未更新的运行中任务，供主流程后端兜底补偿收尾。
+
+        Args:
+            db: 数据库会话
+            stale_for_ms: 超过该时长(毫秒)未更新的 running 任务；0 表示不限定时长
+            limit: 返回上限（1~200）
+
+        Returns:
+            精简后的任务列表（含 id/user_id/platform/platform_task_id/快照/扣费记录），
+            避免把 workflow_parameters 等大字段全量带出。
+        """
+        self._ensure_task_schema(db)
+        limit = min(max(limit, 1), 200)
+
+        query = db.query(Tasks).filter(
+            Tasks.is_deleted == False,
+            Tasks.status == "running",
+        )
+        if stale_for_ms > 0:
+            cutoff = str(int(time.time() * 1000) - stale_for_ms)
+            query = query.filter(Tasks.updated_at <= cutoff)
+
+        rows = query.order_by(Tasks.updated_at.asc()).limit(limit).all()
+        result: List[Dict[str, Any]] = []
+        for task in rows:
+            snapshot = task.parameter_snapshot if isinstance(task.parameter_snapshot, dict) else {}
+            deduction = task.deduction_result if isinstance(task.deduction_result, dict) else None
+            # 超大 result（如未转存的 base64 原图）不随补偿列表传出，避免超大响应；
+            # 同时这类结果本就无法按“成功”收尾（common 守卫禁止带未转存图片的 completed）。
+            results_payload = None
+            if task.result is not None:
+                try:
+                    if len(json.dumps(task.result, ensure_ascii=False)) <= 100_000:
+                        results_payload = task.result
+                except (TypeError, ValueError):
+                    results_payload = None
+            result.append({
+                "id": task.id,
+                "user_id": task.user_id,
+                "platform": task.platform,
+                "platform_task_id": task.platform_task_id,
+                "status": task.status,
+                "updated_at": task.updated_at,
+                "completed_at": task.completed_at,
+                "confirmation_state": getattr(task, "confirmation_state", None),
+                "parameter_snapshot": snapshot,
+                "deduction_result": deduction,
+                "result": results_payload,
+            })
+        return result
 
     def calculate_elapsed_time(self, task: Tasks) -> int:
         """

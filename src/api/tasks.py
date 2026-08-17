@@ -64,6 +64,12 @@ class RecoverThirdPartyTaskRequest(BaseModel):
     platform_task_id: str = Field(..., description="第三方平台任务ID")
 
 
+class StaleRunningTasksRequest(BaseModel):
+    """列出长期未更新的运行中任务请求"""
+    stale_for_ms: int = Field(default=0, description="超过该时长(毫秒)未更新的运行中任务；0=不限时长")
+    limit: int = Field(default=50, ge=1, le=200, description="返回条数上限")
+
+
 @router.post("/common")
 @router.get("/common")
 async def common_endpoint(
@@ -265,6 +271,31 @@ async def recover_third_party_task(request: RecoverThirdPartyTaskRequest, author
         return {"success": True, "result": data}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"recover third party task failed: {exc}") from exc
+
+
+@router.post("/common/task/stale-running")
+async def list_stale_running_tasks(request: StaleRunningTasksRequest, authorization: Optional[str] = Header(default=None)):
+    """仅后端授权的接口：列出长期未更新的运行中任务，供主流程后端补偿收尾。"""
+    expected_token = os.getenv("COZE_BACKEND_TOKEN", "").strip()
+    if expected_token:
+        if not authorization or authorization != f"Bearer {expected_token}":
+            raise HTTPException(status_code=401, detail="Invalid backend authorization")
+
+    db = get_session()
+    try:
+        from storage.database.task_manager import TaskManager
+
+        task_mgr = TaskManager()
+        tasks = task_mgr.list_stale_running_tasks(
+            db,
+            stale_for_ms=request.stale_for_ms,
+            limit=request.limit,
+        )
+        return {"success": True, "count": len(tasks), "tasks": tasks}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"list stale running tasks failed: {exc}") from exc
+    finally:
+        db.close()
 
 
 @router.put("/tasks/{task_id}")
