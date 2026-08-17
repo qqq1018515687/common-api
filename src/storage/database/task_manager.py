@@ -497,8 +497,8 @@ class TaskManager:
                 "platform_task_id": row.platform_task_id,
                 "type": row.type,
                 "status": row.status,
-                "workflow_parameters": self._compact_workflow_parameters(workflow_parameters),
-                "parameter_snapshot": self._compact_parameter_snapshot(parameter_snapshot),
+                "workflow_parameters": self._compact_large_base64_fields(workflow_parameters),
+                "parameter_snapshot": self._compact_large_base64_fields(parameter_snapshot),
                 "confirmation_state": row.confirmation_state or "none",
                 "result": self._compact_result(result),
                 "error": row.error,
@@ -514,45 +514,19 @@ class TaskManager:
 
         return tasks
 
-    def _compact_workflow_parameters(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "workflow_id": params.get("workflow_id"),
-            "workflowId": params.get("workflowId"),
-            "workflow": params.get("workflow"),
-            "model_name": params.get("model_name"),
-            "modelName": params.get("modelName"),
-        }
+    def _compact_large_base64_fields(self, value: Any) -> Any:
+        """递归截断超长 base64 dataURL 字符串，其余字段保持完整。
 
-    def _compact_parameter_snapshot(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
-        workflow_params = snapshot.get("workflowParams") if isinstance(snapshot.get("workflowParams"), dict) else {}
-        mapped_params = snapshot.get("mappedParams") if isinstance(snapshot.get("mappedParams"), dict) else {}
-        parsed_input = mapped_params.get("parsedInput") if isinstance(mapped_params.get("parsedInput"), dict) else {}
-
-        return {
-            "workflowName": snapshot.get("workflowName"),
-            "workflowId": snapshot.get("workflowId"),
-            "modelName": snapshot.get("modelName"),
-            "providerMeta": snapshot.get("providerMeta") if isinstance(snapshot.get("providerMeta"), dict) else None,
-            "confirmationState": snapshot.get("confirmationState"),
-            "selected_account": snapshot.get("selected_account"),
-            "selectedAccount": snapshot.get("selectedAccount"),
-            "workflowParams": {
-                "workflow_id": workflow_params.get("workflow_id"),
-                "workflowId": workflow_params.get("workflowId"),
-                "model_name": workflow_params.get("model_name"),
-                "modelName": workflow_params.get("modelName"),
-                "selected_account": workflow_params.get("selected_account") or snapshot.get("selected_account"),
-                "selectedAccount": workflow_params.get("selectedAccount") or snapshot.get("selectedAccount"),
-            },
-            "mappedParams": {
-                "parsedInput": {
-                    "workflow_id": parsed_input.get("workflow_id"),
-                    "workflowId": parsed_input.get("workflowId"),
-                    "model_name": parsed_input.get("model_name"),
-                    "modelName": parsed_input.get("modelName"),
-                }
-            },
-        }
+        管理后台列表/总览接口需返回用户填写的完整暴露参数（prompt、上传图、比例等）
+        供排查使用；仅对个别本地链路产生的超大 base64 图片串做截断，防止拖垮列表 payload。
+        """
+        if isinstance(value, dict):
+            return {key: self._compact_large_base64_fields(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [self._compact_large_base64_fields(item) for item in value]
+        if isinstance(value, str) and value.startswith("data:image/") and len(value) > 4000:
+            return f"{value[:120]}...[base64 已截断，原 {len(value)} 字符]"
+        return value
 
     def _compact_result(self, result: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         if not result:
