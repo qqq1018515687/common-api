@@ -471,6 +471,12 @@ def _trigger_third_party_task_recovery() -> None:
     for task in stale_tasks:
         platform_task_id = str(task.platform_task_id or "").strip()
 
+        # 防御：已取消/已删除任务不参与补偿，避免被强制失败覆盖终态
+        task_status = str(getattr(task, "status", "") or "").strip().lower()
+        if task_status == "cancelled" or getattr(task, "is_deleted", False):
+            logger.info("[third-party-recovery] 跳过已取消/已删除任务: task_id=%s", task.id)
+            continue
+
         # 结果确认中（pending）且超过硬超时阈值 → 直接强制失败并退款，不再转发 recover
         confirmation_pending = getattr(task, "confirmation_state", None) == "pending"
         if not confirmation_pending:
@@ -519,6 +525,15 @@ def _trigger_third_party_task_recovery() -> None:
             # 用户主动取消（code=806）→ main 已把任务收敛为 cancelled，不退款，直接跳过
             if isinstance(result, dict) and int(result.get("code", -1)) == 806:
                 logger.info("[third-party-recovery] 用户取消任务已收敛为 cancelled: task_id=%s", task.id)
+                continue
+            # 平台任务已不存在（code=807，即 APIKEY_TASK_NOT_FOUND）
+            # → 若任务已取消保持 cancelled；否则按平台终态收敛为 failed，避免挂死
+            if isinstance(result, dict) and int(result.get("code", -1)) == 807:
+                current_status = str(getattr(task, "status", "") or "").strip().lower()
+                if current_status == "cancelled":
+                    logger.info("[third-party-recovery] cancelled 任务保持终态: task_id=%s", task.id)
+                    continue
+                _force_fail_stale_pending_task(task, task_mgr, db)
                 continue
             logger.info("[third-party-recovery] 触发任务补偿完成: task_id=%s result=%s", task.id, result)
         except Exception as exc:

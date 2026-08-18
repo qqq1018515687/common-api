@@ -1,5 +1,7 @@
 """任务管理接口"""
 
+import logging
+
 import time
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
@@ -10,6 +12,8 @@ import json
 from storage.database.shared.model import Tasks, Users
 from config.third_party_platforms import THIRD_PARTY_PLATFORMS
 import time
+
+logger = logging.getLogger(__name__)
 
 
 class TaskCreate(BaseModel):
@@ -725,6 +729,22 @@ class TaskManager:
 
         update_data = task_in.model_dump(exclude_unset=True)
 
+        # 【守卫】已取消/已删除任务是终态语义，禁止被状态回写覆盖为 failed/running，
+        # 避免用户取消成功后 main 残留轮询 807（任务已不存在）把任务改成 failed。
+        incoming_status = update_data.get("status")
+        if db_task.status == "cancelled" or db_task.is_deleted:
+            if incoming_status in ("failed", "running"):
+                logger.info(
+                    "[task-guard] 已取消/已删除任务拒绝被覆盖为 %s: task_id=%s",
+                    incoming_status,
+                    task_id,
+                )
+                update_data.pop("status", None)
+                update_data.pop("error", None)
+                update_data.pop("user_friendly_message", None)
+                update_data.pop("completed_at", None)
+                incoming_status = None
+
         if "elapsed_time_seconds" in update_data:
             elapsed_time_seconds = update_data.get("elapsed_time_seconds")
             if not isinstance(elapsed_time_seconds, int) or elapsed_time_seconds < 0:
@@ -818,6 +838,15 @@ class TaskManager:
         """
         db_task = self.get_task_by_id(db, task_id)
         if not db_task:
+            return None
+
+        # 【守卫】已取消/已删除任务是终态语义，补偿线程不得将其覆盖为 failed。
+        # 必须返回 None：调用方以“返回值非空才继续退款/收尾”判定，返回 db_task 会误触发退款。
+        if db_task.status == "cancelled" or db_task.is_deleted:
+            logger.info(
+                "[task-guard] 已取消/已删除任务跳过强制失败: task_id=%s",
+                task_id,
+            )
             return None
 
         db_task.status = "failed"
