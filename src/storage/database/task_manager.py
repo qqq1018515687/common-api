@@ -6,12 +6,19 @@ import time
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, cast, String
 import json
 
 from storage.database.shared.model import Tasks, Users
 from config.third_party_platforms import THIRD_PARTY_PLATFORMS
 import time
+
+状态筛选别名映射: Dict[str, List[str]] = {
+    "completed": ["completed", "success", "succeeded"],
+    "failed": ["failed", "error"],
+    "running": ["running", "pending", "submitted", "processing", "in_progress"],
+    "cancelled": ["cancelled", "canceled"],
+}
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +47,9 @@ class TaskUpdate(BaseModel):
     result: Optional[dict] = Field(default=None, description="生成结果")
     error: Optional[str] = Field(default=None, description="错误信息")
     completed_at: Optional[int] = Field(default=None, description="完成时间")
+    failed_at: Optional[int] = Field(default=None, description="失败时间")
+    cancelled_at: Optional[int] = Field(default=None, description="取消时间")
+    status_updated_at: Optional[int] = Field(default=None, description="状态更新时间")
     started_at: Optional[int] = Field(
         default=None, description="任务真正开始执行时间(毫秒)"
     )
@@ -128,6 +138,46 @@ class TaskManager:
     def _is_completed_with_result(task: Tasks) -> bool:
         return task.status == "completed" and TaskManager._has_displayable_result(task.result)
 
+    @staticmethod
+    def _normalize_time_dimension(value: Optional[str]) -> str:
+        normalized = (value or "created_at").strip().lower()
+        if normalized in {"created_at", "completed_at", "failed_at", "cancelled_at", "status_updated_at"}:
+            return normalized
+        return "created_at"
+
+    @classmethod
+    def _resolve_time_dimension_for_status(cls, status: Optional[str], time_dimension: Optional[str]) -> str:
+        normalized = cls._normalize_time_dimension(time_dimension)
+        if time_dimension:
+            return normalized
+        if status == "completed":
+            return "completed_at"
+        if status == "failed":
+            return "failed_at"
+        if status == "cancelled":
+            return "cancelled_at"
+        return "created_at"
+
+    @staticmethod
+    def _get_time_column(time_dimension: str):
+        return getattr(Tasks, time_dimension)
+
+    @staticmethod
+    def _expand_statuses(status: Optional[str], statuses: Optional[List[str]]) -> List[str]:
+        merged: List[str] = []
+        for item in ([status] if status else []) + (statuses or []):
+            normalized = (item or "").strip().lower()
+            if not normalized:
+                continue
+            merged.extend(状态筛选别名映射.get(normalized, [normalized]))
+        seen = set()
+        result: List[str] = []
+        for item in merged:
+            if item not in seen:
+                seen.add(item)
+                result.append(item)
+        return result
+
     @classmethod
     def _ensure_task_schema(cls, db: Session) -> None:
         """Ensure optional task columns exist before ORM queries select them."""
@@ -163,6 +213,21 @@ class TaskManager:
             db.execute(
                 text(
                     "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS result_fallback JSON"
+                )
+            )
+            db.execute(
+                text(
+                    "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS failed_at VARCHAR(20)"
+                )
+            )
+            db.execute(
+                text(
+                    "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS cancelled_at VARCHAR(20)"
+                )
+            )
+            db.execute(
+                text(
+                    "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS status_updated_at VARCHAR(20)"
                 )
             )
             db.execute(
@@ -249,6 +314,7 @@ class TaskManager:
                             existing_task.started_at = current_time
 
             existing_task.updated_at = current_time
+            existing_task.status_updated_at = existing_task.status_updated_at or current_time
             db.add(existing_task)
             try:
                 db.commit()
@@ -265,7 +331,11 @@ class TaskManager:
         task_data["status"] = "running"
         task_data["created_at"] = current_time
         task_data["updated_at"] = current_time
+        task_data["status_updated_at"] = current_time
         task_data["started_at"] = current_time
+        task_data["completed_at"] = None
+        task_data["failed_at"] = None
+        task_data["cancelled_at"] = None
 
         db_task = Tasks(**task_data)
         db.add(db_task)
@@ -350,6 +420,7 @@ class TaskManager:
         user_id: Optional[str] = None,
         team_id: Optional[str] = None,
         status: Optional[str] = None,
+        statuses: Optional[List[str]] = None,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
         limit: int = 50,
@@ -357,6 +428,12 @@ class TaskManager:
         before_id: Optional[str] = None,
         admin_full_list: bool = False,
         include_deleted: bool = False,
+        platform: Optional[str] = None,
+        keyword: Optional[str] = None,
+        username: Optional[str] = None,
+        workflow_keyword: Optional[str] = None,
+        model_keyword: Optional[str] = None,
+        time_dimension: Optional[str] = None,
     ) -> List[tuple]:
         """灵活查询任务列表
 
@@ -393,7 +470,6 @@ class TaskManager:
         if not include_deleted:
             query = query.filter(Tasks.is_deleted == False)
 
-        # 查询逻辑
         if team_id:
             query = query.filter(Tasks.team_id == team_id)
         elif user_id:
@@ -401,39 +477,81 @@ class TaskManager:
         elif not admin_full_list:
             return []
 
-        # 时间范围筛选
-        if start_time is not None:
-            query = query.filter(Tasks.created_at >= str(start_time))
-        if end_time is not None:
-            query = query.filter(Tasks.created_at <= str(end_time))
+        expanded_statuses = self._expand_statuses(status, statuses)
+        primary_status = status or (statuses[0] if statuses else None)
+        resolved_time_dimension = self._resolve_time_dimension_for_status(primary_status, time_dimension)
+        time_column = self._get_time_column(resolved_time_dimension)
+        if resolved_time_dimension != "created_at":
+            query = query.filter(time_column.is_not(None))
 
-        # 游标分页：查询早于 before_time 的记录；带 before_id 时按 (created_at, id) 复合游标去重
+        if platform:
+            query = query.filter(Tasks.platform == platform)
+
+        if keyword:
+            from sqlalchemy import or_
+
+            keyword_text = keyword.strip()
+            if keyword_text:
+                like_value = f"%{keyword_text}%"
+                query = query.filter(or_(
+                    Tasks.id.ilike(like_value),
+                    Tasks.user_id.ilike(like_value),
+                    Tasks.platform_task_id.ilike(like_value),
+                    Users.username.ilike(like_value),
+                ))
+
+        if username:
+            query = query.filter(Users.username.ilike(f"%{username.strip()}%"))
+
+        if workflow_keyword:
+            workflow_like = f"%{workflow_keyword.strip()}%"
+            query = query.filter(cast(Tasks.parameter_snapshot, String).ilike(workflow_like))
+
+        if model_keyword:
+            model_like = f"%{model_keyword.strip()}%"
+            query = query.filter(or_(
+                cast(Tasks.parameter_snapshot, String).ilike(model_like),
+                cast(Tasks.workflow_parameters, String).ilike(model_like),
+            ))
+
+        if start_time is not None:
+            query = query.filter(time_column >= str(start_time))
+        if end_time is not None:
+            query = query.filter(time_column <= str(end_time))
+
         from sqlalchemy import and_, or_
         if before_time is not None and before_id is not None:
             query = query.filter(or_(
-                Tasks.created_at < str(before_time),
-                and_(Tasks.created_at == str(before_time), Tasks.id < str(before_id))
+                time_column < str(before_time),
+                and_(time_column == str(before_time), Tasks.id < str(before_id))
             ))
         elif before_time is not None:
-            query = query.filter(Tasks.created_at < str(before_time))
+            query = query.filter(time_column < str(before_time))
 
-        # 状态筛选
-        if status:
-            query = query.filter(Tasks.status == status)
+        if expanded_statuses:
+            query = query.filter(Tasks.status.in_(expanded_statuses))
 
         if before_id is not None:
-            return query.order_by(Tasks.created_at.desc(), Tasks.id.desc()).limit(limit).all()
-        return query.order_by(Tasks.created_at.desc()).limit(limit).all()
+            return query.order_by(time_column.desc(), Tasks.id.desc()).limit(limit).all()
+        return query.order_by(time_column.desc()).limit(limit).all()
 
     def get_admin_tasks_compact(
         self,
         db: Session,
         status: Optional[str] = None,
+        statuses: Optional[List[str]] = None,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
         limit: int = 50,
         before_time: Optional[int] = None,
         before_id: Optional[str] = None,
+        include_deleted: bool = False,
+        platform: Optional[str] = None,
+        keyword: Optional[str] = None,
+        username: Optional[str] = None,
+        workflow_keyword: Optional[str] = None,
+        model_keyword: Optional[str] = None,
+        time_dimension: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """管理后台任务轻量列表，只读取列表渲染需要的字段。"""
         self._ensure_task_schema(db)
@@ -458,6 +576,9 @@ class TaskManager:
                 Tasks.created_at,
                 Tasks.started_at,
                 Tasks.completed_at,
+                Tasks.failed_at,
+                Tasks.cancelled_at,
+                Tasks.status_updated_at,
                 Tasks.elapsed_time_seconds,
                 Tasks.deduction_result,
                 Tasks.connection_mode,
@@ -465,27 +586,66 @@ class TaskManager:
             )
             .outerjoin(Users, Tasks.user_id == Users.user_id)
         )
+        if not include_deleted:
+            query = query.filter(Tasks.is_deleted == False)
+
+        expanded_statuses = self._expand_statuses(status, statuses)
+        primary_status = status or (statuses[0] if statuses else None)
+        resolved_time_dimension = self._resolve_time_dimension_for_status(primary_status, time_dimension)
+        time_column = self._get_time_column(resolved_time_dimension)
+        if resolved_time_dimension != "created_at":
+            query = query.filter(time_column.is_not(None))
+
+        if platform:
+            query = query.filter(Tasks.platform == platform)
+
+        if keyword:
+            from sqlalchemy import or_
+
+            keyword_text = keyword.strip()
+            if keyword_text:
+                like_value = f"%{keyword_text}%"
+                query = query.filter(or_(
+                    Tasks.id.ilike(like_value),
+                    Tasks.user_id.ilike(like_value),
+                    Tasks.platform_task_id.ilike(like_value),
+                    Users.username.ilike(like_value),
+                ))
+
+        if username:
+            query = query.filter(Users.username.ilike(f"%{username.strip()}%"))
+
+        if workflow_keyword:
+            workflow_like = f"%{workflow_keyword.strip()}%"
+            query = query.filter(cast(Tasks.parameter_snapshot, String).ilike(workflow_like))
+
+        if model_keyword:
+            model_like = f"%{model_keyword.strip()}%"
+            query = query.filter(or_(
+                cast(Tasks.parameter_snapshot, String).ilike(model_like),
+                cast(Tasks.workflow_parameters, String).ilike(model_like),
+            ))
 
         if start_time is not None:
-            query = query.filter(Tasks.created_at >= str(start_time))
+            query = query.filter(time_column >= str(start_time))
         if end_time is not None:
-            query = query.filter(Tasks.created_at <= str(end_time))
-        # 游标分页：带 before_id 时按 (created_at, id) 复合游标，避免同一毫秒任务被漏
+            query = query.filter(time_column <= str(end_time))
+
         from sqlalchemy import and_, or_
         if before_time is not None and before_id is not None:
             query = query.filter(or_(
-                Tasks.created_at < str(before_time),
-                and_(Tasks.created_at == str(before_time), Tasks.id < str(before_id))
+                time_column < str(before_time),
+                and_(time_column == str(before_time), Tasks.id < str(before_id))
             ))
         elif before_time is not None:
-            query = query.filter(Tasks.created_at < str(before_time))
-        if status:
-            query = query.filter(Tasks.status == status)
+            query = query.filter(time_column < str(before_time))
+        if expanded_statuses:
+            query = query.filter(Tasks.status.in_(expanded_statuses))
 
         if before_id is not None:
-            rows = query.order_by(Tasks.created_at.desc(), Tasks.id.desc()).limit(limit + 1).all()
+            rows = query.order_by(time_column.desc(), Tasks.id.desc()).limit(limit + 1).all()
         else:
-            rows = query.order_by(Tasks.created_at.desc()).limit(limit + 1).all()
+            rows = query.order_by(time_column.desc()).limit(limit + 1).all()
         tasks: List[Dict[str, Any]] = []
 
         for row in rows:
@@ -511,6 +671,9 @@ class TaskManager:
                 "created_at": row.created_at,
                 "started_at": row.started_at,
                 "completed_at": row.completed_at,
+                "failed_at": row.failed_at,
+                "cancelled_at": row.cancelled_at,
+                "status_updated_at": row.status_updated_at,
                 "elapsed_time_seconds": row.elapsed_time_seconds,
                 "deduction_result": row.deduction_result,
                 "connection_mode": row.connection_mode,
@@ -732,6 +895,7 @@ class TaskManager:
         # 【守卫】已取消/已删除任务是终态语义，禁止被状态回写覆盖为 failed/running，
         # 避免用户取消成功后 main 残留轮询 807（任务已不存在）把任务改成 failed。
         incoming_status = update_data.get("status")
+        now_ms = str(int(time.time() * 1000))
         if db_task.status == "cancelled" or db_task.is_deleted:
             if incoming_status in ("failed", "running"):
                 logger.info(
@@ -800,9 +964,32 @@ class TaskManager:
             and not db_task.started_at
             and "started_at" not in update_data
         ):
-            update_data["started_at"] = str(int(time.time() * 1000))
+            update_data["started_at"] = now_ms
 
-        update_data["updated_at"] = str(int(time.time() * 1000))
+        next_status = update_data.get("status")
+        if next_status and next_status != db_task.status:
+            update_data["status_updated_at"] = now_ms
+            if next_status == "completed":
+                if db_task.completed_at:
+                    update_data.pop("completed_at", None)
+                else:
+                    update_data.setdefault("completed_at", now_ms)
+                update_data["failed_at"] = None
+                update_data["cancelled_at"] = None
+            elif next_status == "failed":
+                update_data.setdefault("failed_at", now_ms)
+                update_data.pop("completed_at", None)
+                update_data["cancelled_at"] = None
+            elif next_status == "cancelled":
+                update_data.setdefault("cancelled_at", now_ms)
+                update_data.pop("completed_at", None)
+                update_data["failed_at"] = None
+            elif next_status in ("pending", "running"):
+                update_data["completed_at"] = None
+                update_data["failed_at"] = None
+                update_data["cancelled_at"] = None
+
+        update_data["updated_at"] = now_ms
 
         for field, value in update_data.items():
             if hasattr(db_task, field):
@@ -854,8 +1041,12 @@ class TaskManager:
         db_task.error = error or "任务处理超时，已强制结束"
         if user_friendly_message:
             db_task.user_friendly_message = user_friendly_message
-        db_task.completed_at = str(int(time.time() * 1000))
-        db_task.updated_at = str(int(time.time() * 1000))
+        now_ms = str(int(time.time() * 1000))
+        db_task.failed_at = db_task.failed_at or now_ms
+        db_task.completed_at = None
+        db_task.cancelled_at = None
+        db_task.status_updated_at = now_ms
+        db_task.updated_at = now_ms
 
         try:
             db.add(db_task)
@@ -969,12 +1160,18 @@ class TaskManager:
         end_time: Optional[int] = None,
         before_time: Optional[int] = None,
         include_deleted: bool = False,
+        platform: Optional[str] = None,
+        keyword: Optional[str] = None,
+        username: Optional[str] = None,
+        workflow_keyword: Optional[str] = None,
+        model_keyword: Optional[str] = None,
+        time_dimension: Optional[str] = None,
     ) -> int:
         """统计有可展示媒体结果的 completed 任务数量（与前端展示逻辑一致）"""
         self._ensure_task_schema(db)
         from sqlalchemy import func, text
 
-        query = db.query(Tasks).filter(Tasks.status == "completed")
+        query = db.query(Tasks).outerjoin(Users, Tasks.user_id == Users.user_id).filter(Tasks.status == "completed")
         if not include_deleted:
             query = query.filter(Tasks.is_deleted == False)
 
@@ -986,15 +1183,46 @@ class TaskManager:
         else:
             return 0
 
-        # 时间范围筛选
+        resolved_time_dimension = self._resolve_time_dimension_for_status('completed', time_dimension)
+        time_column = self._get_time_column(resolved_time_dimension)
+        if resolved_time_dimension != 'created_at':
+            query = query.filter(time_column.is_not(None))
+
+        if platform:
+            query = query.filter(Tasks.platform == platform)
+
+        if keyword:
+            from sqlalchemy import or_
+            like_value = f"%{keyword.strip()}%"
+            query = query.filter(or_(
+                Tasks.id.ilike(like_value),
+                Tasks.user_id.ilike(like_value),
+                Tasks.platform_task_id.ilike(like_value),
+                Users.username.ilike(like_value),
+            ))
+
+        if username:
+            query = query.filter(Users.username.ilike(f"%{username.strip()}%"))
+
+        if workflow_keyword:
+            query = query.filter(cast(Tasks.parameter_snapshot, String).ilike(f"%{workflow_keyword.strip()}%"))
+
+        if model_keyword:
+            model_like = f"%{model_keyword.strip()}%"
+            from sqlalchemy import or_
+            query = query.filter(or_(
+                cast(Tasks.parameter_snapshot, String).ilike(model_like),
+                cast(Tasks.workflow_parameters, String).ilike(model_like),
+            ))
+
         if start_time is not None:
-            query = query.filter(Tasks.created_at >= str(start_time))
+            query = query.filter(time_column >= str(start_time))
         if end_time is not None:
-            query = query.filter(Tasks.created_at <= str(end_time))
+            query = query.filter(time_column <= str(end_time))
 
         # 游标分页：统计早于该时间戳的记录
         if before_time is not None:
-            query = query.filter(Tasks.created_at < str(before_time))
+            query = query.filter(time_column < str(before_time))
 
         # 媒体结果过滤：result IS NOT NULL 且 result 包含可展示的媒体 URL
         # 使用 PostgreSQL JSON 查询，匹配以下任一条件：
@@ -1022,11 +1250,18 @@ class TaskManager:
         user_id: Optional[str] = None,
         team_id: Optional[str] = None,
         status: Optional[str] = None,
+        statuses: Optional[List[str]] = None,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
         before_time: Optional[int] = None,
         admin_full_list: bool = False,
         include_deleted: bool = False,
+        platform: Optional[str] = None,
+        keyword: Optional[str] = None,
+        username: Optional[str] = None,
+        workflow_keyword: Optional[str] = None,
+        model_keyword: Optional[str] = None,
+        time_dimension: Optional[str] = None,
     ) -> int:
         """灵活统计任务数量（支持按用户ID、团队ID或两者统计）
 
@@ -1050,7 +1285,7 @@ class TaskManager:
             - 如果既没有 user_id 也没有 team_id 且不是 admin_full_list：返回 0
         """
         self._ensure_task_schema(db)
-        query = db.query(Tasks)
+        query = db.query(Tasks).outerjoin(Users, Tasks.user_id == Users.user_id)
         if not include_deleted:
             query = query.filter(Tasks.is_deleted == False)
 
@@ -1061,16 +1296,52 @@ class TaskManager:
         elif not admin_full_list:
             return 0
 
+        expanded_statuses = self._expand_statuses(status, statuses)
+        primary_status = status or (statuses[0] if statuses else None)
+        resolved_time_dimension = self._resolve_time_dimension_for_status(primary_status, time_dimension)
+        time_column = self._get_time_column(resolved_time_dimension)
+        if resolved_time_dimension != "created_at":
+            query = query.filter(time_column.is_not(None))
+
+        if platform:
+            query = query.filter(Tasks.platform == platform)
+
+        if keyword:
+            from sqlalchemy import or_
+
+            keyword_text = keyword.strip()
+            if keyword_text:
+                like_value = f"%{keyword_text}%"
+                query = query.filter(or_(
+                    Tasks.id.ilike(like_value),
+                    Tasks.user_id.ilike(like_value),
+                    Tasks.platform_task_id.ilike(like_value),
+                    Users.username.ilike(like_value),
+                ))
+
+        if username:
+            query = query.filter(Users.username.ilike(f"%{username.strip()}%"))
+
+        if workflow_keyword:
+            query = query.filter(cast(Tasks.parameter_snapshot, String).ilike(f"%{workflow_keyword.strip()}%"))
+
+        if model_keyword:
+            model_like = f"%{model_keyword.strip()}%"
+            query = query.filter(or_(
+                cast(Tasks.parameter_snapshot, String).ilike(model_like),
+                cast(Tasks.workflow_parameters, String).ilike(model_like),
+            ))
+
         if start_time is not None:
-            query = query.filter(Tasks.created_at >= str(start_time))
+            query = query.filter(time_column >= str(start_time))
         if end_time is not None:
-            query = query.filter(Tasks.created_at <= str(end_time))
+            query = query.filter(time_column <= str(end_time))
 
         if before_time is not None:
-            query = query.filter(Tasks.created_at < str(before_time))
+            query = query.filter(time_column < str(before_time))
 
-        if status:
-            query = query.filter(Tasks.status == status)
+        if expanded_statuses:
+            query = query.filter(Tasks.status.in_(expanded_statuses))
 
         return query.count()
 
@@ -1081,6 +1352,12 @@ class TaskManager:
         end_time: Optional[int] = None,
         admin_full_list: bool = False,
         include_deleted: bool = False,
+        platform: Optional[str] = None,
+        keyword: Optional[str] = None,
+        username: Optional[str] = None,
+        workflow_keyword: Optional[str] = None,
+        model_keyword: Optional[str] = None,
+        time_dimension: Optional[str] = None,
     ) -> dict:
         """按状态分组统计任务数量（支持 admin 全表模式）
 
@@ -1097,14 +1374,127 @@ class TaskManager:
         self._ensure_task_schema(db)
         from sqlalchemy import func
 
-        query = db.query(Tasks.status, func.count(Tasks.id))
+        if not time_dimension:
+            total = self.count_tasks_flexible(
+                db,
+                start_time=start_time,
+                end_time=end_time,
+                admin_full_list=admin_full_list,
+                include_deleted=include_deleted,
+                platform=platform,
+                keyword=keyword,
+                username=username,
+                workflow_keyword=workflow_keyword,
+                model_keyword=model_keyword,
+                time_dimension='created_at',
+            )
+            completed = self.count_tasks_with_media(
+                db,
+                start_time=start_time,
+                end_time=end_time,
+                include_deleted=include_deleted,
+                platform=platform,
+                keyword=keyword,
+                username=username,
+                workflow_keyword=workflow_keyword,
+                model_keyword=model_keyword,
+                time_dimension='completed_at',
+            )
+            failed = self.count_tasks_flexible(
+                db,
+                status='failed',
+                start_time=start_time,
+                end_time=end_time,
+                admin_full_list=admin_full_list,
+                include_deleted=include_deleted,
+                platform=platform,
+                keyword=keyword,
+                username=username,
+                workflow_keyword=workflow_keyword,
+                model_keyword=model_keyword,
+                time_dimension='failed_at',
+            )
+            cancelled = self.count_tasks_flexible(
+                db,
+                status='cancelled',
+                start_time=start_time,
+                end_time=end_time,
+                admin_full_list=admin_full_list,
+                include_deleted=include_deleted,
+                platform=platform,
+                keyword=keyword,
+                username=username,
+                workflow_keyword=workflow_keyword,
+                model_keyword=model_keyword,
+                time_dimension='cancelled_at',
+            )
+            running = sum(
+                self.count_tasks_flexible(
+                    db,
+                    status=status,
+                    start_time=start_time,
+                    end_time=end_time,
+                    admin_full_list=admin_full_list,
+                    include_deleted=include_deleted,
+                    platform=platform,
+                    keyword=keyword,
+                    username=username,
+                    workflow_keyword=workflow_keyword,
+                    model_keyword=model_keyword,
+                    time_dimension='created_at',
+                )
+                for status in ('running', 'pending', 'submitted', 'processing', 'in_progress')
+            )
+            return {
+                'total': total,
+                'completed': completed,
+                'failed': failed,
+                'cancelled': cancelled,
+                'running': running,
+            }
+
+        query = db.query(Tasks.status, func.count(Tasks.id)).outerjoin(Users, Tasks.user_id == Users.user_id)
         if not include_deleted:
             query = query.filter(Tasks.is_deleted == False)
 
+        resolved_time_dimension = self._normalize_time_dimension(time_dimension)
+        time_column = self._get_time_column(resolved_time_dimension)
+        if resolved_time_dimension != "created_at":
+            query = query.filter(time_column.is_not(None))
+
+        if platform:
+            query = query.filter(Tasks.platform == platform)
+
+        if keyword:
+            from sqlalchemy import or_
+
+            keyword_text = keyword.strip()
+            if keyword_text:
+                like_value = f"%{keyword_text}%"
+                query = query.filter(or_(
+                    Tasks.id.ilike(like_value),
+                    Tasks.user_id.ilike(like_value),
+                    Tasks.platform_task_id.ilike(like_value),
+                    Users.username.ilike(like_value),
+                ))
+
+        if username:
+            query = query.filter(Users.username.ilike(f"%{username.strip()}%"))
+
+        if workflow_keyword:
+            query = query.filter(cast(Tasks.parameter_snapshot, String).ilike(f"%{workflow_keyword.strip()}%"))
+
+        if model_keyword:
+            model_like = f"%{model_keyword.strip()}%"
+            query = query.filter(or_(
+                cast(Tasks.parameter_snapshot, String).ilike(model_like),
+                cast(Tasks.workflow_parameters, String).ilike(model_like),
+            ))
+
         if start_time is not None:
-            query = query.filter(Tasks.created_at >= str(start_time))
+            query = query.filter(time_column >= str(start_time))
         if end_time is not None:
-            query = query.filter(Tasks.created_at <= str(end_time))
+            query = query.filter(time_column <= str(end_time))
 
         query = query.group_by(Tasks.status)
 

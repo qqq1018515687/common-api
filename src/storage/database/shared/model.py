@@ -70,6 +70,10 @@ class Tasks(Base):
     __table_args__ = (
         PrimaryKeyConstraint('id', name='tasks_pkey'),
         Index('idx_created_at', 'created_at'),
+        Index('idx_tasks_status_created_at', 'status', 'created_at'),
+        Index('idx_tasks_status_completed_at', 'status', 'completed_at'),
+        Index('idx_tasks_status_failed_at', 'status', 'failed_at'),
+        Index('idx_tasks_status_cancelled_at', 'status', 'cancelled_at'),
         Index('idx_platform_task', 'platform', 'platform_task_id'),
         Index('idx_team_id', 'team_id'),
         Index('idx_user_status_updated', 'user_id', 'status', 'updated_at'),
@@ -90,6 +94,9 @@ class Tasks(Base):
     error: Mapped[Optional[str]] = mapped_column(Text)
     deduction_result: Mapped[Optional[dict]] = mapped_column(JSON, comment="扣费结果记录")
     completed_at: Mapped[Optional[str]] = mapped_column(String(20))
+    failed_at: Mapped[Optional[str]] = mapped_column(String(20), comment="失败时间")
+    cancelled_at: Mapped[Optional[str]] = mapped_column(String(20), comment="取消时间")
+    status_updated_at: Mapped[Optional[str]] = mapped_column(String(20), comment="最近一次状态变更时间")
     started_at: Mapped[Optional[str]] = mapped_column(String(20), comment="任务真正开始执行的时间戳(毫秒字符串)")
     elapsed_time_seconds: Mapped[Optional[int]] = mapped_column(Integer, server_default=text('0'), comment="任务耗时(秒),由后端统一计算")
     batch_id: Mapped[Optional[str]] = mapped_column(String(36))

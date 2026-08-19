@@ -379,6 +379,12 @@ def unpack_input_data_node(
         before_time=input_data.before_time if input_data else None,
         before_id=input_data.before_id if input_data else None,
         status=input_data.status if input_data else None,
+        statuses=input_data.statuses if input_data else None,
+        keyword=input_data.keyword if input_data else None,
+        workflow_keyword=input_data.workflow_keyword if input_data else None,
+        model_keyword=input_data.model_keyword if input_data else None,
+        time_dimension=input_data.time_dimension if input_data else None,
+        include_deleted=input_data.include_deleted if input_data else False,
         compact=input_data.compact if input_data else False,
         # 任务管理相关字段
         task_id=input_data.task_id if input_data else None,
@@ -1929,6 +1935,12 @@ def task_route_node(
         team_id=state.team_id,
         status=state.status,
         statuses=state.statuses,
+        keyword=state.keyword,
+        username=state.username,
+        workflow_keyword=state.workflow_keyword,
+        model_keyword=state.model_keyword,
+        time_dimension=state.time_dimension,
+        include_deleted=state.include_deleted,
         limit=state.limit,
         days=state.days,
         operator_role=state.operator_role,
@@ -2081,6 +2093,9 @@ def update_task_node(
                 "persistence_error",
                 "error",
                 "completed_at",
+                "failed_at",
+                "cancelled_at",
+                "status_updated_at",
                 "started_at",  # 【新增】允许更新 started_at
                 "elapsed_time_seconds",
                 "user_friendly_message",
@@ -2223,6 +2238,9 @@ def get_task_node(
                 "created_at": db_task.created_at,
                 "updated_at": db_task.updated_at,
                 "completed_at": db_task.completed_at,
+                "failed_at": getattr(db_task, "failed_at", None),
+                "cancelled_at": getattr(db_task, "cancelled_at", None),
+                "status_updated_at": getattr(db_task, "status_updated_at", None),
                 "batch_id": db_task.batch_id,
                 "connection_mode": db_task.connection_mode,
                 "is_deleted": db_task.is_deleted,
@@ -2365,11 +2383,19 @@ def list_tasks_node(
                 compact_tasks = task_mgr.get_admin_tasks_compact(
                     db,
                     status=state.status,
+                    statuses=state.statuses,
                     start_time=start_time,
                     end_time=end_time,
                     limit=compact_limit,
                     before_time=before_time,
                     before_id=before_id,
+                    include_deleted=bool(state.include_deleted),
+                    platform=state.platform,
+                    keyword=state.keyword,
+                    username=state.username,
+                    workflow_keyword=state.workflow_keyword,
+                    model_keyword=state.model_keyword,
+                    time_dimension=state.time_dimension,
                 )
                 has_more = len(compact_tasks) > compact_limit
                 if has_more:
@@ -2379,7 +2405,13 @@ def list_tasks_node(
                 next_before_id = None
                 if compact_tasks:
                     try:
-                        next_before_time = int(compact_tasks[-1]["created_at"])
+                        time_dimension = (state.time_dimension or (
+                            "completed_at" if state.status == "completed" else
+                            "failed_at" if state.status == "failed" else
+                            "cancelled_at" if state.status == "cancelled" else
+                            "created_at"
+                        ))
+                        next_before_time = int(compact_tasks[-1].get(time_dimension) or compact_tasks[-1]["created_at"])
                     except (ValueError, TypeError):
                         next_before_time = None
                     next_before_id = compact_tasks[-1].get("id")
@@ -2392,6 +2424,7 @@ def list_tasks_node(
                         "total": None,
                         "limit": compact_limit,
                         "days": days,
+                        "time_dimension": state.time_dimension,
                         "has_more": has_more,
                         "next_before_time": next_before_time,
                         "next_before_id": next_before_id,
@@ -2408,13 +2441,20 @@ def list_tasks_node(
                 user_id=state.user_id,
                 team_id=state.team_id,
                 status=state.status,
+                statuses=state.statuses,
                 start_time=start_time,
                 end_time=end_time,
                 limit=overfetch_limit,
                 before_time=before_time,
                 before_id=before_id,
                 admin_full_list=is_admin,
-                include_deleted=is_admin,
+                include_deleted=bool(state.include_deleted),
+                platform=state.platform,
+                keyword=state.keyword,
+                username=state.username,
+                workflow_keyword=state.workflow_keyword,
+                model_keyword=state.model_keyword,
+                time_dimension=state.time_dimension,
             )
 
             # 转换为可序列化的字典列表，过滤无媒体结果的 completed 任务
@@ -2442,6 +2482,9 @@ def list_tasks_node(
                     "created_at": task.created_at,
                     "updated_at": task.updated_at,
                     "completed_at": task.completed_at,
+                    "failed_at": getattr(task, "failed_at", None),
+                    "cancelled_at": getattr(task, "cancelled_at", None),
+                    "status_updated_at": getattr(task, "status_updated_at", None),
                     "started_at": task.started_at,  # 【新增】任务开始时间
                     "elapsed_time_seconds": task.elapsed_time_seconds
                     if hasattr(task, "elapsed_time_seconds")
@@ -2496,10 +2539,17 @@ def list_tasks_node(
                 user_id=state.user_id,
                 team_id=state.team_id,
                 status=state.status,
+                statuses=state.statuses,
                 start_time=start_time,
                 end_time=end_time,
                 admin_full_list=is_admin,
-                include_deleted=is_admin,
+                include_deleted=bool(state.include_deleted),
+                platform=state.platform,
+                keyword=state.keyword,
+                username=state.username,
+                workflow_keyword=state.workflow_keyword,
+                model_keyword=state.model_keyword,
+                time_dimension=state.time_dimension,
             )
 
             # 如果是 completed 状态查询，用 SQL 精确统计有媒体结果的任务数
@@ -2512,7 +2562,13 @@ def list_tasks_node(
                         start_time=start_time,
                         end_time=end_time,
                         before_time=before_time,
-                        include_deleted=is_admin,
+                        include_deleted=bool(state.include_deleted),
+                        platform=state.platform,
+                        keyword=state.keyword,
+                        username=state.username,
+                        workflow_keyword=state.workflow_keyword,
+                        model_keyword=state.model_keyword,
+                        time_dimension=state.time_dimension,
                     )
                     total = media_total
                 except Exception as e:
@@ -2530,7 +2586,13 @@ def list_tasks_node(
             next_before_id = None
             if task_list:
                 try:
-                    next_before_time = int(task_list[-1]["created_at"])
+                    time_dimension = (state.time_dimension or (
+                        "completed_at" if state.status == "completed" else
+                        "failed_at" if state.status == "failed" else
+                        "cancelled_at" if state.status == "cancelled" else
+                        "created_at"
+                    ))
+                    next_before_time = int(task_list[-1].get(time_dimension) or task_list[-1]["created_at"])
                 except (ValueError, TypeError):
                     next_before_time = None
                 next_before_id = task_list[-1].get("id")
@@ -2543,6 +2605,7 @@ def list_tasks_node(
                     "total": total,
                     "limit": limit,
                     "days": days,
+                    "time_dimension": state.time_dimension,
                     "has_more": has_more,
                     "next_before_time": next_before_time,
                     "next_before_id": next_before_id,
@@ -2590,7 +2653,13 @@ def count_tasks_stats_node(
                 start_time=start_time,
                 end_time=end_time,
                 admin_full_list=is_admin,
-                include_deleted=is_admin,
+                include_deleted=bool(state.include_deleted),
+                platform=state.platform,
+                keyword=state.keyword,
+                username=state.username,
+                workflow_keyword=state.workflow_keyword,
+                model_keyword=state.model_keyword,
+                time_dimension=state.time_dimension,
             )
 
             return CountTasksStatsOutput(
@@ -2601,6 +2670,7 @@ def count_tasks_stats_node(
                     "days": days,
                     "start_time": start_time,
                     "end_time": end_time,
+                    "time_dimension": state.time_dimension,
                 }
             )
 
@@ -2655,6 +2725,13 @@ def admin_task_dashboard_node(
                     limit=limit,
                     before_time=state.before_time,
                     before_id=state.before_id,
+                    include_deleted=bool(state.include_deleted),
+                    platform=state.platform,
+                    keyword=state.keyword,
+                    username=state.username,
+                    workflow_keyword=state.workflow_keyword,
+                    model_keyword=state.model_keyword,
+                    time_dimension=state.time_dimension,
                 )
                 tasks_by_status["all"] = rows[:limit]
             else:
@@ -2667,6 +2744,13 @@ def admin_task_dashboard_node(
                         limit=limit,
                         before_time=state.before_time,
                         before_id=state.before_id,
+                        include_deleted=bool(state.include_deleted),
+                        platform=state.platform,
+                        keyword=state.keyword,
+                        username=state.username,
+                        workflow_keyword=state.workflow_keyword,
+                        model_keyword=state.model_keyword,
+                        time_dimension=state.time_dimension,
                     )
                     tasks_by_status[status] = rows[:limit]
 
@@ -2675,7 +2759,13 @@ def admin_task_dashboard_node(
                 start_time=start_time,
                 end_time=end_time,
                 admin_full_list=True,
-                include_deleted=True,
+                include_deleted=bool(state.include_deleted),
+                platform=state.platform,
+                keyword=state.keyword,
+                username=state.username,
+                workflow_keyword=state.workflow_keyword,
+                model_keyword=state.model_keyword,
+                time_dimension=state.time_dimension,
             )
 
             return AdminTaskDashboardOutput(
@@ -2688,6 +2778,7 @@ def admin_task_dashboard_node(
                     "days": days,
                     "start_time": start_time,
                     "end_time": end_time,
+                    "time_dimension": state.time_dimension,
                 }
             )
         finally:
