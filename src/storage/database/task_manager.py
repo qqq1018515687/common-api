@@ -985,25 +985,32 @@ class TaskManager:
         next_status = update_data.get("status")
         if next_status and next_status != db_task.status:
             update_data["status_updated_at"] = now_ms
-            if next_status == "completed":
-                if db_task.completed_at:
-                    update_data.pop("completed_at", None)
-                else:
-                    update_data.setdefault("completed_at", now_ms)
-                update_data["failed_at"] = None
-                update_data["cancelled_at"] = None
-            elif next_status == "failed":
-                update_data.setdefault("failed_at", now_ms)
+
+        # 【终态时间一致性，无条件维护】无论状态是否变化，只要本轮落成的终态是
+        # completed/failed/cancelled，都保证对应时间列已写入、其余终态时间列清空；
+        # running/pending 则清空全部终态时间列。
+        # 历史 bug：同一状态重复提交（如失败后再次回写 failed）漏写 failed_at/cancelled_at，
+        # 导致管理后台"统计按 created_at 有数、按 failed_at 列表为空"。现改为按终态无条件维护，
+        # 与 a5b6c7d8e9f0 数据回填迁移保持一致。
+        if next_status == "completed":
+            if db_task.completed_at:
                 update_data.pop("completed_at", None)
-                update_data["cancelled_at"] = None
-            elif next_status == "cancelled":
-                update_data.setdefault("cancelled_at", now_ms)
-                update_data.pop("completed_at", None)
-                update_data["failed_at"] = None
-            elif next_status in ("pending", "running"):
-                update_data["completed_at"] = None
-                update_data["failed_at"] = None
-                update_data["cancelled_at"] = None
+            else:
+                update_data.setdefault("completed_at", now_ms)
+            update_data["failed_at"] = None
+            update_data["cancelled_at"] = None
+        elif next_status == "failed":
+            update_data.setdefault("failed_at", now_ms)
+            update_data["completed_at"] = None
+            update_data["cancelled_at"] = None
+        elif next_status == "cancelled":
+            update_data.setdefault("cancelled_at", now_ms)
+            update_data["completed_at"] = None
+            update_data["failed_at"] = None
+        elif next_status in ("pending", "running"):
+            update_data["completed_at"] = None
+            update_data["failed_at"] = None
+            update_data["cancelled_at"] = None
 
         update_data["updated_at"] = now_ms
 
