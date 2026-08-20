@@ -8,6 +8,9 @@
 "统计按 created_at 显示 N 条失败，点进列表(按 failed_at 过滤)却为空"。
 
 本迁移：
+0) 兜底建列：ADD COLUMN IF NOT EXISTS 补齐本迁移引用的所有列
+   （failed_at/cancelled_at/status_updated_at/started_at/elapsed_time_seconds），
+   兼容"Alembic 已标记但线上漏列"的历史库态，保证幂等成功；
 1) 回填 failed_at / cancelled_at（取 status_updated_at -> completed_at -> created_at，
    其中 completed_at 是旧收口逻辑写入的"终态收口时间"，语义上最贴近真实失败/取消时刻）；
 2) 终态时间列唯一化：failed/error 清 completed_at/cancelled_at，
@@ -38,6 +41,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # 0) 兜底建列：本迁移后端列可能在历史部署中"已标记但线上漏列"（见 http_run.sh 同名注释）。
+    #    先确保所有被引用列物理存在，保证 alembic upgrade 在任何库态都能幂等成功；
+    #    已存在时 ADD COLUMN IF NOT EXISTS 为 no-op。
+    op.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS failed_at VARCHAR(20)")
+    op.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS cancelled_at VARCHAR(20)")
+    op.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS status_updated_at VARCHAR(20)")
+    op.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS started_at VARCHAR(20)")
+    op.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS elapsed_time_seconds INTEGER DEFAULT 0")
+
     # 1) 回填 failed_at / cancelled_at：
     #    优先 status_updated_at（真实状态变更时刻），其次 completed_at（旧收口写入的终态时间），
     #    最后回退 created_at（保证终态任务必有时间）。

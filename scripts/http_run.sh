@@ -70,6 +70,9 @@ with e.connect() as c:
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS result_fallback JSON"))
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS persistence_status VARCHAR(20)"))
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS persistence_error TEXT"))
+    c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS failed_at VARCHAR(20)"))
+    c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS cancelled_at VARCHAR(20)"))
+    c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS status_updated_at VARCHAR(20)"))
     c.execute(text("UPDATE tasks SET started_at = created_at WHERE started_at IS NULL"))
     c.execute(text("UPDATE tasks SET elapsed_time_seconds = 0 WHERE elapsed_time_seconds IS NULL"))
     c.execute(text("""
