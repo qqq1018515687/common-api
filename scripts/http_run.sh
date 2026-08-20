@@ -92,5 +92,26 @@ with e.connect() as c:
     print('✅ tasks 运行时字段已兜底修复')
 PYEOF
 
+# 确保 system_notifications 运行时字段存在（避免 Alembic 已标记但线上漏列）
+echo "[DB] 确保 system_notifications 运行时字段存在..."
+python << 'PYEOF'
+from sqlalchemy import text
+from storage.database.db import get_engine
+
+e = get_engine()
+with e.connect() as c:
+    c.execute(text("ALTER TABLE system_notifications ADD COLUMN IF NOT EXISTS biz_key VARCHAR(64)"))
+    # biz_key 唯一索引若缺失则补齐（线上漏建时）
+    exists = c.execute(text(
+        "SELECT 1 FROM pg_indexes WHERE tablename = 'system_notifications' AND indexname = 'uq_system_notifications_biz_key'"
+    )).fetchone()
+    if not exists:
+        c.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_system_notifications_biz_key ON system_notifications (biz_key)"
+        ))
+    c.commit()
+    print('✅ system_notifications 运行时字段已兜底修复')
+PYEOF
+
 # 使用 -m 参数运行模块，确保 Python 能正确解析导入
 python -m src.main -m http -p $PORT
