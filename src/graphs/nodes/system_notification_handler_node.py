@@ -12,10 +12,11 @@ from storage.database.notification_manager import NotificationManager, Notificat
 
 class NotificationHandlerInput(BaseModel):
     """通知处理节点的输入"""
-    operation_type: str = Field(..., description="操作类型：get_active/get_all/create/update/delete")
+    operation_type: str = Field(..., description="操作类型：get_active/get_all/create/update/delete/get_by_biz_key/upsert_by_biz_key")
     notification_id: Optional[str] = Field(default=None, description="通知ID（update/delete 使用）")
     notification_data: Optional[dict] = Field(default=None, description="通知数据（create/update 使用）")
     current_time: Optional[int] = Field(default=None, description="当前时间戳（用于筛选有效通知）")
+    biz_key: Optional[str] = Field(default=None, description="业务标识（get_by_biz_key / upsert_by_biz_key 使用）")
 
 
 class NotificationHandlerOutput(BaseModel):
@@ -180,6 +181,74 @@ def system_notification_handler_node(
                     result = {
                         "code": 1,
                         "msg": error or "删除失败",
+                        "data": None
+                    }
+
+        elif operation_type == "get_by_biz_key":
+            # 按业务标识查询固定运营通知
+            if not state.biz_key:
+                result = {
+                    "code": 1,
+                    "msg": "缺少 biz_key",
+                    "data": None
+                }
+            else:
+                success, notification, error = NotificationManager.get_by_biz_key(db, state.biz_key)
+
+                if success:
+                    result = {
+                        "code": 0,
+                        "msg": "查询成功",
+                        "data": {
+                            "notification": notification
+                        }
+                    }
+                else:
+                    result = {
+                        "code": 1,
+                        "msg": error or "查询失败",
+                        "data": None
+                    }
+
+        elif operation_type == "upsert_by_biz_key":
+            # 按业务标识创建或更新固定运营通知
+            if not state.biz_key:
+                result = {
+                    "code": 1,
+                    "msg": "缺少 biz_key",
+                    "data": None
+                }
+            elif not state.notification_data:
+                result = {
+                    "code": 1,
+                    "msg": "缺少通知数据",
+                    "data": None
+                }
+            else:
+                notification_data = dict(state.notification_data)
+                notification_data.setdefault("created_by", "system")
+                notification_data.setdefault("start_time", current_time)
+                notification_data["biz_key"] = state.biz_key
+
+                parsed_data = NotificationCreate(**notification_data)
+                success, notification, error = NotificationManager.upsert_by_biz_key(
+                    db,
+                    state.biz_key,
+                    parsed_data,
+                )
+
+                if success:
+                    result = {
+                        "code": 0,
+                        "msg": "保存成功",
+                        "data": {
+                            "notification": notification
+                        }
+                    }
+                else:
+                    result = {
+                        "code": 1,
+                        "msg": error or "保存失败",
                         "data": None
                     }
 

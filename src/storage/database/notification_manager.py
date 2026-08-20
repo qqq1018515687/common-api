@@ -2,6 +2,7 @@
 import time
 from typing import Optional, List
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from storage.database.shared.model import SystemNotifications
@@ -20,6 +21,7 @@ class NotificationCreate(BaseModel):
     link_url: Optional[str] = Field(default=None, description="点击跳转链接（可选）")
     target_audience: str = Field(default="all", description="目标用户：all/logged_in/guest/admin")
     created_by: str = Field(..., description="创建者用户ID")
+    biz_key: Optional[str] = Field(default=None, description="业务标识：固定运营通知用（如 channel_status_t / channel_status_r）")
 
 
 class NotificationUpdate(BaseModel):
@@ -34,6 +36,7 @@ class NotificationUpdate(BaseModel):
     dismissible: Optional[bool] = Field(default=None, description="是否允许用户关闭")
     link_url: Optional[str] = Field(default=None, description="点击跳转链接")
     target_audience: Optional[str] = Field(default=None, description="目标用户")
+    biz_key: Optional[str] = Field(default=None, description="业务标识")
 
 
 class NotificationManager:
@@ -69,7 +72,8 @@ class NotificationManager:
                 target_audience=notification_data.target_audience,
                 created_at=now,
                 updated_at=now,
-                created_by=notification_data.created_by
+                created_by=notification_data.created_by,
+                biz_key=notification_data.biz_key,
             )
 
             db.add(notification)
@@ -91,7 +95,8 @@ class NotificationManager:
                 "target_audience": notification.target_audience,
                 "created_at": notification.created_at,
                 "updated_at": notification.updated_at,
-                "created_by": notification.created_by
+                "created_by": notification.created_by,
+                "biz_key": notification.biz_key,
             }
 
             return True, notification_dict, None
@@ -134,12 +139,14 @@ class NotificationManager:
                 "target_audience": notification.target_audience,
                 "created_at": notification.created_at,
                 "updated_at": notification.updated_at,
-                "created_by": notification.created_by
+                "created_by": notification.created_by,
+                "biz_key": notification.biz_key,
             }
 
             return True, notification_dict, None
 
         except Exception as e:
+            db.rollback()
             return False, None, f"查询通知失败: {str(e)}"
 
     @staticmethod
@@ -184,6 +191,8 @@ class NotificationManager:
                 notification.link_url = notification_updates.link_url
             if notification_updates.target_audience is not None:
                 notification.target_audience = notification_updates.target_audience
+            if notification_updates.biz_key is not None:
+                notification.biz_key = notification_updates.biz_key
 
             notification.updated_at = int(time.time() * 1000)
 
@@ -204,7 +213,8 @@ class NotificationManager:
                 "target_audience": notification.target_audience,
                 "created_at": notification.created_at,
                 "updated_at": notification.updated_at,
-                "created_by": notification.created_by
+                "created_by": notification.created_by,
+                "biz_key": notification.biz_key,
             }
 
             return True, notification_dict, None
@@ -284,7 +294,8 @@ class NotificationManager:
                     "target_audience": notification.target_audience,
                     "created_at": notification.created_at,
                     "updated_at": notification.updated_at,
-                    "created_by": notification.created_by
+                    "created_by": notification.created_by,
+                    "biz_key": notification.biz_key,
                 }
                 notification_list.append(notification_dict)
 
@@ -325,7 +336,8 @@ class NotificationManager:
                     "target_audience": notification.target_audience,
                     "created_at": notification.created_at,
                     "updated_at": notification.updated_at,
-                    "created_by": notification.created_by
+                    "created_by": notification.created_by,
+                    "biz_key": notification.biz_key,
                 }
                 notification_list.append(notification_dict)
 
@@ -333,3 +345,112 @@ class NotificationManager:
 
         except Exception as e:
             return False, [], f"查询所有通知失败: {str(e)}"
+
+    @staticmethod
+    def _to_dict(notification: SystemNotifications) -> dict:
+        """将通知 ORM 对象序列化为字典"""
+        return {
+            "id": notification.id,
+            "type": notification.type,
+            "title": notification.title,
+            "content": notification.content,
+            "priority": notification.priority,
+            "is_active": notification.is_active,
+            "start_time": notification.start_time,
+            "end_time": notification.end_time,
+            "dismissible": notification.dismissible,
+            "link_url": notification.link_url,
+            "target_audience": notification.target_audience,
+            "created_at": notification.created_at,
+            "updated_at": notification.updated_at,
+            "created_by": notification.created_by,
+            "biz_key": notification.biz_key,
+        }
+
+    @staticmethod
+    def get_by_biz_key(db: Session, biz_key: str) -> tuple[bool, Optional[dict], Optional[str]]:
+        """
+        按业务标识查询固定运营通知
+
+        Args:
+            db: 数据库会话
+            biz_key: 业务标识（如 channel_status_t / channel_status_r）
+
+        Returns:
+            (是否成功, 通知数据, 错误信息)
+        """
+        try:
+            notification = db.query(SystemNotifications).filter(
+                SystemNotifications.biz_key == biz_key
+            ).order_by(SystemNotifications.updated_at.desc()).first()
+
+            if notification is None:
+                return True, None, None
+
+            return True, NotificationManager._to_dict(notification), None
+
+        except Exception as e:
+            return False, None, f"查询固定通知失败: {str(e)}"
+
+    @staticmethod
+    def upsert_by_biz_key(
+        db: Session,
+        biz_key: str,
+        notification_data: NotificationCreate,
+    ) -> tuple[bool, Optional[dict], Optional[str]]:
+        """
+        按业务标识创建或更新固定运营通知（upsert）
+
+        - 已存在该 biz_key 通知：整体覆盖更新其运营字段
+        - 不存在：创建一条新通知并绑定 biz_key
+
+        Args:
+            db: 数据库会话
+            biz_key: 业务标识
+            notification_data: 通知数据
+
+        Returns:
+            (是否成功, 通知数据, 错误信息)
+        """
+        try:
+            found, existing, exists_error = NotificationManager.get_by_biz_key(db, biz_key)
+            if exists_error:
+                return False, None, exists_error
+
+            if existing is not None:
+                notification = db.query(SystemNotifications).filter(
+                    SystemNotifications.id == existing["id"]
+                ).first()
+                if notification is None:
+                    return False, None, "固定通知记录不存在"
+                notification.type = notification_data.type
+                notification.title = notification_data.title
+                notification.content = notification_data.content
+                notification.priority = notification_data.priority
+                notification.is_active = notification_data.is_active
+                notification.start_time = notification_data.start_time
+                notification.end_time = notification_data.end_time
+                notification.dismissible = notification_data.dismissible
+                notification.link_url = notification_data.link_url
+                notification.target_audience = notification_data.target_audience
+                notification.updated_at = int(time.time() * 1000)
+                db.commit()
+                db.refresh(notification)
+                return True, NotificationManager._to_dict(notification), None
+
+            success, notification, create_error = NotificationManager.create_notification(db, notification_data)
+            if success:
+                return True, notification, None
+            if create_error and "unique" in create_error.lower():
+                retried, retried_notification, retried_error = NotificationManager.get_by_biz_key(db, biz_key)
+                if retried and retried_notification:
+                    return True, retried_notification, None
+                return False, None, retried_error or create_error
+            return False, None, create_error
+
+        except IntegrityError:
+            db.rollback()
+            retried, retried_notification, retried_error = NotificationManager.get_by_biz_key(db, biz_key)
+            if retried and retried_notification:
+                return True, retried_notification, None
+            return False, None, retried_error or "固定通知创建冲突"

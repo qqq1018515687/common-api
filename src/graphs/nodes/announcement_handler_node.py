@@ -23,6 +23,7 @@ class AnnouncementHandlerInput(BaseModel):
     announcement_id: Optional[str] = Field(default=None, description="公告ID（update/disable 使用）")
     announcement_data: Optional[dict] = Field(default=None, description="公告数据（create/update 使用）")
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    fixed_version: Optional[str] = Field(default=None, description="固定版本过滤（get_all 使用，只返回该版本容器）")
 
 
 class AnnouncementHandlerOutput(BaseModel):
@@ -77,7 +78,10 @@ def announcement_handler_node(
                 }
 
         elif operation_type == "get_all":
-            success, announcements, error = AnnouncementManager.get_all_announcements(db)
+            success, announcements, error = AnnouncementManager.get_all_announcements(
+                db,
+                fixed_version=state.fixed_version,
+            )
 
             if success:
                 result = {

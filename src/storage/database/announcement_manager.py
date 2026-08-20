@@ -141,9 +141,17 @@ class AnnouncementManager:
             return False, None, f"查询当前更新公告失败: {str(e)}"
 
     @staticmethod
-    def get_all_announcements(db: Session) -> tuple[bool, List[dict], Optional[str]]:
+    def get_all_announcements(
+        db: Session,
+        fixed_version: Optional[str] = None,
+    ) -> tuple[bool, List[dict], Optional[str]]:
+        """获取全部更新公告（管理后台用），可按固定版本定向过滤"""
         try:
-            announcements = db.query(UpdateAnnouncements).order_by(
+            query = db.query(UpdateAnnouncements)
+            if fixed_version:
+                query = query.filter(UpdateAnnouncements.version == fixed_version)
+
+            announcements = query.order_by(
                 UpdateAnnouncements.updated_at.desc(),
                 UpdateAnnouncements.created_at.desc(),
             ).all()

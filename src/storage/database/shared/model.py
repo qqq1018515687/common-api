@@ -171,6 +171,7 @@ class SystemNotifications(Base):
         Index('ix_system_notifications_priority', 'priority'),
         Index('ix_system_notifications_type', 'type'),
         Index('ix_system_notifications_time_range', 'start_time', 'end_time'),
+        UniqueConstraint('biz_key', name='uq_system_notifications_biz_key'),
         {'comment': '系统通知表，用于显示网站实时状态条内容'}
     )
 
@@ -188,6 +189,7 @@ class SystemNotifications(Base):
     created_at: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='创建时间（毫秒）')
     updated_at: Mapped[Optional[int]] = mapped_column(BigInteger, comment='更新时间（毫秒）')
     created_by: Mapped[str] = mapped_column(String(36), nullable=False, comment='创建者用户ID')
+    biz_key: Mapped[Optional[str]] = mapped_column(String(64), comment='业务标识：固定运营通知用（如 channel_status_t / channel_status_r），普通通知为空')
 
 
 class UpdateAnnouncements(Base):
