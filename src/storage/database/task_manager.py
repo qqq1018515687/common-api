@@ -146,17 +146,40 @@ class TaskManager:
         return "created_at"
 
     @classmethod
-    def _resolve_time_dimension_for_status(cls, status: Optional[str], time_dimension: Optional[str]) -> str:
+    def _resolve_effective_time_dimension(
+        cls,
+        status: Optional[str],
+        statuses: Optional[List[str]],
+        time_dimension: Optional[str],
+    ) -> str:
+        """统一解析本次查询实际使用的任务时间列，保证查询/排序/游标三处口径完全一致。
+
+        规则：
+        - 显式传入 status 视为单逻辑状态（statuses 仅作别名展开），尊重显式 time_dimension，
+          否则按状态默认时间列（completed→completed_at / failed→failed_at / cancelled→cancelled_at）。
+        - 未传 status：
+          - 无 statuses：全量查询，跨状态时间列无统一语义，一律使用 created_at。
+          - 单 statuses：视作单状态，尊重显式 time_dimension 或状态默认。
+          - 多 statuses：跨状态查询，一律使用 created_at。
+        """
+        if status:
+            primary = status.strip().lower()
+        else:
+            status_list = [s for s in (statuses or []) if s and s.strip()]
+            if not status_list:
+                return "created_at"
+            distinct = {s.strip().lower() for s in status_list}
+            if len(distinct) > 1:
+                return "created_at"
+            primary = next(iter(distinct))
         normalized = cls._normalize_time_dimension(time_dimension)
         if time_dimension:
             return normalized
-        if status == "completed":
-            return "completed_at"
-        if status == "failed":
-            return "failed_at"
-        if status == "cancelled":
-            return "cancelled_at"
-        return "created_at"
+        return {
+            "completed": "completed_at",
+            "failed": "failed_at",
+            "cancelled": "cancelled_at",
+        }.get(primary, "created_at")
 
     @staticmethod
     def _get_time_column(time_dimension: str):
@@ -478,8 +501,7 @@ class TaskManager:
             return []
 
         expanded_statuses = self._expand_statuses(status, statuses)
-        primary_status = status or (statuses[0] if statuses else None)
-        resolved_time_dimension = self._resolve_time_dimension_for_status(primary_status, time_dimension)
+        resolved_time_dimension = self._resolve_effective_time_dimension(status, statuses, time_dimension)
         time_column = self._get_time_column(resolved_time_dimension)
         if resolved_time_dimension != "created_at":
             query = query.filter(time_column.is_not(None))
@@ -531,9 +553,7 @@ class TaskManager:
         if expanded_statuses:
             query = query.filter(Tasks.status.in_(expanded_statuses))
 
-        if before_id is not None:
-            return query.order_by(time_column.desc(), Tasks.id.desc()).limit(limit).all()
-        return query.order_by(time_column.desc()).limit(limit).all()
+        return query.order_by(time_column.desc(), Tasks.id.desc()).limit(limit).all()
 
     def get_admin_tasks_compact(
         self,
@@ -590,8 +610,7 @@ class TaskManager:
             query = query.filter(Tasks.is_deleted == False)
 
         expanded_statuses = self._expand_statuses(status, statuses)
-        primary_status = status or (statuses[0] if statuses else None)
-        resolved_time_dimension = self._resolve_time_dimension_for_status(primary_status, time_dimension)
+        resolved_time_dimension = self._resolve_effective_time_dimension(status, statuses, time_dimension)
         time_column = self._get_time_column(resolved_time_dimension)
         if resolved_time_dimension != "created_at":
             query = query.filter(time_column.is_not(None))
@@ -642,10 +661,7 @@ class TaskManager:
         if expanded_statuses:
             query = query.filter(Tasks.status.in_(expanded_statuses))
 
-        if before_id is not None:
-            rows = query.order_by(time_column.desc(), Tasks.id.desc()).limit(limit + 1).all()
-        else:
-            rows = query.order_by(time_column.desc()).limit(limit + 1).all()
+        rows = query.order_by(time_column.desc(), Tasks.id.desc()).limit(limit + 1).all()
         tasks: List[Dict[str, Any]] = []
 
         for row in rows:
@@ -1183,7 +1199,7 @@ class TaskManager:
         else:
             return 0
 
-        resolved_time_dimension = self._resolve_time_dimension_for_status('completed', time_dimension)
+        resolved_time_dimension = self._resolve_effective_time_dimension('completed', None, time_dimension)
         time_column = self._get_time_column(resolved_time_dimension)
         if resolved_time_dimension != 'created_at':
             query = query.filter(time_column.is_not(None))
@@ -1297,8 +1313,7 @@ class TaskManager:
             return 0
 
         expanded_statuses = self._expand_statuses(status, statuses)
-        primary_status = status or (statuses[0] if statuses else None)
-        resolved_time_dimension = self._resolve_time_dimension_for_status(primary_status, time_dimension)
+        resolved_time_dimension = self._resolve_effective_time_dimension(status, statuses, time_dimension)
         time_column = self._get_time_column(resolved_time_dimension)
         if resolved_time_dimension != "created_at":
             query = query.filter(time_column.is_not(None))

@@ -2374,6 +2374,11 @@ def list_tasks_node(
             # 返回数量限制
             limit = min(state.limit or 50, 1000)  # 最大1000
 
+            # 统一时间口径：查询、排序、游标三处共用，避免不一致导致分页乱
+            effective_time_dimension = task_mgr._resolve_effective_time_dimension(
+                state.status, state.statuses, state.time_dimension
+            )
+
             # 游标分页参数
             before_time = state.before_time
             before_id = state.before_id
@@ -2395,7 +2400,7 @@ def list_tasks_node(
                     username=state.username,
                     workflow_keyword=state.workflow_keyword,
                     model_keyword=state.model_keyword,
-                    time_dimension=state.time_dimension,
+                    time_dimension=effective_time_dimension,
                 )
                 has_more = len(compact_tasks) > compact_limit
                 if has_more:
@@ -2405,13 +2410,7 @@ def list_tasks_node(
                 next_before_id = None
                 if compact_tasks:
                     try:
-                        time_dimension = (state.time_dimension or (
-                            "completed_at" if state.status == "completed" else
-                            "failed_at" if state.status == "failed" else
-                            "cancelled_at" if state.status == "cancelled" else
-                            "created_at"
-                        ))
-                        next_before_time = int(compact_tasks[-1].get(time_dimension) or compact_tasks[-1]["created_at"])
+                        next_before_time = int(compact_tasks[-1].get(effective_time_dimension) or compact_tasks[-1]["created_at"])
                     except (ValueError, TypeError):
                         next_before_time = None
                     next_before_id = compact_tasks[-1].get("id")
@@ -2424,7 +2423,7 @@ def list_tasks_node(
                         "total": None,
                         "limit": compact_limit,
                         "days": days,
-                        "time_dimension": state.time_dimension,
+                        "time_dimension": effective_time_dimension,
                         "has_more": has_more,
                         "next_before_time": next_before_time,
                         "next_before_id": next_before_id,
@@ -2454,7 +2453,7 @@ def list_tasks_node(
                 username=state.username,
                 workflow_keyword=state.workflow_keyword,
                 model_keyword=state.model_keyword,
-                time_dimension=state.time_dimension,
+                time_dimension=effective_time_dimension,
             )
 
             # 转换为可序列化的字典列表，过滤无媒体结果的 completed 任务
@@ -2549,7 +2548,7 @@ def list_tasks_node(
                 username=state.username,
                 workflow_keyword=state.workflow_keyword,
                 model_keyword=state.model_keyword,
-                time_dimension=state.time_dimension,
+                time_dimension=effective_time_dimension,
             )
 
             # 如果是 completed 状态查询，用 SQL 精确统计有媒体结果的任务数
@@ -2568,7 +2567,7 @@ def list_tasks_node(
                         username=state.username,
                         workflow_keyword=state.workflow_keyword,
                         model_keyword=state.model_keyword,
-                        time_dimension=state.time_dimension,
+                        time_dimension=effective_time_dimension,
                     )
                     total = media_total
                 except Exception as e:
@@ -2581,18 +2580,12 @@ def list_tasks_node(
             if has_more:
                 task_list = task_list[:limit]
 
-            # 计算 next_before_time/next_before_id：当前页最后一条记录的 created_at / id
+            # 计算 next_before_time/next_before_id：当前页最后一条记录的 effective_time_dimension / id
             next_before_time = None
             next_before_id = None
             if task_list:
                 try:
-                    time_dimension = (state.time_dimension or (
-                        "completed_at" if state.status == "completed" else
-                        "failed_at" if state.status == "failed" else
-                        "cancelled_at" if state.status == "cancelled" else
-                        "created_at"
-                    ))
-                    next_before_time = int(task_list[-1].get(time_dimension) or task_list[-1]["created_at"])
+                    next_before_time = int(task_list[-1].get(effective_time_dimension) or task_list[-1]["created_at"])
                 except (ValueError, TypeError):
                     next_before_time = None
                 next_before_id = task_list[-1].get("id")
@@ -2605,7 +2598,7 @@ def list_tasks_node(
                     "total": total,
                     "limit": limit,
                     "days": days,
-                    "time_dimension": state.time_dimension,
+                    "time_dimension": effective_time_dimension,
                     "has_more": has_more,
                     "next_before_time": next_before_time,
                     "next_before_id": next_before_id,
@@ -2648,6 +2641,11 @@ def count_tasks_stats_node(
             if end_time is None:
                 end_time = current_time
 
+            # 统计为全量/多状态口径：跨状态无统一时间列，统一按 created_at 统计
+            effective_time_dimension = task_mgr._resolve_effective_time_dimension(
+                None, None, state.time_dimension
+            )
+
             stats = task_mgr.count_tasks_stats(
                 db,
                 start_time=start_time,
@@ -2659,7 +2657,7 @@ def count_tasks_stats_node(
                 username=state.username,
                 workflow_keyword=state.workflow_keyword,
                 model_keyword=state.model_keyword,
-                time_dimension=state.time_dimension,
+                time_dimension=effective_time_dimension,
             )
 
             return CountTasksStatsOutput(
@@ -2670,7 +2668,7 @@ def count_tasks_stats_node(
                     "days": days,
                     "start_time": start_time,
                     "end_time": end_time,
-                    "time_dimension": state.time_dimension,
+                    "time_dimension": effective_time_dimension,
                 }
             )
 
