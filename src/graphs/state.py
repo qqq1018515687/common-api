@@ -160,6 +160,19 @@ class InputData(BaseModel):
     keyword: Optional[str] = Field(
         default=None, description="列表搜索关键字（list_teams 使用）"
     )
+    workflow_keyword: Optional[str] = Field(
+        default=None, description="工作流筛选（list_tasks/admin_task_dashboard 使用）"
+    )
+    model_keyword: Optional[str] = Field(
+        default=None, description="模型筛选（list_tasks/admin_task_dashboard 使用）"
+    )
+    time_dimension: Optional[str] = Field(
+        default=None,
+        description="时间维度：created_at/completed_at/failed_at/cancelled_at/status_updated_at",
+    )
+    include_deleted: Optional[bool] = Field(
+        default=False, description="是否包含已删除任务（list_tasks/admin_task_dashboard 使用）"
+    )
 
     # 任务管理相关字段
     task_id: Optional[str] = Field(
@@ -1362,6 +1375,19 @@ class UnpackInputDataOutput(BaseModel):
         default=None, description="游标分页：配合 before_time，按 (created_at, id) 复合游标避免同毫秒漏数"
     )
     status: Optional[str] = Field(default=None, description="任务状态筛选")
+    statuses: Optional[List[str]] = Field(
+        default=None, description="按状态分组的任务状态数组（admin_task_dashboard 使用）"
+    )
+    keyword: Optional[str] = Field(default=None, description="任务/用户搜索关键词")
+    workflow_keyword: Optional[str] = Field(default=None, description="工作流筛选")
+    model_keyword: Optional[str] = Field(default=None, description="模型筛选")
+    time_dimension: Optional[str] = Field(
+        default=None,
+        description="时间维度：created_at/completed_at/failed_at/cancelled_at/status_updated_at",
+    )
+    include_deleted: Optional[bool] = Field(
+        default=False, description="是否包含已删除任务"
+    )
     days: Optional[int] = Field(default=None, description="查询天数")
     compact: Optional[bool] = Field(default=False, description="是否返回轻量列表字段")
     # 任务管理相关字段
