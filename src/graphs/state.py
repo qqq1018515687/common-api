@@ -206,6 +206,9 @@ class InputData(BaseModel):
     current_time: Optional[int] = Field(
         default=None, description="当前时间戳（用于筛选有效通知）"
     )
+    biz_key: Optional[str] = Field(
+        default=None, description="业务标识（get_by_biz_key/upsert_by_biz_key 使用）"
+    )
 
     # 更新公告相关字段
     announcement_id: Optional[str] = Field(
@@ -468,6 +471,9 @@ class GlobalState(BaseModel):
     )
     current_time: Optional[int] = Field(
         default=None, description="当前时间戳（用于筛选有效通知）"
+    )
+    biz_key: Optional[str] = Field(
+        default=None, description="业务标识（get_by_biz_key/upsert_by_biz_key 使用）"
     )
 
     # 更新公告相关字段
@@ -1414,6 +1420,7 @@ class UnpackInputDataOutput(BaseModel):
     notification_id: Optional[str] = Field(default=None, description="通知ID")
     notification_data: Optional[dict] = Field(default=None, description="通知数据")
     current_time: Optional[int] = Field(default=None, description="当前时间戳")
+    biz_key: Optional[str] = Field(default=None, description="业务标识")
 
     # 更新公告相关字段
     announcement_id: Optional[str] = Field(default=None, description="公告ID")
@@ -1558,7 +1565,7 @@ class SystemNotificationInput(BaseModel):
     """系统通知处理节点的输入"""
 
     operation_type: str = Field(
-        ..., description="操作类型：get_active/get_all/create/update/delete"
+        ..., description="操作类型：get_active/get_all/create/update/delete/get_by_biz_key/upsert_by_biz_key"
     )
     notification_id: Optional[str] = Field(
         default=None, description="通知ID（update/delete 使用）"
@@ -1568,6 +1575,9 @@ class SystemNotificationInput(BaseModel):
     )
     current_time: Optional[int] = Field(
         default=None, description="当前时间戳（用于筛选有效通知）"
+    )
+    biz_key: Optional[str] = Field(
+        default=None, description="业务标识（get_by_biz_key / upsert_by_biz_key 使用）"
     )
 
 

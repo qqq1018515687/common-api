@@ -397,6 +397,7 @@ def unpack_input_data_node(
         notification_id=input_data.notification_id if input_data else None,
         notification_data=input_data.notification_data if input_data else None,
         current_time=input_data.current_time if input_data else None,
+        biz_key=input_data.biz_key if input_data else None,
         # 更新公告相关字段
         announcement_id=input_data.announcement_id if input_data else None,
         announcement_data=input_data.announcement_data if input_data else None,
