@@ -146,10 +146,15 @@ def _get_user_manager():
         UserCreate,
         UserUpdate,
         RateLimitManager,
-        获取注册默认等级,
     )
 
-    return UserManager, UserCreate, UserUpdate, RateLimitManager, 获取注册默认等级
+    return UserManager, UserCreate, UserUpdate, RateLimitManager
+
+
+def _get_register_default_tier():
+    from storage.database.user_manager import 获取注册默认等级
+
+    return 获取注册默认等级
 
 
 def _get_register_code_manager():
@@ -525,7 +530,7 @@ def check_rate_limit_node(
     desc: 检查手机号和IP地址的请求频率限制
     integrations: 数据库
     """
-    UserManager, UserCreate, UserUpdate, RateLimitManager, 获取注册默认等级 = _get_user_manager()
+    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
     ctx = runtime.context
 
     db = get_session()
@@ -606,6 +611,7 @@ def create_user_node(
     integrations: 数据库
     """
     UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
+    获取注册默认等级 = _get_register_default_tier()
     ctx = runtime.context
 
     db = get_session()
@@ -663,7 +669,7 @@ def update_rate_limit_node(
     desc: 更新或创建限流记录，并检查是否需要封禁
     integrations: 数据库
     """
-    UserManager, UserCreate, UserUpdate, RateLimitManager, 获取注册默认等级 = _get_user_manager()
+    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
     ctx = runtime.context
 
     db = get_session()
