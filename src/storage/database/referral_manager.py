@@ -22,9 +22,10 @@ from storage.database.shared.model import (
 logger = logging.getLogger(__name__)
 
 
-REFERRAL_REWARD_AMOUNT = Decimal("5.00")
+REFERRAL_REWARD_AMOUNT = Decimal("3.00")
 REFERRAL_BIND_WINDOW_HOURS = 24
 REFERRAL_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+REGISTER_INVITE_GOLD_BONUS = Decimal("3.00")
 
 
 def _now() -> datetime:
@@ -387,3 +388,44 @@ def process_first_completed_task_reward(db: Session, task: Tasks) -> Optional[di
     db.add(relation)
 
     return _serialize_reward(reward_record)
+
+
+def apply_referral_on_register(db: Session, user: Users, referral_code: str) -> float:
+    normalized_code = _normalize_code(referral_code)
+    if not normalized_code:
+        raise ValueError("邀请码不能为空")
+
+    referrer_profile = (
+        db.query(UserReferralProfiles)
+        .filter(UserReferralProfiles.referral_code == normalized_code)
+        .first()
+    )
+    if not referrer_profile:
+        raise ValueError("邀请码不存在")
+    if referrer_profile.user_id == user.user_id:
+        raise ValueError("不能绑定自己的邀请码")
+
+    existing_relation = (
+        db.query(UserReferralRelations)
+        .filter(UserReferralRelations.referee_user_id == user.user_id)
+        .first()
+    )
+    if existing_relation:
+        raise ValueError("该账号已绑定邀请码")
+
+    relation = UserReferralRelations(
+        id=str(uuid.uuid4()),
+        referrer_user_id=referrer_profile.user_id,
+        referee_user_id=user.user_id,
+        referral_code=normalized_code,
+        reward_status="pending",
+        bound_at=_now(),
+        created_at=_now(),
+        updated_at=_now(),
+    )
+    db.add(relation)
+
+    current_gold = Decimal(str(user.gold_credits or 0))
+    user.gold_credits = current_gold + REGISTER_INVITE_GOLD_BONUS
+    db.add(user)
+    return gold_amount_to_number(REGISTER_INVITE_GOLD_BONUS)

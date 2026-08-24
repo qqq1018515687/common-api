@@ -1156,6 +1156,7 @@ def register_with_code_node(
             code=code,
             ip_address=ip,
             avatar=state.avatar,
+            invite_code=state.invite_code,
         )
     except Exception as exc:
         logger.exception("[验证码注册] 处理异常: phone=%s, error=%s", masked_phone, exc)

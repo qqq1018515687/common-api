@@ -708,6 +708,7 @@ class RegisterWithCodeInput(BaseModel):
     code: Optional[str] = Field(default=None, description="验证码")
     username: Optional[str] = Field(default=None, description="用户名")
     avatar: Optional[str] = Field(default=None, description="头像URL")
+    invite_code: Optional[str] = Field(default=None, description="邀请注册链接携带的邀请码")
 
 
 class RegisterWithCodeOutput(BaseModel):

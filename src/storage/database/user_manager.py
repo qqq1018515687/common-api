@@ -306,6 +306,7 @@ class RegisterCodeManager:
         code: str,
         ip_address: str,
         avatar: Optional[str] = None,
+        invite_code: Optional[str] = None,
     ) -> tuple[bool, str, Optional[dict]]:
         """校验并消费验证码，同时创建用户。"""
         now = self._now()
@@ -354,6 +355,17 @@ class RegisterCodeManager:
             )
             db.add(record)
             db.add(db_user)
+            db.flush()
+
+            if invite_code:
+                from storage.database.referral_manager import apply_referral_on_register
+
+                apply_referral_on_register(
+                    db=db,
+                    user=db_user,
+                    referral_code=invite_code,
+                )
+
             db.commit()
             db.refresh(db_user)
 
