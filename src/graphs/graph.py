@@ -86,6 +86,7 @@ from graphs.nodes.team_records_node import team_records_node
 from graphs.nodes.runninghub_error_analysis_node import runninghub_error_analysis_node
 from graphs.nodes.agent_intent_node import agent_intent_node
 from graphs.nodes.agent_run_node import agent_run_node
+from graphs.nodes.mars_assistant_session_node import mars_assistant_session_node
 from graphs.nodes.billing_route_node import (
     billing_route_node,
     route_by_billing_operation_type,
@@ -138,6 +139,8 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "Agent意图判断"
     elif call_type == "agent_run":
         return "Agent Run"
+    elif call_type == "mars_assistant_session":
+        return "Mars Assistant Session"
     elif call_type == "billing":
         return "资金扣费"
     elif call_type == "recharge_code":
@@ -261,6 +264,7 @@ builder.add_node(
     metadata={"type": "agent", "llm_cfg": "config/agent_intent_cfg.json"},
 )
 builder.add_node("agent_run", agent_run_node)
+builder.add_node("mars_assistant_session", mars_assistant_session_node)
 builder.add_node("billing_route", billing_route_node)
 builder.add_node("get_balance", get_balance_node)
 builder.add_node("billing_deduct", billing_deduct_node)
@@ -296,6 +300,7 @@ builder.add_conditional_edges(
         "RunningHub错误分析": "runninghub_error_analysis",
         "Agent意图判断": "agent_intent",
         "Agent Run": "agent_run",
+        "Mars Assistant Session": "mars_assistant_session",
         "资金扣费": "billing_route",
         "兑换码": "recharge_code",
         "资金中心": "finance_center",
@@ -421,6 +426,7 @@ builder.add_edge("team_records", "format_response")
 builder.add_edge("runninghub_error_analysis", "format_response")
 builder.add_edge("agent_intent", "format_response")
 builder.add_edge("agent_run", "format_response")
+builder.add_edge("mars_assistant_session", "format_response")
 builder.add_edge("get_balance", "format_response")
 builder.add_edge("billing_deduct", "format_response")
 builder.add_edge("billing_refund", "format_response")

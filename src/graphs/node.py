@@ -146,9 +146,10 @@ def _get_user_manager():
         UserCreate,
         UserUpdate,
         RateLimitManager,
+        获取注册默认等级,
     )
 
-    return UserManager, UserCreate, UserUpdate, RateLimitManager
+    return UserManager, UserCreate, UserUpdate, RateLimitManager, 获取注册默认等级
 
 
 def _get_register_code_manager():
@@ -319,6 +320,7 @@ def unpack_input_data_node(
         password=input_data.password if input_data else None,
         confirm_password=input_data.confirm_password if input_data else None,
         code=input_data.code if input_data else None,
+        invite_code=input_data.invite_code if input_data else None,
         file=processed_file,
         file_list=processed_file_list,
         file_key=input_data.file_key if input_data else None,
@@ -348,6 +350,9 @@ def unpack_input_data_node(
         if input_data
         else None,
         capability_manifest=input_data.capability_manifest if input_data else None,
+        session_id=input_data.session_id if input_data else None,
+        task_state=input_data.task_state if input_data else None,
+        image_asset_state=input_data.image_asset_state if input_data else None,
         agent_run_id=input_data.agent_run_id if input_data else None,
         agent_step_id=input_data.agent_step_id if input_data else None,
         agent_plan_type=input_data.agent_plan_type if input_data else None,
@@ -413,6 +418,8 @@ def unpack_input_data_node(
         original_record_id=input_data.original_record_id if input_data else None,
         reason=input_data.reason if input_data else None,
         filter_user_id=input_data.filter_user_id if input_data else None,
+        invite_id=input_data.invite_id if input_data else None,
+        expires_in_days=input_data.expires_in_days if input_data else None,
         # RunningHub 错误分析相关字段
         error_response=input_data.error_response if input_data else None,
         # Billing 资金扣费相关字段
@@ -428,6 +435,7 @@ def unpack_input_data_node(
         recharge_code=input_data.recharge_code if input_data else None,
         channel=input_data.channel if input_data else None,
         note=input_data.note if input_data else None,
+        max_uses=input_data.max_uses if input_data else None,
         expires_at=input_data.expires_at if input_data else None,
         search=input_data.search if input_data else None,
         target_credit_type=input_data.target_credit_type if input_data else None,
@@ -517,7 +525,7 @@ def check_rate_limit_node(
     desc: 检查手机号和IP地址的请求频率限制
     integrations: 数据库
     """
-    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
+    UserManager, UserCreate, UserUpdate, RateLimitManager, 获取注册默认等级 = _get_user_manager()
     ctx = runtime.context
 
     db = get_session()
@@ -613,7 +621,7 @@ def create_user_node(
             gold_credits=state.gold_credits,
             silver_credits=state.silver_credits,
             role=state.role,
-            tier=state.tier or "commercial_registered",
+            tier=state.tier or 获取注册默认等级(),
             account_status=state.account_status,
         )
 
@@ -655,7 +663,7 @@ def update_rate_limit_node(
     desc: 更新或创建限流记录，并检查是否需要封禁
     integrations: 数据库
     """
-    UserManager, UserCreate, UserUpdate, RateLimitManager = _get_user_manager()
+    UserManager, UserCreate, UserUpdate, RateLimitManager, 获取注册默认等级 = _get_user_manager()
     ctx = runtime.context
 
     db = get_session()

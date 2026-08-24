@@ -24,6 +24,7 @@ class InputData(BaseModel):
     password: Optional[str] = Field(default=None, description="密码")
     confirm_password: Optional[str] = Field(default=None, description="确认密码")
     code: Optional[str] = Field(default=None, description="验证码")
+    invite_code: Optional[str] = Field(default=None, description="团队邀请码")
     file: Optional[File] = Field(
         default=None, description="上传的文件（upload/tool 使用）"
     )
@@ -84,7 +85,7 @@ class InputData(BaseModel):
     )
     operation_type: Optional[str] = Field(
         default=None,
-        description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/send_password_reset_code/register/register_with_code/reset_password_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/get_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、公告管理(get_active_popup/get_all/create/update/disable)、团队余额(init/check/create_team/get_team/add_member/list_members/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、兑换码(create_batch/list_batches/list_codes/redeem/disable_code/disable_batch/list_redemptions/create_order/list_orders/get_order/order_summary/refund_order/cancel_order)、资金中心(overview/orders/order_summary/risk_exceptions)、RunningHub错误分析(runninghub_error_analysis)",
+        description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/send_password_reset_code/register/register_with_code/reset_password_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/get_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、公告管理(get_active_popup/get_all/create/update/disable)、团队余额(init/check/create_team/get_team/add_member/list_members/create_invite/list_invites/disable_invite/join_by_invite/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、兑换码(create_batch/list_batches/list_codes/redeem/disable_code/disable_batch/list_redemptions/create_order/list_orders/get_order/order_summary/refund_order/cancel_order)、资金中心(overview/orders/order_summary/risk_exceptions)、RunningHub错误分析(runninghub_error_analysis)",
     )
     assets: Optional[List[dict]] = Field(
         default=None, description="Agent 意图判断素材摘要列表"
@@ -115,6 +116,9 @@ class InputData(BaseModel):
     agent_step_updates: Optional[dict] = Field(
         default=None, description="Agent Step 更新字段"
     )
+    session_id: Optional[str] = Field(default=None, description="火星助手会话ID")
+    task_state: Optional[dict] = Field(default=None, description="火星助手任务状态快照")
+    image_asset_state: Optional[dict] = Field(default=None, description="火星助手图片资产状态快照")
 
     # 用户管理相关字段
     phone: Optional[str] = Field(default=None, description="手机号")
@@ -237,6 +241,9 @@ class InputData(BaseModel):
     filter_user_id: Optional[str] = Field(
         default=None, description="筛选用户ID（消费记录查询使用）"
     )
+    invite_id: Optional[str] = Field(default=None, description="邀请码ID")
+    expires_in_days: Optional[int] = Field(default=None, description="邀请码有效天数")
+    invite_code: Optional[str] = Field(default=None, description="用户输入的团队邀请码")
 
     # 兑换码相关字段
     batch_id: Optional[str] = Field(default=None, description="兑换码批次ID")
@@ -244,6 +251,7 @@ class InputData(BaseModel):
     recharge_code: Optional[str] = Field(default=None, description="用户输入的兑换码")
     channel: Optional[str] = Field(default=None, description="兑换码渠道")
     note: Optional[str] = Field(default=None, description="兑换码备注")
+    max_uses: Optional[int] = Field(default=None, description="邀请码最大使用次数")
     expires_at: Optional[object] = Field(default=None, description="兑换码过期时间")
     search: Optional[str] = Field(default=None, description="兑换码搜索关键字")
     target_credit_type: Optional[str] = Field(
@@ -312,6 +320,7 @@ class GlobalState(BaseModel):
     password: Optional[str] = Field(default=None, description="密码")
     confirm_password: Optional[str] = Field(default=None, description="确认密码")
     code: Optional[str] = Field(default=None, description="验证码")
+    invite_code: Optional[str] = Field(default=None, description="团队邀请码")
     file: Optional[File] = Field(
         default=None, description="上传的文件（upload/tool 使用）"
     )
@@ -388,6 +397,9 @@ class GlobalState(BaseModel):
     capability_manifest: Optional[dict] = Field(
         default=None, description="Agent 能力表快照"
     )
+    session_id: Optional[str] = Field(default=None, description="火星助手会话ID")
+    task_state: Optional[dict] = Field(default=None, description="火星助手任务状态快照")
+    image_asset_state: Optional[dict] = Field(default=None, description="火星助手图片资产状态快照")
     agent_run_id: Optional[str] = Field(default=None, description="Agent Run ID")
     agent_step_id: Optional[str] = Field(default=None, description="Agent Step ID")
     agent_plan_type: Optional[str] = Field(default=None, description="Agent 计划类型")
@@ -505,6 +517,8 @@ class GlobalState(BaseModel):
     filter_user_id: Optional[str] = Field(
         default=None, description="筛选用户ID（消费记录查询使用）"
     )
+    invite_id: Optional[str] = Field(default=None, description="邀请码ID")
+    expires_in_days: Optional[int] = Field(default=None, description="邀请码有效天数")
 
     # RunningHub 错误分析相关字段
     error_response: Optional[dict] = Field(
@@ -1443,6 +1457,9 @@ class UnpackInputDataOutput(BaseModel):
     filter_user_id: Optional[str] = Field(
         default=None, description="筛选用户ID（查询消费记录用）"
     )
+    invite_id: Optional[str] = Field(default=None, description="邀请码ID")
+    expires_in_days: Optional[int] = Field(default=None, description="邀请码有效天数")
+    invite_code: Optional[str] = Field(default=None, description="用户输入的团队邀请码")
 
     # 兑换码相关字段
     batch_id: Optional[str] = Field(default=None, description="兑换码批次ID")
@@ -1450,6 +1467,7 @@ class UnpackInputDataOutput(BaseModel):
     recharge_code: Optional[str] = Field(default=None, description="用户输入的兑换码")
     channel: Optional[str] = Field(default=None, description="兑换码渠道")
     note: Optional[str] = Field(default=None, description="兑换码备注")
+    max_uses: Optional[int] = Field(default=None, description="邀请码最大使用次数")
     expires_at: Optional[object] = Field(default=None, description="兑换码过期时间")
     search: Optional[str] = Field(default=None, description="兑换码搜索关键字")
     target_credit_type: Optional[str] = Field(
