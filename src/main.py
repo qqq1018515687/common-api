@@ -453,6 +453,16 @@ def _trigger_third_party_task_recovery() -> None:
         from storage.database.task_manager import TaskManager
 
         task_mgr = TaskManager()
+        repaired_failed_tasks = task_mgr.backfill_failed_terminal_time(
+            db,
+            limit=THIRD_PARTY_TASK_RECOVERY_BATCH_SIZE,
+            platforms=list(THIRD_PARTY_PLATFORMS),
+        )
+        if repaired_failed_tasks > 0:
+            logger.info(
+                "[third-party-recovery] 自动补齐 failed_at 成功: repaired=%s",
+                repaired_failed_tasks,
+            )
         stale_tasks = task_mgr.list_pending_third_party_tasks(
             db,
             limit=THIRD_PARTY_TASK_RECOVERY_BATCH_SIZE,

@@ -6,7 +6,7 @@ import time
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from sqlalchemy import text, cast, String
+from sqlalchemy import text, cast, String, case, func
 import json
 
 from storage.database.shared.model import Tasks, Users
@@ -189,6 +189,21 @@ class TaskManager:
     @staticmethod
     def _get_time_column(time_dimension: str):
         return getattr(Tasks, time_dimension)
+
+    @classmethod
+    def _get_effective_time_expression(cls, time_dimension: str):
+        """失败/取消时间缺失时回退 created_at，兼容历史脏数据。"""
+        if time_dimension == "failed_at":
+            return case(
+                (Tasks.failed_at.is_not(None), cast(Tasks.failed_at, String)),
+                else_=cast(Tasks.created_at, String),
+            )
+        if time_dimension == "cancelled_at":
+            return case(
+                (Tasks.cancelled_at.is_not(None), cast(Tasks.cancelled_at, String)),
+                else_=cast(Tasks.created_at, String),
+            )
+        return cast(cls._get_time_column(time_dimension), String)
 
     @staticmethod
     def _expand_statuses(status: Optional[str], statuses: Optional[List[str]]) -> List[str]:
@@ -508,7 +523,8 @@ class TaskManager:
         expanded_statuses = self._expand_statuses(status, statuses)
         resolved_time_dimension = self._resolve_effective_time_dimension(status, statuses, time_dimension)
         time_column = self._get_time_column(resolved_time_dimension)
-        if resolved_time_dimension != "created_at":
+        effective_time_expr = self._get_effective_time_expression(resolved_time_dimension)
+        if resolved_time_dimension not in {"created_at", "failed_at", "cancelled_at"}:
             query = query.filter(time_column.is_not(None))
 
         if platform:
@@ -542,23 +558,23 @@ class TaskManager:
             ))
 
         if start_time is not None:
-            query = query.filter(time_column >= str(start_time))
+            query = query.filter(effective_time_expr >= str(start_time))
         if end_time is not None:
-            query = query.filter(time_column <= str(end_time))
+            query = query.filter(effective_time_expr <= str(end_time))
 
         from sqlalchemy import and_, or_
         if before_time is not None and before_id is not None:
             query = query.filter(or_(
-                time_column < str(before_time),
-                and_(time_column == str(before_time), Tasks.id < str(before_id))
+                effective_time_expr < str(before_time),
+                and_(effective_time_expr == str(before_time), Tasks.id < str(before_id))
             ))
         elif before_time is not None:
-            query = query.filter(time_column < str(before_time))
+            query = query.filter(effective_time_expr < str(before_time))
 
         if expanded_statuses:
             query = query.filter(Tasks.status.in_(expanded_statuses))
 
-        return query.order_by(time_column.desc(), Tasks.id.desc()).limit(limit).all()
+        return query.order_by(effective_time_expr.desc(), Tasks.id.desc()).limit(limit).all()
 
     def get_admin_tasks_compact(
         self,
@@ -617,7 +633,8 @@ class TaskManager:
         expanded_statuses = self._expand_statuses(status, statuses)
         resolved_time_dimension = self._resolve_effective_time_dimension(status, statuses, time_dimension)
         time_column = self._get_time_column(resolved_time_dimension)
-        if resolved_time_dimension != "created_at":
+        effective_time_expr = self._get_effective_time_expression(resolved_time_dimension)
+        if resolved_time_dimension not in {"created_at", "failed_at", "cancelled_at"}:
             query = query.filter(time_column.is_not(None))
 
         if platform:
@@ -651,22 +668,22 @@ class TaskManager:
             ))
 
         if start_time is not None:
-            query = query.filter(time_column >= str(start_time))
+            query = query.filter(effective_time_expr >= str(start_time))
         if end_time is not None:
-            query = query.filter(time_column <= str(end_time))
+            query = query.filter(effective_time_expr <= str(end_time))
 
         from sqlalchemy import and_, or_
         if before_time is not None and before_id is not None:
             query = query.filter(or_(
-                time_column < str(before_time),
-                and_(time_column == str(before_time), Tasks.id < str(before_id))
+                effective_time_expr < str(before_time),
+                and_(effective_time_expr == str(before_time), Tasks.id < str(before_id))
             ))
         elif before_time is not None:
-            query = query.filter(time_column < str(before_time))
+            query = query.filter(effective_time_expr < str(before_time))
         if expanded_statuses:
             query = query.filter(Tasks.status.in_(expanded_statuses))
 
-        rows = query.order_by(time_column.desc(), Tasks.id.desc()).limit(limit + 1).all()
+        rows = query.order_by(effective_time_expr.desc(), Tasks.id.desc()).limit(limit + 1).all()
         tasks: List[Dict[str, Any]] = []
 
         for row in rows:
@@ -1106,6 +1123,56 @@ class TaskManager:
             db.rollback()
             raise
 
+    def backfill_failed_terminal_time(
+        self,
+        db: Session,
+        *,
+        limit: int = 100,
+        platforms: Optional[List[str]] = None,
+    ) -> int:
+        """补齐 status=failed 但 failed_at 为空的历史/异常任务。"""
+        self._ensure_task_schema(db)
+        limit = min(max(limit, 1), 500)
+
+        query = db.query(Tasks).filter(
+            Tasks.is_deleted == False,
+            Tasks.status == "failed",
+            Tasks.failed_at.is_(None),
+        )
+        if platforms:
+            query = query.filter(Tasks.platform.in_(platforms))
+
+        rows = query.order_by(Tasks.updated_at.asc(), Tasks.id.asc()).limit(limit).all()
+        if not rows:
+            return 0
+
+        fixed = 0
+        for task in rows:
+            fallback_ms = (
+                str(task.status_updated_at or "").strip()
+                or str(task.updated_at or "").strip()
+                or str(task.created_at or "").strip()
+            )
+            if not fallback_ms:
+                continue
+            task.failed_at = fallback_ms
+            task.completed_at = None
+            task.cancelled_at = None
+            if getattr(task, "confirmation_state", None) in (None, "", "none"):
+                task.confirmation_state = "confirmed"
+            db.add(task)
+            fixed += 1
+
+        if fixed <= 0:
+            return 0
+
+        try:
+            db.commit()
+            return fixed
+        except Exception:
+            db.rollback()
+            raise
+
     def delete_task(self, db: Session, task_id: str, user_id: str) -> tuple[bool, str]:
         """
         软删除任务（标记为已删除）
@@ -1348,7 +1415,8 @@ class TaskManager:
         expanded_statuses = self._expand_statuses(status, statuses)
         resolved_time_dimension = self._resolve_effective_time_dimension(status, statuses, time_dimension)
         time_column = self._get_time_column(resolved_time_dimension)
-        if resolved_time_dimension != "created_at":
+        effective_time_expr = self._get_effective_time_expression(resolved_time_dimension)
+        if resolved_time_dimension not in {"created_at", "failed_at", "cancelled_at"}:
             query = query.filter(time_column.is_not(None))
 
         if platform:
@@ -1381,12 +1449,12 @@ class TaskManager:
             ))
 
         if start_time is not None:
-            query = query.filter(time_column >= str(start_time))
+            query = query.filter(effective_time_expr >= str(start_time))
         if end_time is not None:
-            query = query.filter(time_column <= str(end_time))
+            query = query.filter(effective_time_expr <= str(end_time))
 
         if before_time is not None:
-            query = query.filter(time_column < str(before_time))
+            query = query.filter(effective_time_expr < str(before_time))
 
         if expanded_statuses:
             query = query.filter(Tasks.status.in_(expanded_statuses))
@@ -1507,7 +1575,8 @@ class TaskManager:
 
         resolved_time_dimension = self._normalize_time_dimension(time_dimension)
         time_column = self._get_time_column(resolved_time_dimension)
-        if resolved_time_dimension != "created_at":
+        effective_time_expr = self._get_effective_time_expression(resolved_time_dimension)
+        if resolved_time_dimension not in {"created_at", "failed_at", "cancelled_at"}:
             query = query.filter(time_column.is_not(None))
 
         if platform:
@@ -1540,9 +1609,9 @@ class TaskManager:
             ))
 
         if start_time is not None:
-            query = query.filter(time_column >= str(start_time))
+            query = query.filter(effective_time_expr >= str(start_time))
         if end_time is not None:
-            query = query.filter(time_column <= str(end_time))
+            query = query.filter(effective_time_expr <= str(end_time))
 
         query = query.group_by(Tasks.status)
 
