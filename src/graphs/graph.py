@@ -100,6 +100,8 @@ from graphs.nodes.storage_management_node import storage_management_node
 from graphs.nodes.favorite_image_node import favorite_image_node
 from graphs.nodes.recharge_code_node import recharge_code_node
 from graphs.nodes.finance_center_node import finance_center_node
+from graphs.nodes.referral_management_node import referral_management_node
+from graphs.nodes.wallet_exchange_node import wallet_exchange_node
 
 
 def route_by_call_type(state: RouterOutput) -> str:
@@ -147,6 +149,10 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "兑换码"
     elif call_type == "finance_center":
         return "资金中心"
+    elif call_type == "referral_management":
+        return "推荐管理"
+    elif call_type == "wallet_exchange":
+        return "钱包兑换"
     elif call_type == "favorite_image_management":
         return "favorite_image_management"
     elif call_type == "seat_map_management":
@@ -273,6 +279,8 @@ builder.add_node("billing_settle", billing_settle_node)
 builder.add_node("billing_records", billing_records_node)
 builder.add_node("recharge_code", recharge_code_node)
 builder.add_node("finance_center", finance_center_node)
+builder.add_node("referral_management", referral_management_node)
+builder.add_node("wallet_exchange", wallet_exchange_node)
 builder.add_node("favorite_image_handler", favorite_image_node)
 builder.add_node("seat_map_handler", seat_map_node)
 
@@ -304,6 +312,8 @@ builder.add_conditional_edges(
         "资金扣费": "billing_route",
         "兑换码": "recharge_code",
         "资金中心": "finance_center",
+        "推荐管理": "referral_management",
+        "钱包兑换": "wallet_exchange",
         "favorite_image_management": "favorite_image_handler",
         "Seat Map Management": "seat_map_handler",
     },
@@ -434,6 +444,8 @@ builder.add_edge("billing_settle", "format_response")
 builder.add_edge("billing_records", "format_response")
 builder.add_edge("recharge_code", "format_response")
 builder.add_edge("finance_center", "format_response")
+builder.add_edge("referral_management", "format_response")
+builder.add_edge("wallet_exchange", "format_response")
 builder.add_edge("favorite_image_handler", "format_response")
 builder.add_edge("seat_map_handler", "format_response")
 

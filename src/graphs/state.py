@@ -25,6 +25,7 @@ class InputData(BaseModel):
     confirm_password: Optional[str] = Field(default=None, description="确认密码")
     code: Optional[str] = Field(default=None, description="验证码")
     invite_code: Optional[str] = Field(default=None, description="团队邀请码")
+    referral_code: Optional[str] = Field(default=None, description="推荐码")
     file: Optional[File] = Field(
         default=None, description="上传的文件（upload/tool 使用）"
     )
@@ -321,6 +322,7 @@ class GlobalState(BaseModel):
     confirm_password: Optional[str] = Field(default=None, description="确认密码")
     code: Optional[str] = Field(default=None, description="验证码")
     invite_code: Optional[str] = Field(default=None, description="团队邀请码")
+    referral_code: Optional[str] = Field(default=None, description="推荐码")
     file: Optional[File] = Field(
         default=None, description="上传的文件（upload/tool 使用）"
     )
@@ -546,6 +548,7 @@ class GlobalState(BaseModel):
         default=None,
         description="通用元数据（含 billing_metadata 嵌套结构，main 透传）",
     )
+    referral_code: Optional[str] = Field(default=None, description="推荐码")
 
     # 充值订单相关字段
     order_id: Optional[str] = Field(default=None, description="充值订单ID")
@@ -1722,6 +1725,34 @@ class BillingRouteOutput(BaseModel):
         default=None,
         description="通用元数据（含 billing_metadata 嵌套结构，main 透传）",
     )
+
+
+class ReferralManagementInput(BaseModel):
+    operation_type: Optional[str] = Field(
+        default=None,
+        description="操作类型：get_my_referral/bind_referral_code",
+    )
+    user_id: Optional[str] = Field(default=None, description="用户ID")
+    referral_code: Optional[str] = Field(default=None, description="推荐码")
+
+
+class ReferralManagementOutput(BaseModel):
+    response_data: dict = Field(default={}, description="统一响应数据")
+
+
+class WalletExchangeInput(BaseModel):
+    operation_type: Optional[str] = Field(
+        default=None,
+        description="操作类型：convert_gold_to_silver/list_exchange_records",
+    )
+    user_id: Optional[str] = Field(default=None, description="用户ID")
+    amount: Optional[float] = Field(default=None, description="兑换金额")
+    idempotency_key: Optional[str] = Field(default=None, description="幂等键")
+    limit: Optional[int] = Field(default=None, description="返回数量")
+
+
+class WalletExchangeOutput(BaseModel):
+    response_data: dict = Field(default={}, description="统一响应数据")
 
 
 class GetBalanceInput(BaseModel):

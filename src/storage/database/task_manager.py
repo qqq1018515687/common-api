@@ -10,6 +10,7 @@ from sqlalchemy import text, cast, String
 import json
 
 from storage.database.shared.model import Tasks, Users
+from storage.database.referral_manager import process_first_completed_task_reward
 from config.third_party_platforms import THIRD_PARTY_PLATFORMS
 import time
 
@@ -107,6 +108,10 @@ class TaskManager:
                 return True
 
         return False
+
+    @staticmethod
+    def _is_formal_generation_task(task: Tasks) -> bool:
+        return task.type in ("image", "video", "audio")
 
     @staticmethod
     def _is_confirmation_pending(task: Tasks) -> bool:
@@ -1023,9 +1028,30 @@ class TaskManager:
             elapsed_seconds = self.calculate_elapsed_time(db_task)
             db_task.elapsed_time_seconds = elapsed_seconds
 
+        should_try_referral_reward = (
+            db_task.status == "completed"
+            and self._is_formal_generation_task(db_task)
+            and self._has_displayable_result(
+                db_task.result_fallback
+                if isinstance(db_task.result_fallback, dict) and db_task.result_fallback
+                else db_task.result
+            )
+        )
+
         db.add(db_task)
         try:
             db.commit()
+            if should_try_referral_reward:
+                try:
+                    process_first_completed_task_reward(db, db_task)
+                    db.commit()
+                except Exception as reward_error:
+                    db.rollback()
+                    logger.error(
+                        "[referral-reward] 任务已完成，但邀请奖励发放失败: task_id=%s error=%s",
+                        db_task.id,
+                        reward_error,
+                    )
             db.refresh(db_task)
             return db_task
         except Exception:

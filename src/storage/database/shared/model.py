@@ -369,6 +369,70 @@ class TeamInviteJoinRecords(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='加入时间')
 
 
+class UserReferralProfiles(Base):
+    __tablename__ = 'user_referral_profiles'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='user_referral_profiles_pkey'),
+        UniqueConstraint('user_id', name='user_referral_profiles_user_id_key'),
+        UniqueConstraint('referral_code', name='user_referral_profiles_referral_code_key'),
+        Index('ix_user_referral_profiles_referral_code', 'referral_code'),
+        {'comment': '用户推荐码档案表'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='档案ID')
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True, comment='用户ID')
+    referral_code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, comment='推荐码')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
+
+
+class UserReferralRelations(Base):
+    __tablename__ = 'user_referral_relations'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='user_referral_relations_pkey'),
+        UniqueConstraint('referee_user_id', name='user_referral_relations_referee_user_id_key'),
+        Index('ix_user_referral_relations_referrer_user_id', 'referrer_user_id'),
+        Index('ix_user_referral_relations_bound_at', 'bound_at'),
+        {'comment': '用户邀请关系表'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='关系ID')
+    referrer_user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='邀请人用户ID')
+    referee_user_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True, comment='被邀请人用户ID')
+    referral_code: Mapped[str] = mapped_column(String(32), nullable=False, comment='绑定时使用的推荐码快照')
+    reward_status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'pending'"), comment='奖励状态：pending/rewarded/ineligible')
+    bound_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='绑定时间')
+    reward_granted_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='奖励发放时间')
+    first_completed_task_id: Mapped[Optional[str]] = mapped_column(String(36), comment='触发奖励的首个有效任务ID')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
+
+
+class ReferralRewardRecords(Base):
+    __tablename__ = 'referral_reward_records'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='referral_reward_records_pkey'),
+        UniqueConstraint('relation_id', name='referral_reward_records_relation_id_key'),
+        UniqueConstraint('task_id', name='referral_reward_records_task_id_key'),
+        Index('ix_referral_reward_records_referrer_user_id', 'referrer_user_id'),
+        Index('ix_referral_reward_records_referee_user_id', 'referee_user_id'),
+        Index('ix_referral_reward_records_created_at', 'created_at'),
+        {'comment': '邀请奖励发放记录表'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='奖励记录ID')
+    relation_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, comment='邀请关系ID')
+    referrer_user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='邀请人用户ID')
+    referee_user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='被邀请人用户ID')
+    task_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True, comment='触发任务ID')
+    reward_credit_type: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'personal_gold'"), comment='奖励资金类型')
+    reward_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, comment='奖励金额')
+    billing_record_id: Mapped[Optional[str]] = mapped_column(String(64), comment='账本记录ID')
+    description: Mapped[Optional[str]] = mapped_column(String(255), comment='奖励描述')
+    extra_data: Mapped[Optional[dict]] = mapped_column(JSON, comment='扩展信息')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+
+
 class BillingRecords(Base):
     __tablename__ = 'billing_records'
     __table_args__ = (
@@ -386,7 +450,7 @@ class BillingRecords(Base):
     idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, comment='幂等键，同一 key 只执行一次')
     user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='用户ID')
     team_id: Mapped[Optional[str]] = mapped_column(String(64), comment='团队ID（team_gold 操作时必填）')
-    operation_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='操作类型：deduct/refund/settle')
+    operation_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='操作类型：deduct/refund/settle/reward/exchange_out/exchange_in')
     credit_type: Mapped[str] = mapped_column(String(20), nullable=False, comment='资金类型：personal_gold/personal_silver/team_gold')
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, comment='操作金额（正数）')
     balance_before: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), comment='操作前余额')
@@ -420,6 +484,36 @@ class TeamConsumptionRecords(Base):
     related_id: Mapped[Optional[str]] = mapped_column(String(64), comment='关联ID（任务ID/订单ID）')
     description: Mapped[Optional[str]] = mapped_column(String(255), comment='描述说明')
     extra_data: Mapped[Optional[dict]] = mapped_column('metadata', JSON, comment='扩展信息（任务类型、产品信息等）')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+
+
+class WalletExchangeRecords(Base):
+    __tablename__ = 'wallet_exchange_records'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='wallet_exchange_records_pkey'),
+        UniqueConstraint('idempotency_key', name='wallet_exchange_records_idempotency_key'),
+        Index('ix_wallet_exchange_records_user_id', 'user_id'),
+        Index('ix_wallet_exchange_records_status', 'status'),
+        Index('ix_wallet_exchange_records_created_at', 'created_at'),
+        {'comment': '钱包金豆换银豆主记录表'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='兑换记录ID')
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, comment='幂等键')
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='用户ID')
+    exchange_direction: Mapped[str] = mapped_column(String(32), nullable=False, server_default=text("'gold_to_silver'"), comment='兑换方向')
+    gold_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, comment='兑换消耗金豆')
+    silver_amount: Mapped[int] = mapped_column(Integer, nullable=False, comment='兑换获得银豆')
+    exchange_rate: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1000'), comment='兑换比例')
+    gold_balance_before: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), comment='兑换前金豆余额')
+    gold_balance_after: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), comment='兑换后金豆余额')
+    silver_balance_before: Mapped[Optional[int]] = mapped_column(Integer, comment='兑换前银豆余额')
+    silver_balance_after: Mapped[Optional[int]] = mapped_column(Integer, comment='兑换后银豆余额')
+    out_billing_record_id: Mapped[Optional[str]] = mapped_column(String(64), comment='转出账本记录ID')
+    in_billing_record_id: Mapped[Optional[str]] = mapped_column(String(64), comment='转入账本记录ID')
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'completed'"), comment='状态：completed/failed')
+    description: Mapped[Optional[str]] = mapped_column(String(255), comment='描述')
+    extra_data: Mapped[Optional[dict]] = mapped_column(JSON, comment='扩展信息')
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
 
 
