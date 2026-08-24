@@ -1,7 +1,7 @@
 """ensure mars_assistant_sessions table and indexes exist
 
 Revision ID: mars001_add_mars_assistant_sessions
-Revises: r7s8t9u0v1w2
+Revises: z1y2x3w4v5u6
 Create Date: 2026-08-24 19:20:00.000000
 """
 
@@ -13,7 +13,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 
 revision: str = 'mars001_add_mars_assistant_sessions'
-down_revision: Union[str, Sequence[str], None] = 'r7s8t9u0v1w2'
+down_revision: Union[str, Sequence[str], None] = 'z1y2x3w4v5u6'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
