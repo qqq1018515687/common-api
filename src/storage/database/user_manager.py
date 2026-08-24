@@ -8,6 +8,7 @@ import uuid
 import bcrypt
 import random
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from storage.database.shared.model import Users, RateLimits, RegisterVerificationCodes, PasswordResetVerificationCodes
 from storage.database.amounts import gold_amount_to_number, normalize_gold_amount
@@ -24,6 +25,16 @@ class UserCreate(BaseModel):
     role: str = Field(default="user", description="用户角色")
     tier: str = Field(default="commercial_registered", description="用户等级")
     account_status: str = Field(default="active", description="账号状态")
+
+
+活动默认会员截止时间 = datetime(2026, 12, 31, 23, 59, 59, tzinfo=ZoneInfo("Asia/Shanghai"))
+
+
+def 获取注册默认等级(now: Optional[datetime] = None) -> str:
+    当前时间 = now.astimezone(ZoneInfo("Asia/Shanghai")) if now else datetime.now(ZoneInfo("Asia/Shanghai"))
+    if 当前时间 <= 活动默认会员截止时间:
+        return "commercial_member"
+    return "commercial_registered"
 
 
 class UserUpdate(BaseModel):
@@ -338,7 +349,7 @@ class RegisterCodeManager:
                 gold_credits=normalize_gold_amount(0, allow_zero=True),
                 silver_credits=2000,
                 role="user",
-                tier="commercial_registered",
+                tier=获取注册默认等级(now),
                 account_status="active",
             )
             db.add(record)

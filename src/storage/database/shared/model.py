@@ -321,6 +321,54 @@ class Teams(Base):
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
 
 
+class TeamInvites(Base):
+    __tablename__ = 'team_invites'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='team_invites_pkey'),
+        UniqueConstraint('code', name='team_invites_code_key'),
+        Index('ix_team_invites_team_id', 'team_id'),
+        Index('ix_team_invites_status', 'status'),
+        Index('ix_team_invites_expires_at', 'expires_at'),
+        {'comment': '团队邀请码表'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='邀请码ID')
+    team_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='团队ID')
+    team_name: Mapped[str] = mapped_column(String(100), nullable=False, comment='团队名称快照')
+    code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, comment='邀请码明文')
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'active'"), comment='状态：active/disabled')
+    max_uses: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('1'), comment='最大使用次数')
+    used_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='已使用次数')
+    created_by_user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='创建人用户ID')
+    created_by_username: Mapped[Optional[str]] = mapped_column(String(255), comment='创建人用户名快照')
+    last_used_by_user_id: Mapped[Optional[str]] = mapped_column(String(36), comment='最近使用人用户ID')
+    last_used_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='最近使用时间')
+    expires_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='过期时间')
+    note: Mapped[Optional[str]] = mapped_column(Text, comment='备注')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
+
+
+class TeamInviteJoinRecords(Base):
+    __tablename__ = 'team_invite_join_records'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='team_invite_join_records_pkey'),
+        Index('ix_team_invite_join_records_invite_id', 'invite_id'),
+        Index('ix_team_invite_join_records_team_id', 'team_id'),
+        Index('ix_team_invite_join_records_user_id', 'user_id'),
+        {'comment': '团队邀请码加入记录表'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='加入记录ID')
+    invite_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='邀请码ID')
+    code: Mapped[str] = mapped_column(String(32), nullable=False, comment='使用的邀请码快照')
+    team_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='加入的团队ID')
+    team_name: Mapped[str] = mapped_column(String(100), nullable=False, comment='加入的团队名称快照')
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='加入用户ID')
+    username: Mapped[Optional[str]] = mapped_column(String(255), comment='加入用户名快照')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='加入时间')
+
+
 class BillingRecords(Base):
     __tablename__ = 'billing_records'
     __table_args__ = (

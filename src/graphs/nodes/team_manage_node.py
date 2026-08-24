@@ -13,8 +13,34 @@ from sqlalchemy import or_, and_, func, exists
 from storage.database.db import get_session
 from storage.database.shared.model import Teams, Users
 from storage.database.amounts import gold_amount_to_number
+from storage.database.team_invite_manager import TeamInviteManager
 
 logger = logging.getLogger(__name__)
+
+团队管理业务错误码映射 = {
+    '用户不存在': 404,
+    '目标用户不存在': 404,
+    '团队不存在': 404,
+    '邀请码不存在': 404,
+    '邀请码不存在，请检查后重试': 404,
+    '操作者未加入任何团队': 403,
+    '当前管理员无权管理该团队的邀请码': 403,
+    '只有团队管理员可以管理邀请码': 403,
+    '只有管理员可以添加成员': 403,
+    '账号不可用': 403,
+    '邀请码已停用': 400,
+    '邀请码已过期': 400,
+    '邀请码已达使用上限': 400,
+    '邀请码不能为空': 400,
+    '当前账号已加入团队，如需切换团队请联系管理员处理': 400,
+}
+
+
+def _team_manage_error_response(message: str) -> TeamManageOutput:
+    code = 团队管理业务错误码映射.get(message, 500)
+    return TeamManageOutput(
+        response_data={"code": code, "msg": message if code != 500 else f"操作失败: {message}", "data": None}
+    )
 
 
 def _active_user_filter():
@@ -32,6 +58,14 @@ class TeamManageInput(BaseModel):
     page: Optional[int] = Field(default=1, description="分页页码")
     limit: Optional[int] = Field(default=50, description="分页数量")
     keyword: Optional[str] = Field(default=None, description="搜索关键字")
+    team_id: Optional[str] = Field(default=None, description="团队ID")
+    invite_code: Optional[str] = Field(default=None, description="邀请码")
+    invite_id: Optional[str] = Field(default=None, description="邀请码ID")
+    max_uses: Optional[int] = Field(default=None, description="邀请码最大使用次数")
+    expires_in_days: Optional[int] = Field(default=None, description="邀请码有效天数")
+    note: Optional[str] = Field(default=None, description="备注")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色")
 
 
 class TeamManageOutput(BaseModel):
@@ -49,6 +83,7 @@ def team_manage_node(state: TeamManageInput, config: RunnableConfig, runtime: Ru
     
     operation_type = state.operation_type
     db = get_session()
+    invite_mgr = TeamInviteManager()
     
     try:
         if operation_type == "get_team":
@@ -249,12 +284,115 @@ def team_manage_node(state: TeamManageInput, config: RunnableConfig, runtime: Ru
             return TeamManageOutput(
                 response_data={"code": 0, "msg": "查询成功", "data": {"members": member_list}}
             )
+
+        elif operation_type == "create_invite":
+            team_id = (state.team_id or '').strip()
+            if not team_id:
+                return TeamManageOutput(
+                    response_data={"code": 400, "msg": "团队ID不能为空", "data": None}
+                )
+
+            operator = invite_mgr.ensure_team_admin_access(
+                db,
+                operator_user_id=(state.operator_user_id or state.user_id or '').strip(),
+                team_id=team_id,
+            )
+            invite = invite_mgr.create_invite(
+                db,
+                team_id=team_id,
+                created_by_user_id=operator.user_id,
+                created_by_username=operator.username,
+                team_name=state.name,
+                max_uses=max(1, int(state.max_uses or 1)),
+                expires_in_days=state.expires_in_days,
+                note=state.note,
+            )
+            return TeamManageOutput(
+                response_data={
+                    "code": 0,
+                    "msg": "创建邀请码成功",
+                    "data": {"invite": invite_mgr.serialize_invite(invite)}
+                }
+            )
+
+        elif operation_type == "list_invites":
+            team_id = (state.team_id or '').strip()
+            if not team_id:
+                return TeamManageOutput(
+                    response_data={"code": 400, "msg": "团队ID不能为空", "data": None}
+                )
+
+            invite_mgr.ensure_team_admin_access(
+                db,
+                operator_user_id=(state.operator_user_id or state.user_id or '').strip(),
+                team_id=team_id,
+            )
+            invites = [invite_mgr.serialize_invite(item) for item in invite_mgr.list_invites(db, team_id=team_id)]
+            return TeamManageOutput(
+                response_data={
+                    "code": 0,
+                    "msg": "查询成功",
+                    "data": {"invites": invites}
+                }
+            )
+
+        elif operation_type == "disable_invite":
+            invite_id = (state.invite_id or '').strip()
+            if not invite_id:
+                return TeamManageOutput(
+                    response_data={"code": 400, "msg": "邀请码ID不能为空", "data": None}
+                )
+
+            invite = invite_mgr.disable_invite(
+                db,
+                invite_id=invite_id,
+                operator_user_id=(state.operator_user_id or state.user_id or '').strip(),
+            )
+            return TeamManageOutput(
+                response_data={
+                    "code": 0,
+                    "msg": "停用邀请码成功",
+                    "data": {"invite": invite_mgr.serialize_invite(invite)}
+                }
+            )
+
+        elif operation_type == "join_by_invite":
+            if not state.user_id:
+                return TeamManageOutput(
+                    response_data={"code": 400, "msg": "用户ID不能为空", "data": None}
+                )
+            if not state.invite_code:
+                return TeamManageOutput(
+                    response_data={"code": 400, "msg": "邀请码不能为空", "data": None}
+                )
+
+            invite, user, join_record = invite_mgr.join_by_invite(
+                db,
+                user_id=state.user_id,
+                invite_code=state.invite_code,
+            )
+            return TeamManageOutput(
+                response_data={
+                    "code": 0,
+                    "msg": "加入团队成功",
+                    "data": {
+                        "invite": invite_mgr.serialize_invite(invite),
+                        "join_record": invite_mgr.serialize_join_record(join_record),
+                        "team_id": user.team_id,
+                        "team_name": invite.team_name,
+                    }
+                }
+            )
         
         else:
             return TeamManageOutput(
                 response_data={"code": 400, "msg": f"未知操作: {operation_type}", "data": None}
             )
     
+    except ValueError as e:
+        db.rollback()
+        logger.warning(f"团队管理业务拒绝: {e}")
+        return _team_manage_error_response(str(e))
     except Exception as e:
         db.rollback()
         logger.error(f"团队管理操作失败: {e}")

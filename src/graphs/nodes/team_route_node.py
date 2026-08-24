@@ -23,6 +23,18 @@ class TeamRouteInput(BaseModel):
     page: Optional[int] = Field(default=None, description="分页页码")
     limit: Optional[int] = Field(default=None, description="分页数量")
     keyword: Optional[str] = Field(default=None, description="搜索关键字")
+    team_id: Optional[str] = Field(default=None, description="团队ID")
+    name: Optional[str] = Field(default=None, description="团队名称")
+    target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
+    target_username: Optional[str] = Field(default=None, description="目标用户名")
+    target_role: Optional[str] = Field(default=None, description="目标角色")
+    invite_code: Optional[str] = Field(default=None, description="邀请码")
+    invite_id: Optional[str] = Field(default=None, description="邀请码ID")
+    max_uses: Optional[int] = Field(default=None, description="邀请码最大使用次数")
+    expires_in_days: Optional[int] = Field(default=None, description="邀请码有效天数")
+    note: Optional[str] = Field(default=None, description="备注")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色")
 
 
 class TeamRouteOutput(BaseModel):
@@ -38,6 +50,46 @@ class TeamRouteOutput(BaseModel):
     page: Optional[int] = Field(default=None, description="分页页码")
     limit: Optional[int] = Field(default=None, description="分页数量")
     keyword: Optional[str] = Field(default=None, description="搜索关键字")
+    team_id: Optional[str] = Field(default=None, description="团队ID")
+    name: Optional[str] = Field(default=None, description="团队名称")
+    target_user_id: Optional[str] = Field(default=None, description="目标用户ID")
+    target_username: Optional[str] = Field(default=None, description="目标用户名")
+    target_role: Optional[str] = Field(default=None, description="目标角色")
+    invite_code: Optional[str] = Field(default=None, description="邀请码")
+    invite_id: Optional[str] = Field(default=None, description="邀请码ID")
+    max_uses: Optional[int] = Field(default=None, description="邀请码最大使用次数")
+    expires_in_days: Optional[int] = Field(default=None, description="邀请码有效天数")
+    note: Optional[str] = Field(default=None, description="备注")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+    operator_role: Optional[str] = Field(default=None, description="操作者角色")
+
+
+def _build_team_route_output(operation_type: str, state: TeamRouteInput) -> TeamRouteOutput:
+    return TeamRouteOutput(
+        operation_type=operation_type,
+        user_id=state.user_id,
+        filter_user_id=state.filter_user_id,
+        days=state.days,
+        amount=state.amount,
+        description=state.description,
+        original_record_id=state.original_record_id,
+        reason=state.reason,
+        page=state.page,
+        limit=state.limit,
+        keyword=state.keyword,
+        team_id=state.team_id,
+        name=state.name,
+        target_user_id=state.target_user_id,
+        target_username=state.target_username,
+        target_role=state.target_role,
+        invite_code=state.invite_code,
+        invite_id=state.invite_id,
+        max_uses=state.max_uses,
+        expires_in_days=state.expires_in_days,
+        note=state.note,
+        operator_user_id=state.operator_user_id,
+        operator_role=state.operator_role,
+    )
 
 
 def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runtime[Context]) -> TeamRouteOutput:
@@ -51,34 +103,9 @@ def team_route_node(state: TeamRouteInput, config: RunnableConfig, runtime: Runt
     operation_type = state.operation_type
     
     if not operation_type:
-        # 默认返回初始化
-        return TeamRouteOutput(
-            operation_type="init",
-            user_id=state.user_id,
-            filter_user_id=state.filter_user_id,
-            days=state.days,
-            amount=state.amount,
-            description=state.description,
-            original_record_id=state.original_record_id,
-            reason=state.reason,
-            page=state.page,
-            limit=state.limit,
-            keyword=state.keyword
-        )
+        return _build_team_route_output("init", state)
     
-    return TeamRouteOutput(
-        operation_type=operation_type,
-        user_id=state.user_id,
-        filter_user_id=state.filter_user_id,
-        days=state.days,
-        amount=state.amount,
-        description=state.description,
-        original_record_id=state.original_record_id,
-        reason=state.reason,
-        page=state.page,
-        limit=state.limit,
-        keyword=state.keyword
-    )
+    return _build_team_route_output(operation_type, state)
 
 
 def route_by_team_operation_type(state: TeamRouteOutput) -> str:
@@ -97,6 +124,14 @@ def route_by_team_operation_type(state: TeamRouteOutput) -> str:
     elif operation_type == "add_member":
         return "团队管理"
     elif operation_type == "list_members":
+        return "团队管理"
+    elif operation_type == "create_invite":
+        return "团队管理"
+    elif operation_type == "list_invites":
+        return "团队管理"
+    elif operation_type == "disable_invite":
+        return "团队管理"
+    elif operation_type == "join_by_invite":
         return "团队管理"
     elif operation_type == "recharge":
         return "团队充值"
