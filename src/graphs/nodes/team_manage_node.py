@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 }
 
 
-def _team_manage_error_response(message: str) -> TeamManageOutput:
+def _team_manage_error_response(message: str) -> 'TeamManageOutput':
     code = 团队管理业务错误码映射.get(message, 500)
     return TeamManageOutput(
         response_data={"code": code, "msg": message if code != 500 else f"操作失败: {message}", "data": None}
