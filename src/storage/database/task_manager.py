@@ -932,9 +932,10 @@ class TaskManager:
         【共享函数】统一计算任务耗时(秒)
 
         计算逻辑:
-        1. 如果有 started_at 和 completed_at: elapsed = (completed_at - started_at) / 1000
-        2. 如果没有 started_at,用 created_at 兜底: elapsed = (completed_at - created_at) / 1000
-        3. 如果 completed_at 为空或任务未完成: 返回 0
+        1. 优先使用终态时间：completed_at / failed_at / cancelled_at
+        2. 如果有 started_at: elapsed = (terminal_at - started_at) / 1000
+        3. 如果没有 started_at,用 created_at 兜底: elapsed = (terminal_at - created_at) / 1000
+        4. 如果没有任何终态时间: 返回 0
 
         异常处理:
         - 负数或无效值返回 0
@@ -946,11 +947,12 @@ class TaskManager:
         Returns:
             耗时秒数(int),范围 0~86400
         """
-        if not task.completed_at:
+        terminal_at = task.completed_at or task.failed_at or task.cancelled_at
+        if not terminal_at:
             return 0
 
         try:
-            completed = int(task.completed_at)
+            completed = int(terminal_at)
             started = int(task.started_at) if task.started_at else int(task.created_at)
 
             elapsed_ms = completed - started
@@ -1086,8 +1088,9 @@ class TaskManager:
             if hasattr(db_task, field):
                 setattr(db_task, field, value)
 
-        # 【新增】如果任务完成,自动计算耗时并写入 elapsed_time_seconds
-        if "completed_at" in update_data and update_data["completed_at"] and "elapsed_time_seconds" not in update_data:
+        # 任务进入任一终态且未显式传入 elapsed_time_seconds 时，统一按终态时间回填耗时
+        terminal_keys = ("completed_at", "failed_at", "cancelled_at")
+        if any(update_data.get(key) for key in terminal_keys) and "elapsed_time_seconds" not in update_data:
             elapsed_seconds = self.calculate_elapsed_time(db_task)
             db_task.elapsed_time_seconds = elapsed_seconds
 
@@ -1159,6 +1162,7 @@ class TaskManager:
         db_task.cancelled_at = None
         db_task.status_updated_at = now_ms
         db_task.updated_at = now_ms
+        db_task.elapsed_time_seconds = self.calculate_elapsed_time(db_task)
 
         try:
             db.add(db_task)
