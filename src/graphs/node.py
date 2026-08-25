@@ -2475,6 +2475,7 @@ def list_tasks_node(
             # 转换为可序列化的字典列表，过滤无媒体结果的 completed 任务
             task_list = []
             for task, username in raw_tasks:
+                parameter_snapshot = task.parameter_snapshot if isinstance(task.parameter_snapshot, dict) else {}
                 task_dict = {
                     "id": task.id,
                     "user_id": task.user_id,
@@ -2485,6 +2486,9 @@ def list_tasks_node(
                     "type": task.type,
                     "status": task.status,
                     "confirmation_state": getattr(task, "confirmation_state", None),
+                    "pending_reason": task_mgr._pending_reason_from_snapshot(parameter_snapshot),
+                    "pending_since": task_mgr._pending_since_from_snapshot(parameter_snapshot),
+                    "gray_diagnostics": task_mgr._gray_diagnostics_from_snapshot(parameter_snapshot),
                     "workflow_parameters": task.workflow_parameters,
                     "parameter_snapshot": task.parameter_snapshot,
                     "result": task.result,

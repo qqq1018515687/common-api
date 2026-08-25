@@ -56,10 +56,10 @@ from utils.log.loop_trace import init_run_config, init_agent_config
 TIMEOUT_SECONDS = 900  # 15分钟
 THIRD_PARTY_TASK_RECOVERY_INTERVAL = 30
 THIRD_PARTY_TASK_RECOVERY_STALE_MS = 45 * 1000
-THIRD_PARTY_TASK_RECOVERY_HARD_TIMEOUT_MS = 10 * 60 * 1000  # 结果确认中超过10分钟强制失败并退款
-# 无法恢复查询任务的强制失败兜底：无真实平台 task_id（空 / tudou_sync: / pending: 前缀）时无法转发 recover，
-# 缩短兜底时间，避免用户长时间卡“结果确认中”。时间从 pending 写入的 updated_at 起算。
-THIRD_PARTY_TASK_RECOVERY_UNRECOVERABLE_FORCE_FAIL_MS = 60 * 1000
+THIRD_PARTY_TASK_RESULT_CONFIRM_TIMEOUT_MS = 5 * 60 * 1000  # 已确认建单但结果未回流，5分钟后强制失败并退款
+# submitted_unconfirmed 专用：2分钟内必须确认是否拿到了真实平台任务号。
+# 这个超时只用于“确认建单”，不是用于“等待最终生成完成”。
+THIRD_PARTY_TASK_SUBMIT_CONFIRM_TIMEOUT_MS = 2 * 60 * 1000
 THIRD_PARTY_TASK_RECOVERY_BATCH_SIZE = 50
 
 class GraphService:
@@ -395,11 +395,19 @@ def _force_fail_stale_pending_task(task: Any, task_mgr: Any, db: Any) -> None:
         from storage.database.task_manager import TaskManager
 
         force_mgr = task_mgr if isinstance(task_mgr, TaskManager) else TaskManager()
-        fail_message = "结果确认超时，任务已强制结束"
+        snapshot = task.parameter_snapshot if isinstance(task.parameter_snapshot, dict) else {}
+        pending_reason = str(snapshot.get("pendingReason") or "").strip()
+        task_status = str(getattr(task, "status", "") or "").strip().lower()
+        if task_status == "submitted_unconfirmed":
+            fail_message = "任务提交超时，系统未确认平台是否已建单，已结束并退款"
+            error_message = f"第三方平台提交确认超时: {pending_reason}" if pending_reason else "第三方平台提交确认超时"
+        else:
+            fail_message = "结果确认超时，任务已强制结束并退款"
+            error_message = f"第三方平台结果确认超时: {pending_reason}" if pending_reason else "第三方平台结果确认超时"
         forced = force_mgr.force_fail_third_party_task(
             db,
             task.id,
-            error="第三方平台结果确认超时",
+            error=error_message,
             user_friendly_message=fail_message,
         )
         if not forced:
@@ -477,7 +485,7 @@ def _trigger_third_party_task_recovery() -> None:
         return
 
     now_ms = int(time.time() * 1000)
-    hard_timeout_ms = THIRD_PARTY_TASK_RECOVERY_HARD_TIMEOUT_MS
+    result_confirm_timeout_ms = THIRD_PARTY_TASK_RESULT_CONFIRM_TIMEOUT_MS
     for task in stale_tasks:
         platform_task_id = str(task.platform_task_id or "").strip()
 
@@ -500,17 +508,18 @@ def _trigger_third_party_task_recovery() -> None:
             task_updated_ms = 0
         pending_duration_ms = (now_ms - task_updated_ms) if task_updated_ms else 0
 
-        # 无法恢复查询的任务（sync 提交模式：无真实平台 task_id）：不能转发 recover 恢复，
-        # 使用更短的强制失败兜底时间，避免用户长期卡“结果确认中”。
+        is_submit_unconfirmed_task = task_status == "submitted_unconfirmed"
+        # 无法恢复查询的任务（sync 提交模式：无真实平台 task_id）不能转发 recover 恢复；
+        # submitted_unconfirmed 则是“2分钟内确认是否拿到真实平台任务号”的单独窗口。
         is_unrecoverable_task = (
             not platform_task_id
             or platform_task_id.startswith("tudou_sync:")
             or platform_task_id.startswith("pending:")
         )
         effective_hard_timeout_ms = (
-            THIRD_PARTY_TASK_RECOVERY_UNRECOVERABLE_FORCE_FAIL_MS
-            if is_unrecoverable_task
-            else hard_timeout_ms
+            THIRD_PARTY_TASK_SUBMIT_CONFIRM_TIMEOUT_MS
+            if is_submit_unconfirmed_task
+            else result_confirm_timeout_ms
         )
 
         if confirmation_pending and pending_duration_ms >= effective_hard_timeout_ms:

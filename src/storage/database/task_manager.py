@@ -17,7 +17,7 @@ import time
 状态筛选别名映射: Dict[str, List[str]] = {
     "completed": ["completed", "success", "succeeded"],
     "failed": ["failed", "error"],
-    "running": ["running", "pending", "submitted", "processing", "in_progress"],
+    "running": ["running", "pending", "submitted", "submitted_unconfirmed", "processing", "in_progress"],
     "cancelled": ["cancelled", "canceled"],
 }
 
@@ -119,6 +119,43 @@ class TaskManager:
             return True
         snapshot = task.parameter_snapshot if isinstance(task.parameter_snapshot, dict) else {}
         return snapshot.get("confirmationState") == "pending"
+
+    @staticmethod
+    def _pending_reason_from_snapshot(snapshot: Any) -> Optional[str]:
+        if not isinstance(snapshot, dict):
+            return None
+        reason = str(snapshot.get("pendingReason") or "").strip()
+        return reason or None
+
+    @staticmethod
+    def _pending_since_from_snapshot(snapshot: Any) -> Optional[str]:
+        if not isinstance(snapshot, dict):
+            return None
+        pending_since = snapshot.get("pendingSince")
+        if pending_since in (None, ""):
+            return None
+        return str(pending_since)
+
+    @classmethod
+    def _gray_diagnostics_from_snapshot(cls, snapshot: Any) -> Optional[Dict[str, Any]]:
+        if not isinstance(snapshot, dict):
+            return None
+        provider_meta = snapshot.get("providerMeta") if isinstance(snapshot.get("providerMeta"), dict) else {}
+        pending_reason = cls._pending_reason_from_snapshot(snapshot)
+        pending_since = cls._pending_since_from_snapshot(snapshot)
+        diagnostics = {
+            "pending_reason": pending_reason,
+            "pending_since": pending_since,
+            "provider_key": str(provider_meta.get("providerKey") or "").strip() or None,
+            "provider_variant": str(provider_meta.get("providerVariant") or "").strip() or None,
+            "submit_mode": str(provider_meta.get("submitMode") or "").strip() or None,
+            "status_query_mode": str(provider_meta.get("statusQueryMode") or "").strip() or None,
+            "provider_task_id": str(provider_meta.get("providerTaskId") or "").strip() or None,
+            "initial_status": str(provider_meta.get("initialStatus") or "").strip() or None,
+        }
+        if not any(value is not None for value in diagnostics.values()):
+            return None
+        return diagnostics
 
     @staticmethod
     def _contains_non_persisted_image_result(result: Any) -> bool:
@@ -690,6 +727,9 @@ class TaskManager:
             parameter_snapshot = row.parameter_snapshot if isinstance(row.parameter_snapshot, dict) else {}
             workflow_parameters = row.workflow_parameters if isinstance(row.workflow_parameters, dict) else {}
             result = row.result if isinstance(row.result, dict) else None
+            pending_reason = self._pending_reason_from_snapshot(parameter_snapshot)
+            pending_since = self._pending_since_from_snapshot(parameter_snapshot)
+            gray_diagnostics = self._gray_diagnostics_from_snapshot(parameter_snapshot)
 
             tasks.append({
                 "id": row.id,
@@ -703,6 +743,9 @@ class TaskManager:
                 "workflow_parameters": self._compact_large_base64_fields(workflow_parameters),
                 "parameter_snapshot": self._compact_large_base64_fields(parameter_snapshot),
                 "confirmation_state": row.confirmation_state or "none",
+                "pending_reason": pending_reason,
+                "pending_since": pending_since,
+                "gray_diagnostics": gray_diagnostics,
                 "result": self._compact_result(result),
                 "error": row.error,
                 "user_friendly_message": row.user_friendly_message,
@@ -812,7 +855,7 @@ class TaskManager:
         query = db.query(Tasks).filter(
             Tasks.is_deleted == False,
             Tasks.platform.in_(set(THIRD_PARTY_PLATFORMS)),
-            Tasks.status == "running",
+            Tasks.status.in_(["running", "submitted_unconfirmed"]),
             Tasks.platform_task_id.isnot(None),
             Tasks.platform_task_id != "",
         )
@@ -846,7 +889,7 @@ class TaskManager:
 
         query = db.query(Tasks).filter(
             Tasks.is_deleted == False,
-            Tasks.status == "running",
+            Tasks.status.in_(["running", "submitted_unconfirmed"]),
         )
         if stale_for_ms > 0:
             cutoff = str(int(time.time() * 1000) - stale_for_ms)
@@ -875,6 +918,9 @@ class TaskManager:
                 "updated_at": task.updated_at,
                 "completed_at": task.completed_at,
                 "confirmation_state": getattr(task, "confirmation_state", None),
+                "pending_reason": self._pending_reason_from_snapshot(snapshot),
+                "pending_since": self._pending_since_from_snapshot(snapshot),
+                "gray_diagnostics": self._gray_diagnostics_from_snapshot(snapshot),
                 "parameter_snapshot": snapshot,
                 "deduction_result": deduction,
                 "result": results_payload,
@@ -935,7 +981,7 @@ class TaskManager:
         incoming_status = update_data.get("status")
         now_ms = str(int(time.time() * 1000))
         if db_task.status == "cancelled" or db_task.is_deleted:
-            if incoming_status in ("failed", "running"):
+            if incoming_status in ("failed", "running", "submitted_unconfirmed"):
                 logger.info(
                     "[task-guard] 已取消/已删除任务拒绝被覆盖为 %s: task_id=%s",
                     incoming_status,
@@ -1029,7 +1075,7 @@ class TaskManager:
             update_data.setdefault("cancelled_at", now_ms)
             update_data["completed_at"] = None
             update_data["failed_at"] = None
-        elif next_status in ("pending", "running"):
+        elif next_status in ("pending", "running", "submitted_unconfirmed"):
             update_data["completed_at"] = None
             update_data["failed_at"] = None
             update_data["cancelled_at"] = None
