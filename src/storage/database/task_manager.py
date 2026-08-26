@@ -1,6 +1,7 @@
 """任务管理接口"""
 
 import logging
+import os
 
 import time
 from typing import Optional, List, Dict, Any
@@ -69,6 +70,13 @@ class TaskUpdate(BaseModel):
     persistence_status: Optional[str] = Field(default=None, description="结果持久化状态：saving/saved/failed")
     persistence_error: Optional[str] = Field(default=None, description="结果持久化失败原因")
     confirmation_state: Optional[str] = Field(default=None, description="结果确认状态：none/pending/confirmed")
+    final_reason: Optional[str] = Field(
+        default=None,
+        description="任务终态原因：user_cancelled/provider_failed/recovery_timeout_failed/submitted_unconfirmed_failed",
+    )
+    cancellation_source: Optional[str] = Field(
+        default=None, description="取消来源：user=用户手动取消，system=系统/超时取消"
+    )
 
 
 class TaskManager:
@@ -1119,10 +1127,62 @@ class TaskManager:
                         reward_error,
                     )
             db.refresh(db_task)
+            # 【统一退款】终态为 failed 且非用户手动取消，触发退款；幂等键统一 refund:{task_id}
+            if next_status == "failed":
+                self._maybe_refund_on_failed_transition(db_task)
             return db_task
         except Exception:
             db.rollback()
             raise
+
+    def _maybe_refund_on_failed_transition(self, db_task: "Tasks") -> None:
+        """终态 failed 且非用户手动取消时触发退款。
+
+        退款唯一执行方为 common；幂等键统一 `refund:{task_id}`，
+        避免与 force_fail / main stale 补偿重复退款。
+        """
+        try:
+            final_reason = getattr(db_task, "final_reason", None)
+            if final_reason == "user_cancelled":
+                return
+            deduction = db_task.deduction_result if isinstance(db_task.deduction_result, dict) else {}
+            original_record_id = str(
+                deduction.get("billing_record_id") or deduction.get("team_record_id") or ""
+            ).strip()
+            if not original_record_id:
+                return
+            user_id = str(getattr(db_task, "user_id", "") or "").strip()
+            if not user_id:
+                return
+            # 已退款/已结算则跳过
+            ded_status = str(deduction.get("status") or "").strip()
+            if ded_status in ("refunded", "settled"):
+                return
+
+            from storage.database.billing_manager import refund as billing_refund
+
+            billing_refund(
+                user_id=user_id,
+                original_record_id=original_record_id,
+                idempotency_key=f"refund:{db_task.id}",
+                service_secret=os.getenv("SERVICE_SECRET", ""),
+                metadata={
+                    "platform": getattr(db_task, "platform", None),
+                    "final_reason": final_reason or "provider_failed",
+                    "refund_reason": "provider_failed",
+                },
+            )
+            logger.info(
+                "[task-refund] failed 终态退款触发: task_id=%s final_reason=%s",
+                db_task.id,
+                final_reason,
+            )
+        except Exception as exc:
+            logger.error(
+                "[task-refund] failed 终态退款异常: task_id=%s error=%s",
+                getattr(db_task, "id", "?"),
+                exc,
+            )
 
     def force_fail_third_party_task(
         self,
@@ -1153,6 +1213,8 @@ class TaskManager:
 
         db_task.status = "failed"
         db_task.confirmation_state = "confirmed"
+        db_task.final_reason = "recovery_timeout_failed"
+        db_task.cancellation_source = "system"
         db_task.error = error or "任务处理超时，已强制结束"
         if user_friendly_message:
             db_task.user_friendly_message = user_friendly_message

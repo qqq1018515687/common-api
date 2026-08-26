@@ -105,6 +105,8 @@ class Tasks(Base):
     is_deleted: Mapped[Optional[bool]] = mapped_column(Boolean, server_default=text("false"), comment="是否已删除（软删除标记）")
     user_friendly_message: Mapped[Optional[str]] = mapped_column(Text, comment="LLM 生成的用户友好错误提示")
     confirmation_state: Mapped[Optional[str]] = mapped_column(String(20), server_default=text("'none'::character varying"), comment="结果确认状态：none/pending/confirmed")
+    final_reason: Mapped[Optional[str]] = mapped_column(String(32), comment="任务终态原因：user_cancelled/provider_failed/recovery_timeout_failed/submitted_unconfirmed_failed（退款裁决依据）")
+    cancellation_source: Mapped[Optional[str]] = mapped_column(String(16), comment="取消来源：user=用户手动取消，system=系统/超时取消")
     deleted_image_urls: Mapped[Optional[list]] = mapped_column(JSON, comment="已删除的图片URL列表（图像级软删除）")
     result_fallback: Mapped[Optional[dict]] = mapped_column(JSON, comment="结果转存失败时保留的原始回退结果")
 

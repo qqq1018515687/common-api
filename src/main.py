@@ -442,7 +442,7 @@ def _force_fail_stale_pending_task(task: Any, task_mgr: Any, db: Any) -> None:
         result = billing_refund(
             user_id=user_id,
             original_record_id=original_record_id,
-            idempotency_key=f"recover-force-fail:{task.id}",
+            idempotency_key=f"refund:{task.id}",
             service_secret=os.getenv("SERVICE_SECRET", ""),
             metadata={
                 "platform": task.platform,
