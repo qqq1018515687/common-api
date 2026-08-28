@@ -87,6 +87,8 @@ with e.connect() as c:
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS failed_at VARCHAR(20)"))
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS cancelled_at VARCHAR(20)"))
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS status_updated_at VARCHAR(20)"))
+    c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS final_reason VARCHAR(32)"))
+    c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS cancellation_source VARCHAR(16)"))
     c.execute(text("UPDATE tasks SET started_at = created_at WHERE started_at IS NULL"))
     c.execute(text("UPDATE tasks SET elapsed_time_seconds = 0 WHERE elapsed_time_seconds IS NULL"))
     c.execute(text("""
@@ -102,6 +104,7 @@ with e.connect() as c:
         END
         WHERE confirmation_state IS NULL
     """))
+    c.execute(text("UPDATE tasks SET final_reason = 'provider_failed' WHERE status = 'failed' AND final_reason IS NULL"))
     c.commit()
     print('✅ tasks 运行时字段已兜底修复')
 PYEOF
