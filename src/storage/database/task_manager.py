@@ -115,37 +115,6 @@ class TaskManager:
         return "other"
 
     @classmethod
-    def _extract_task_channel(cls, payload: Any) -> Optional[str]:
-        if not isinstance(payload, dict):
-            return None
-
-        for key in ("channel", "channelKey", "channel_key"):
-            normalized = cls._normalize_task_channel_from_label(payload.get(key))
-            if normalized:
-                return normalized
-
-        for key in ("channelLabel", "channel_label"):
-            normalized = cls._normalize_task_channel_from_label(payload.get(key))
-            if normalized:
-                return normalized
-
-        model_display_label = str(payload.get("modelDisplayLabel") or payload.get("model_display_label") or "").strip()
-        if model_display_label:
-            normalized = cls._normalize_task_channel_from_label(model_display_label.split()[0])
-            if normalized:
-                return normalized
-
-        return None
-
-    @classmethod
-    def _resolve_task_channel(cls, task_data: Dict[str, Any]) -> Optional[str]:
-        for key in ("parameter_snapshot", "workflow_parameters"):
-            normalized = cls._extract_task_channel(task_data.get(key))
-            if normalized:
-                return normalized
-        return cls._normalize_task_channel_from_label(task_data.get("channel"))
-
-    @classmethod
     def _clear_success_rate_cache(cls) -> None:
         成功率缓存.clear()
 
@@ -443,7 +412,18 @@ class TaskManager:
             )
             db.execute(
                 text(
-                    "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS channel VARCHAR(32)"
+                    "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS final_reason VARCHAR(32)"
+                )
+            )
+            db.execute(
+                text(
+                    "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS cancellation_source VARCHAR(16)"
+                )
+            )
+            db.execute(
+                text(
+                    "UPDATE tasks SET final_reason = 'provider_failed' "
+                    "WHERE status = 'failed' AND final_reason IS NULL"
                 )
             )
             db.commit()
@@ -521,9 +501,6 @@ class TaskManager:
 
             existing_task.updated_at = current_time
             existing_task.status_updated_at = existing_task.status_updated_at or current_time
-            resolved_channel = self._resolve_task_channel(task_data)
-            if resolved_channel and getattr(existing_task, "channel", None) != resolved_channel:
-                existing_task.channel = resolved_channel
             db.add(existing_task)
             try:
                 db.commit()
@@ -543,7 +520,6 @@ class TaskManager:
         task_data["updated_at"] = current_time
         task_data["status_updated_at"] = current_time
         task_data["started_at"] = current_time
-        task_data["channel"] = self._resolve_task_channel(task_data)
         task_data["completed_at"] = None
         task_data["failed_at"] = None
         task_data["cancelled_at"] = None
@@ -1183,14 +1159,6 @@ class TaskManager:
             and "started_at" not in update_data
         ):
             update_data["started_at"] = now_ms
-
-        resolved_channel = self._resolve_task_channel({
-            "channel": update_data.get("channel") or db_task.channel,
-            "parameter_snapshot": update_data.get("parameter_snapshot", db_task.parameter_snapshot),
-            "workflow_parameters": update_data.get("workflow_parameters", db_task.workflow_parameters),
-        })
-        if resolved_channel:
-            update_data["channel"] = resolved_channel
 
         next_status = update_data.get("status")
         if next_status and next_status != db_task.status:
@@ -1892,11 +1860,11 @@ class TaskManager:
             text(
                 "SELECT "
                 "CASE "
-                "WHEN lower(coalesce(channel, parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', workflow_parameters ->> 'channel', parameter_snapshot ->> 'channelLabel', workflow_parameters ->> 'channelLabel', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), '')) IN ('local', '本地', '局域', '局域网') THEN 'local' "
-                "WHEN lower(coalesce(channel, parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', workflow_parameters ->> 'channel', parameter_snapshot ->> 'channelLabel', workflow_parameters ->> 'channelLabel', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), '')) IN ('free', '免费') THEN 'free' "
-                "WHEN lower(coalesce(channel, parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', workflow_parameters ->> 'channel', parameter_snapshot ->> 'channelLabel', workflow_parameters ->> 'channelLabel', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), '')) = 'r' OR lower(coalesce(channel, parameter_snapshot ->> 'channelLabel', workflow_parameters ->> 'channelLabel', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), '')) LIKE 'r版%' THEN 'r' "
-                "WHEN lower(coalesce(channel, parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', workflow_parameters ->> 'channel', parameter_snapshot ->> 'channelLabel', workflow_parameters ->> 'channelLabel', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), '')) = 't' OR lower(coalesce(channel, parameter_snapshot ->> 'channelLabel', workflow_parameters ->> 'channelLabel', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), '')) LIKE 't版%' THEN 't' "
-                "WHEN coalesce(channel, parameter_snapshot ->> 'channelLabel', workflow_parameters ->> 'channelLabel', parameter_snapshot ->> 'modelDisplayLabel', workflow_parameters ->> 'modelDisplayLabel', '') <> '' THEN 'other' "
+                "WHEN lower(coalesce(parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', parameter_snapshot ->> 'channel_key', workflow_parameters ->> 'channel', workflow_parameters ->> 'channelKey', workflow_parameters ->> 'channel_key', parameter_snapshot ->> 'channelLabel', parameter_snapshot ->> 'channel_label', workflow_parameters ->> 'channelLabel', workflow_parameters ->> 'channel_label', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(parameter_snapshot ->> 'model_display_label', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'model_display_label', ' ', 1), '')) IN ('local', '本地', '局域', '局域网') THEN 'local' "
+                "WHEN lower(coalesce(parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', parameter_snapshot ->> 'channel_key', workflow_parameters ->> 'channel', workflow_parameters ->> 'channelKey', workflow_parameters ->> 'channel_key', parameter_snapshot ->> 'channelLabel', parameter_snapshot ->> 'channel_label', workflow_parameters ->> 'channelLabel', workflow_parameters ->> 'channel_label', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(parameter_snapshot ->> 'model_display_label', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'model_display_label', ' ', 1), '')) IN ('free', '免费') THEN 'free' "
+                "WHEN lower(coalesce(parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', parameter_snapshot ->> 'channel_key', workflow_parameters ->> 'channel', workflow_parameters ->> 'channelKey', workflow_parameters ->> 'channel_key', parameter_snapshot ->> 'channelLabel', parameter_snapshot ->> 'channel_label', workflow_parameters ->> 'channelLabel', workflow_parameters ->> 'channel_label', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(parameter_snapshot ->> 'model_display_label', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'model_display_label', ' ', 1), '')) = 'r' OR lower(coalesce(parameter_snapshot ->> 'channelLabel', parameter_snapshot ->> 'channel_label', workflow_parameters ->> 'channelLabel', workflow_parameters ->> 'channel_label', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(parameter_snapshot ->> 'model_display_label', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'model_display_label', ' ', 1), '')) LIKE 'r版%' THEN 'r' "
+                "WHEN lower(coalesce(parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', parameter_snapshot ->> 'channel_key', workflow_parameters ->> 'channel', workflow_parameters ->> 'channelKey', workflow_parameters ->> 'channel_key', parameter_snapshot ->> 'channelLabel', parameter_snapshot ->> 'channel_label', workflow_parameters ->> 'channelLabel', workflow_parameters ->> 'channel_label', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(parameter_snapshot ->> 'model_display_label', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'model_display_label', ' ', 1), '')) = 't' OR lower(coalesce(parameter_snapshot ->> 'channelLabel', parameter_snapshot ->> 'channel_label', workflow_parameters ->> 'channelLabel', workflow_parameters ->> 'channel_label', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(parameter_snapshot ->> 'model_display_label', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'model_display_label', ' ', 1), '')) LIKE 't版%' THEN 't' "
+                "WHEN coalesce(parameter_snapshot ->> 'channelLabel', parameter_snapshot ->> 'channel_label', workflow_parameters ->> 'channelLabel', workflow_parameters ->> 'channel_label', parameter_snapshot ->> 'modelDisplayLabel', parameter_snapshot ->> 'model_display_label', workflow_parameters ->> 'modelDisplayLabel', workflow_parameters ->> 'model_display_label', '') <> '' THEN 'other' "
                 "ELSE NULL END AS channel_key, "
                 "lower(coalesce(status, '')) AS status_key, "
                 "count(id) AS count_value "

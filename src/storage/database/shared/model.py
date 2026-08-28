@@ -88,7 +88,6 @@ class Tasks(Base):
     status: Mapped[str] = mapped_column(String(10), nullable=False)
     created_at: Mapped[str] = mapped_column(String(20), nullable=False)
     updated_at: Mapped[str] = mapped_column(String(20), nullable=False)
-    channel: Mapped[Optional[str]] = mapped_column(String(32), comment='任务渠道归一键：local/r/t/free/other')
     workflow_parameters: Mapped[Optional[dict]] = mapped_column(JSON)
     parameter_snapshot: Mapped[Optional[dict]] = mapped_column(JSON)
     result: Mapped[Optional[dict]] = mapped_column(JSON)
