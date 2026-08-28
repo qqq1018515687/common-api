@@ -1888,16 +1888,29 @@ class TaskManager:
         if cached and (now - cached[0]) < 成功率缓存TTL秒:
             return cached[1]
 
-        rows = (
-            db.query(Tasks.channel, Tasks.status, func.count(Tasks.id))
-            .filter(
-                Tasks.is_deleted == False,
-                Tasks.created_at >= str(start_time),
-                Tasks.created_at < str(end_time),
-            )
-            .group_by(Tasks.channel, Tasks.status)
-            .all()
-        )
+        rows = db.execute(
+            text(
+                "SELECT "
+                "CASE "
+                "WHEN lower(coalesce(channel, parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', workflow_parameters ->> 'channel', parameter_snapshot ->> 'channelLabel', workflow_parameters ->> 'channelLabel', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), '')) IN ('local', '本地', '局域', '局域网') THEN 'local' "
+                "WHEN lower(coalesce(channel, parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', workflow_parameters ->> 'channel', parameter_snapshot ->> 'channelLabel', workflow_parameters ->> 'channelLabel', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), '')) IN ('free', '免费') THEN 'free' "
+                "WHEN lower(coalesce(channel, parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', workflow_parameters ->> 'channel', parameter_snapshot ->> 'channelLabel', workflow_parameters ->> 'channelLabel', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), '')) = 'r' OR lower(coalesce(channel, parameter_snapshot ->> 'channelLabel', workflow_parameters ->> 'channelLabel', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), '')) LIKE 'r版%' THEN 'r' "
+                "WHEN lower(coalesce(channel, parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', workflow_parameters ->> 'channel', parameter_snapshot ->> 'channelLabel', workflow_parameters ->> 'channelLabel', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), '')) = 't' OR lower(coalesce(channel, parameter_snapshot ->> 'channelLabel', workflow_parameters ->> 'channelLabel', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), '')) LIKE 't版%' THEN 't' "
+                "WHEN coalesce(channel, parameter_snapshot ->> 'channelLabel', workflow_parameters ->> 'channelLabel', parameter_snapshot ->> 'modelDisplayLabel', workflow_parameters ->> 'modelDisplayLabel', '') <> '' THEN 'other' "
+                "ELSE NULL END AS channel_key, "
+                "lower(coalesce(status, '')) AS status_key, "
+                "count(id) AS count_value "
+                "FROM tasks "
+                "WHERE coalesce(is_deleted, false) = false "
+                "AND created_at >= :start_time "
+                "AND created_at < :end_time "
+                "GROUP BY 1, 2"
+            ),
+            {
+                "start_time": str(start_time),
+                "end_time": str(end_time),
+            }
+        ).fetchall()
 
         channels = {
             channel_key: self._build_empty_success_rate_bucket(label)

@@ -70,8 +70,6 @@ class Tasks(Base):
     __table_args__ = (
         PrimaryKeyConstraint('id', name='tasks_pkey'),
         Index('idx_created_at', 'created_at'),
-        Index('idx_tasks_channel_created_at', 'channel', 'created_at'),
-        Index('idx_tasks_channel_status_created_at', 'channel', 'status', 'created_at'),
         Index('idx_tasks_status_created_at', 'status', 'created_at'),
         Index('idx_tasks_status_completed_at', 'status', 'completed_at'),
         Index('idx_tasks_status_failed_at', 'status', 'failed_at'),

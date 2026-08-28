@@ -102,22 +102,6 @@ with e.connect() as c:
         END
         WHERE confirmation_state IS NULL
     """))
-    c.execute(text("""
-        UPDATE tasks
-        SET channel = CASE
-            WHEN lower(coalesce(parameter_snapshot->>'channel', parameter_snapshot->>'channelKey', workflow_parameters->>'channel', parameter_snapshot->>'channelLabel', workflow_parameters->>'channelLabel', split_part(parameter_snapshot->>'modelDisplayLabel', ' ', 1), split_part(workflow_parameters->>'modelDisplayLabel', ' ', 1), '')) IN ('local', '本地', '局域', '局域网') THEN 'local'
-            WHEN lower(coalesce(parameter_snapshot->>'channel', parameter_snapshot->>'channelKey', workflow_parameters->>'channel', parameter_snapshot->>'channelLabel', workflow_parameters->>'channelLabel', split_part(parameter_snapshot->>'modelDisplayLabel', ' ', 1), split_part(workflow_parameters->>'modelDisplayLabel', ' ', 1), '')) IN ('free', '免费') THEN 'free'
-            WHEN lower(coalesce(parameter_snapshot->>'channel', parameter_snapshot->>'channelKey', workflow_parameters->>'channel', parameter_snapshot->>'channelLabel', workflow_parameters->>'channelLabel', split_part(parameter_snapshot->>'modelDisplayLabel', ' ', 1), split_part(workflow_parameters->>'modelDisplayLabel', ' ', 1), '')) = 'r'
-                OR lower(coalesce(parameter_snapshot->>'channelLabel', workflow_parameters->>'channelLabel', split_part(parameter_snapshot->>'modelDisplayLabel', ' ', 1), split_part(workflow_parameters->>'modelDisplayLabel', ' ', 1), '')) LIKE 'r版%' THEN 'r'
-            WHEN lower(coalesce(parameter_snapshot->>'channel', parameter_snapshot->>'channelKey', workflow_parameters->>'channel', parameter_snapshot->>'channelLabel', workflow_parameters->>'channelLabel', split_part(parameter_snapshot->>'modelDisplayLabel', ' ', 1), split_part(workflow_parameters->>'modelDisplayLabel', ' ', 1), '')) = 't'
-                OR lower(coalesce(parameter_snapshot->>'channelLabel', workflow_parameters->>'channelLabel', split_part(parameter_snapshot->>'modelDisplayLabel', ' ', 1), split_part(workflow_parameters->>'modelDisplayLabel', ' ', 1), '')) LIKE 't版%' THEN 't'
-            WHEN coalesce(parameter_snapshot->>'channelLabel', workflow_parameters->>'channelLabel', parameter_snapshot->>'modelDisplayLabel', workflow_parameters->>'modelDisplayLabel', '') <> '' THEN 'other'
-            ELSE channel
-        END
-        WHERE channel IS NULL OR btrim(channel) = ''
-    """))
-    c.execute(text("CREATE INDEX IF NOT EXISTS idx_tasks_channel_created_at ON tasks (channel, created_at)"))
-    c.execute(text("CREATE INDEX IF NOT EXISTS idx_tasks_channel_status_created_at ON tasks (channel, status, created_at)"))
     c.commit()
     print('✅ tasks 运行时字段已兜底修复')
 PYEOF
