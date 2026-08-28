@@ -393,6 +393,7 @@ class FavoriteImageManager:
         if not ok or not user:
             return False, None, error_msg
 
+        TaskManager()._ensure_task_schema(db)
         task = db.query(Tasks).filter(Tasks.id == favorite_in.task_id).first()
         if not task:
             return False, None, "Task not found"
@@ -503,6 +504,7 @@ class FavoriteImageManager:
         task_ids = [row.task_id for row in rows]
         task_map: Dict[str, Tasks] = {}
         if task_ids:
+            TaskManager()._ensure_task_schema(db)
             tasks = db.query(Tasks).filter(Tasks.id.in_(task_ids)).all()
             task_map = {task.id: task for task in tasks}
 

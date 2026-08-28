@@ -66,6 +66,7 @@ from graphs.node import (
     delete_task_node,
     list_tasks_node,
     count_tasks_stats_node,
+    today_success_rate_node,
     admin_task_dashboard_node,
     local_comfyui_queue_snapshot_node,
 )
@@ -221,6 +222,7 @@ builder.add_node("get_task", get_task_node)
 builder.add_node("delete_task", delete_task_node)
 builder.add_node("list_tasks", list_tasks_node)
 builder.add_node("count_tasks_stats", count_tasks_stats_node)
+builder.add_node("today_success_rate", today_success_rate_node)
 builder.add_node("admin_task_dashboard", admin_task_dashboard_node)
 builder.add_node(
     "local_comfyui_queue_snapshot", local_comfyui_queue_snapshot_node
@@ -363,6 +365,7 @@ builder.add_conditional_edges(
         "删除任务": "delete_task",
         "查询任务列表": "list_tasks",
         "统计任务数量": "count_tasks_stats",
+        "今日任务成功率": "today_success_rate",
         "局域网队列快照": "local_comfyui_queue_snapshot",
         "管理端任务总览": "admin_task_dashboard",
         "未知操作": "unknown_operation_error",
@@ -419,6 +422,7 @@ builder.add_edge("get_task", "format_response")
 builder.add_edge("delete_task", "format_response")
 builder.add_edge("list_tasks", "format_response")
 builder.add_edge("count_tasks_stats", "format_response")
+builder.add_edge("today_success_rate", "format_response")
 builder.add_edge("admin_task_dashboard", "format_response")
 builder.add_edge("unknown_operation_error", "format_response")
 builder.add_edge("local_comfyui_queue_snapshot", "format_response")

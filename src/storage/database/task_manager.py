@@ -4,11 +4,13 @@ import logging
 import os
 
 import time
+from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy import text, cast, String, case, func
 import json
+from zoneinfo import ZoneInfo
 
 from storage.database.shared.model import Tasks, Users
 from storage.database.referral_manager import process_first_completed_task_reward
@@ -23,6 +25,16 @@ import time
 }
 
 logger = logging.getLogger(__name__)
+
+成功率缓存TTL秒 = 120
+成功率缓存: Dict[str, tuple[float, dict]] = {}
+渠道显示标签映射: Dict[str, str] = {
+    "local": "本地",
+    "r": "R版",
+    "t": "T版",
+    "free": "免费",
+    "other": "其他",
+}
 
 
 class TaskCreate(BaseModel):
@@ -84,6 +96,107 @@ class TaskManager:
 
     _task_schema_checked = False
     _task_schema_lock = False
+
+    @staticmethod
+    def _normalize_task_channel_from_label(value: Any) -> Optional[str]:
+        text_value = str(value or "").strip()
+        if not text_value:
+            return None
+
+        normalized = text_value.lower()
+        if normalized in {"local", "本地", "局域", "局域网"}:
+            return "local"
+        if normalized in {"free", "免费"}:
+            return "free"
+        if normalized in {"r", "r版"} or normalized.startswith("r版"):
+            return "r"
+        if normalized in {"t", "t版"} or normalized.startswith("t版"):
+            return "t"
+        return "other"
+
+    @classmethod
+    def _extract_task_channel(cls, payload: Any) -> Optional[str]:
+        if not isinstance(payload, dict):
+            return None
+
+        for key in ("channel", "channelKey", "channel_key"):
+            normalized = cls._normalize_task_channel_from_label(payload.get(key))
+            if normalized:
+                return normalized
+
+        for key in ("channelLabel", "channel_label"):
+            normalized = cls._normalize_task_channel_from_label(payload.get(key))
+            if normalized:
+                return normalized
+
+        model_display_label = str(payload.get("modelDisplayLabel") or payload.get("model_display_label") or "").strip()
+        if model_display_label:
+            normalized = cls._normalize_task_channel_from_label(model_display_label.split()[0])
+            if normalized:
+                return normalized
+
+        return None
+
+    @classmethod
+    def _resolve_task_channel(cls, task_data: Dict[str, Any]) -> Optional[str]:
+        for key in ("parameter_snapshot", "workflow_parameters"):
+            normalized = cls._extract_task_channel(task_data.get(key))
+            if normalized:
+                return normalized
+        return cls._normalize_task_channel_from_label(task_data.get("channel"))
+
+    @classmethod
+    def _clear_success_rate_cache(cls) -> None:
+        成功率缓存.clear()
+
+    @staticmethod
+    def _build_success_rate_cache_key(date_text: str, timezone_name: str) -> str:
+        return f"{date_text}:{timezone_name}"
+
+    @staticmethod
+    def _resolve_timezone(timezone_name: Optional[str]) -> ZoneInfo:
+        safe_timezone = str(timezone_name or "Asia/Shanghai").strip() or "Asia/Shanghai"
+        try:
+            return ZoneInfo(safe_timezone)
+        except Exception:
+            return ZoneInfo("Asia/Shanghai")
+
+    @classmethod
+    def _resolve_today_range(cls, date_text: Optional[str], timezone_name: Optional[str]) -> tuple[int, int, str, str, str]:
+        timezone = cls._resolve_timezone(timezone_name)
+        if date_text:
+            target_date = datetime.strptime(date_text, "%Y-%m-%d").date()
+        else:
+            target_date = datetime.now(timezone).date()
+
+        start_dt = datetime(target_date.year, target_date.month, target_date.day, tzinfo=timezone)
+        end_dt = datetime.fromtimestamp(start_dt.timestamp() + 24 * 60 * 60, tz=timezone)
+        return (
+            int(start_dt.timestamp() * 1000),
+            int(end_dt.timestamp() * 1000),
+            target_date.isoformat(),
+            datetime.now(timezone).isoformat(),
+            timezone.key,
+        )
+
+    @staticmethod
+    def _build_empty_success_rate_bucket(label: str) -> Dict[str, Any]:
+        return {
+            "label": label,
+            "success": 0,
+            "failed": 0,
+            "total": 0,
+            "rate": None,
+        }
+
+    @classmethod
+    def _finalize_success_rate_bucket(cls, bucket: Dict[str, Any]) -> Dict[str, Any]:
+        success = int(bucket.get("success") or 0)
+        failed = int(bucket.get("failed") or 0)
+        denominator = success + failed
+        bucket["total"] = denominator
+        bucket["rate"] = (success / denominator) if denominator > 0 else None
+        return bucket
 
     @staticmethod
     def _pending_platform_task_id(task_id: str) -> str:
@@ -328,6 +441,11 @@ class TaskManager:
                     "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS persistence_error TEXT"
                 )
             )
+            db.execute(
+                text(
+                    "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS channel VARCHAR(32)"
+                )
+            )
             db.commit()
             cls._task_schema_checked = True
         except Exception:
@@ -403,10 +521,14 @@ class TaskManager:
 
             existing_task.updated_at = current_time
             existing_task.status_updated_at = existing_task.status_updated_at or current_time
+            resolved_channel = self._resolve_task_channel(task_data)
+            if resolved_channel and getattr(existing_task, "channel", None) != resolved_channel:
+                existing_task.channel = resolved_channel
             db.add(existing_task)
             try:
                 db.commit()
                 db.refresh(existing_task)
+                self._clear_success_rate_cache()
                 return existing_task
             except Exception:
                 db.rollback()
@@ -421,6 +543,7 @@ class TaskManager:
         task_data["updated_at"] = current_time
         task_data["status_updated_at"] = current_time
         task_data["started_at"] = current_time
+        task_data["channel"] = self._resolve_task_channel(task_data)
         task_data["completed_at"] = None
         task_data["failed_at"] = None
         task_data["cancelled_at"] = None
@@ -430,6 +553,7 @@ class TaskManager:
         try:
             db.commit()
             db.refresh(db_task)
+            self._clear_success_rate_cache()
             return db_task
         except Exception:
             db.rollback()
@@ -1060,6 +1184,14 @@ class TaskManager:
         ):
             update_data["started_at"] = now_ms
 
+        resolved_channel = self._resolve_task_channel({
+            "channel": update_data.get("channel") or db_task.channel,
+            "parameter_snapshot": update_data.get("parameter_snapshot", db_task.parameter_snapshot),
+            "workflow_parameters": update_data.get("workflow_parameters", db_task.workflow_parameters),
+        })
+        if resolved_channel:
+            update_data["channel"] = resolved_channel
+
         next_status = update_data.get("status")
         if next_status and next_status != db_task.status:
             update_data["status_updated_at"] = now_ms
@@ -1130,6 +1262,7 @@ class TaskManager:
             # 【统一退款】终态为 failed 且非用户手动取消，触发退款；幂等键统一 refund:{task_id}
             if next_status == "failed":
                 self._maybe_refund_on_failed_transition(db_task)
+            self._clear_success_rate_cache()
             return db_task
         except Exception:
             db.rollback()
@@ -1230,6 +1363,7 @@ class TaskManager:
             db.add(db_task)
             db.commit()
             db.refresh(db_task)
+            self._clear_success_rate_cache()
             return db_task
         except Exception:
             db.rollback()
@@ -1280,6 +1414,7 @@ class TaskManager:
 
         try:
             db.commit()
+            self._clear_success_rate_cache()
             return fixed
         except Exception:
             db.rollback()
@@ -1323,6 +1458,7 @@ class TaskManager:
         db.add(db_task)
         try:
             db.commit()
+            self._clear_success_rate_cache()
             return True, "任务删除成功"
         except Exception:
             db.rollback()
@@ -1336,6 +1472,7 @@ class TaskManager:
             .delete(synchronize_session=False)
         )
         db.commit()
+        self._clear_success_rate_cache()
         return deleted_count
 
     def count_tasks_by_user_id(
@@ -1731,6 +1868,73 @@ class TaskManager:
         stats = {status: count for status, count in rows}
         stats["total"] = sum(stats.values())
         return stats
+
+    def get_today_success_rate(
+        self,
+        db: Session,
+        *,
+        date_text: Optional[str] = None,
+        timezone_name: Optional[str] = None,
+    ) -> dict:
+        self._ensure_task_schema(db)
+
+        start_time, end_time, resolved_date, generated_at, resolved_timezone = self._resolve_today_range(
+            date_text,
+            timezone_name,
+        )
+        cache_key = self._build_success_rate_cache_key(resolved_date, resolved_timezone)
+        cached = 成功率缓存.get(cache_key)
+        now = time.time()
+        if cached and (now - cached[0]) < 成功率缓存TTL秒:
+            return cached[1]
+
+        rows = (
+            db.query(Tasks.channel, Tasks.status, func.count(Tasks.id))
+            .filter(
+                Tasks.is_deleted == False,
+                Tasks.created_at >= str(start_time),
+                Tasks.created_at < str(end_time),
+            )
+            .group_by(Tasks.channel, Tasks.status)
+            .all()
+        )
+
+        channels = {
+            channel_key: self._build_empty_success_rate_bucket(label)
+            for channel_key, label in 渠道显示标签映射.items()
+            if channel_key != "other"
+        }
+        overall = self._build_empty_success_rate_bucket("整体")
+
+        for raw_channel, raw_status, count in rows:
+            channel_key = self._normalize_task_channel_from_label(raw_channel) or "other"
+            status_key = str(raw_status or "").strip().lower()
+            count_value = int(count or 0)
+
+            if status_key in 状态筛选别名映射["completed"]:
+                bucket_key = "success"
+            elif status_key in 状态筛选别名映射["failed"]:
+                bucket_key = "failed"
+            else:
+                continue
+
+            overall[bucket_key] += count_value
+            if channel_key in channels:
+                channels[channel_key][bucket_key] += count_value
+
+        self._finalize_success_rate_bucket(overall)
+        for bucket in channels.values():
+            self._finalize_success_rate_bucket(bucket)
+
+        payload = {
+            "date": resolved_date,
+            "generated_at": generated_at,
+            "timezone": resolved_timezone,
+            "overall": overall,
+            "channels": channels,
+        }
+        成功率缓存[cache_key] = (now, payload)
+        return payload
 
     def list_local_comfyui_queue_snapshot(
         self,

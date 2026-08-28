@@ -117,6 +117,9 @@ def _serialize_reward(record: ReferralRewardRecords) -> dict[str, Any]:
 
 
 def _has_effective_completed_generation_task(db: Session, user_id: str) -> bool:
+    from storage.database.task_manager import TaskManager
+
+    TaskManager()._ensure_task_schema(db)
     rows = (
         db.query(Tasks)
         .filter(
@@ -159,6 +162,9 @@ def _task_sort_key(task: Tasks) -> tuple[int, int, str]:
 
 
 def _is_first_effective_completed_task(db: Session, user_id: str, task_id: str) -> bool:
+    from storage.database.task_manager import TaskManager
+
+    TaskManager()._ensure_task_schema(db)
     rows = (
         db.query(Tasks)
         .filter(

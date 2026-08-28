@@ -86,7 +86,7 @@ class InputData(BaseModel):
     )
     operation_type: Optional[str] = Field(
         default=None,
-        description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/send_password_reset_code/register/register_with_code/reset_password_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/get_task/update_task/delete_task/list_tasks)、通知管理(get_active/get_all/create/update/delete)、公告管理(get_active_popup/get_all/create/update/disable)、团队余额(init/check/create_team/get_team/add_member/list_members/create_invite/list_invites/disable_invite/join_by_invite/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、兑换码(create_batch/list_batches/list_codes/redeem/disable_code/disable_batch/list_redemptions/create_order/list_orders/get_order/order_summary/refund_order/cancel_order)、资金中心(overview/orders/order_summary/risk_exceptions)、RunningHub错误分析(runninghub_error_analysis)",
+        description="操作类型：账号管理(check_rate_limit/update_rate_limit/send_register_code/send_password_reset_code/register/register_with_code/reset_password_with_code/login/get_user/get_user_by_id/update_user/delete_user/list_users)、任务管理(create_task/get_task/update_task/delete_task/list_tasks/count_tasks_stats/get_today_success_rate/admin_task_dashboard)、通知管理(get_active/get_all/create/update/delete)、公告管理(get_active_popup/get_all/create/update/disable)、团队余额(init/check/create_team/get_team/add_member/list_members/create_invite/list_invites/disable_invite/join_by_invite/recharge/deduct/refund/get_records/get_stats/get_member_stats)、资金扣费(get_balance/deduct/refund/settle/list_records)、兑换码(create_batch/list_batches/list_codes/redeem/disable_code/disable_batch/list_redemptions/create_order/list_orders/get_order/order_summary/refund_order/cancel_order)、资金中心(overview/orders/order_summary/risk_exceptions)、RunningHub错误分析(runninghub_error_analysis)",
     )
     assets: Optional[List[dict]] = Field(
         default=None, description="Agent 意图判断素材摘要列表"
@@ -178,6 +178,8 @@ class InputData(BaseModel):
     include_deleted: Optional[bool] = Field(
         default=False, description="是否包含已删除任务（list_tasks/admin_task_dashboard 使用）"
     )
+    date: Optional[str] = Field(default=None, description="自然日日期（YYYY-MM-DD）")
+    timezone: Optional[str] = Field(default=None, description="IANA 时区标识，如 Asia/Shanghai")
 
     # 任务管理相关字段
     task_id: Optional[str] = Field(
@@ -1100,6 +1102,19 @@ class CountTasksStatsOutput(BaseModel):
     result: dict = Field(..., description="统计结果，包含 total 及各 status 计数")
 
 
+class TodaySuccessRateInput(BaseModel):
+    """今日任务成功率统计节点的输入"""
+
+    date: Optional[str] = Field(default=None, description="自然日日期（YYYY-MM-DD），默认今天")
+    timezone: Optional[str] = Field(default=None, description="IANA 时区标识，默认 Asia/Shanghai")
+
+
+class TodaySuccessRateOutput(BaseModel):
+    """今日任务成功率统计节点的输出"""
+
+    result: dict = Field(..., description="今日任务成功率统计结果")
+
+
 class AdminTaskDashboardInput(BaseModel):
     """管理端任务总览节点的输入"""
 
@@ -1147,7 +1162,7 @@ class TaskRouteInput(BaseModel):
 
     operation_type: str = Field(
         ...,
-        description="操作类型：create_task/get_task/update_task/delete_task/list_tasks/count_tasks_stats/admin_task_dashboard",
+        description="操作类型：create_task/get_task/update_task/delete_task/list_tasks/count_tasks_stats/get_today_success_rate/admin_task_dashboard",
     )
     # 任务管理相关字段
     user_id: Optional[str] = Field(default=None, description="用户ID")
@@ -1185,6 +1200,8 @@ class TaskRouteInput(BaseModel):
     )
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
     compact: Optional[bool] = Field(default=False, description="是否返回轻量列表字段")
+    date: Optional[str] = Field(default=None, description="自然日日期（YYYY-MM-DD）")
+    timezone: Optional[str] = Field(default=None, description="IANA 时区标识")
 
 
 class TaskRouteOutput(BaseModel):
@@ -1227,6 +1244,8 @@ class TaskRouteOutput(BaseModel):
     )
     operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
     compact: Optional[bool] = Field(default=False, description="是否返回轻量列表字段")
+    date: Optional[str] = Field(default=None, description="自然日日期（YYYY-MM-DD）")
+    timezone: Optional[str] = Field(default=None, description="IANA 时区标识")
 
 
 # 未知操作兜底节点（任务/用户管理等二级路由未识别的操作类型）
@@ -1414,6 +1433,8 @@ class UnpackInputDataOutput(BaseModel):
     )
     days: Optional[int] = Field(default=None, description="查询天数")
     compact: Optional[bool] = Field(default=False, description="是否返回轻量列表字段")
+    date: Optional[str] = Field(default=None, description="自然日日期（YYYY-MM-DD）")
+    timezone: Optional[str] = Field(default=None, description="IANA 时区标识")
     # 任务管理相关字段
     task_id: Optional[str] = Field(
         default=None, description="任务ID（get_task/update_task/delete_task 使用）"

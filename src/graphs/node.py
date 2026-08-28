@@ -101,6 +101,8 @@ from graphs.state import (
     ListTasksOutput,
     CountTasksStatsInput,
     CountTasksStatsOutput,
+    TodaySuccessRateInput,
+    TodaySuccessRateOutput,
     AdminTaskDashboardInput,
     AdminTaskDashboardOutput,
     LocalComfyUiQueueSnapshotInput,
@@ -396,6 +398,8 @@ def unpack_input_data_node(
         time_dimension=input_data.time_dimension if input_data else None,
         include_deleted=input_data.include_deleted if input_data else False,
         compact=input_data.compact if input_data else False,
+        date=input_data.date if input_data else None,
+        timezone=input_data.timezone if input_data else None,
         # 任务管理相关字段
         task_id=input_data.task_id if input_data else None,
         platform=input_data.platform if input_data else None,
@@ -1962,6 +1966,8 @@ def task_route_node(
         operator_role=state.operator_role,
         operator_user_id=state.operator_user_id,
         compact=state.compact,
+        date=state.date,
+        timezone=state.timezone,
     )
 
 
@@ -1984,6 +1990,8 @@ def route_by_task_operation_type(state: TaskRouteInput) -> str:
         return "查询任务列表"
     elif operation_type == "count_tasks_stats":
         return "统计任务数量"
+    elif operation_type == "get_today_success_rate":
+        return "今日任务成功率"
     elif operation_type == "get_local_queue_snapshot":
         return "局域网队列快照"
     elif operation_type == "admin_task_dashboard":
@@ -2698,6 +2706,41 @@ def count_tasks_stats_node(
     except Exception as e:
         return CountTasksStatsOutput(
             result={"success": False, "message": f"统计失败: {str(e)}"}
+        )
+
+
+def today_success_rate_node(
+    state: TodaySuccessRateInput, config: RunnableConfig, runtime: Runtime[Context]
+) -> TodaySuccessRateOutput:
+    """
+    title: 今日任务成功率
+    desc: 返回指定自然日的整体成功率与四大渠道成功率。
+    integrations: 数据库
+    """
+    try:
+        from storage.database.task_manager import TaskManager
+
+        db = get_session()
+        try:
+            task_mgr = TaskManager()
+            stats = task_mgr.get_today_success_rate(
+                db,
+                date_text=state.date,
+                timezone_name=state.timezone,
+            )
+            return TodaySuccessRateOutput(
+                result={
+                    "success": True,
+                    "message": "查询成功",
+                    "stats": stats,
+                }
+            )
+        finally:
+            db.close()
+
+    except Exception as e:
+        return TodaySuccessRateOutput(
+            result={"success": False, "message": f"查询今日任务成功率失败: {str(e)}"}
         )
 
 
