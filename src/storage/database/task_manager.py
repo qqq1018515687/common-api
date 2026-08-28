@@ -35,6 +35,46 @@ logger = logging.getLogger(__name__)
     "free": "免费",
     "other": "其他",
 }
+工作流模型渠道映射: Dict[str, Dict[str, str]] = {
+    "workflow_01": {
+        "model1": "r",
+        "model2": "r",
+        "model3": "r",
+        "model5": "r",
+        "model6": "r",
+        "local_comfyui_zimage": "local",
+        "local_comfyui_wan22": "local",
+    },
+    "workflow_02": {
+        "model1": "r",
+        "model2": "r",
+        "model3": "r",
+        "model5": "r",
+        "local_gpt2_free": "free",
+        "gpt_image_2_tudou": "t",
+        "banana_pro_tudou": "t",
+        "banana2_tudou": "t",
+    },
+    "workflow_03": {
+        "model1": "r",
+        "model2": "r",
+        "model3": "r",
+        "model4": "r",
+        "local_comfyui_upscale": "local",
+    },
+    "workflow_04": {
+        "model1": "r",
+        "model2": "r",
+    },
+    "workflow_05": {
+        "model1": "r",
+        "model2": "r",
+    },
+    "workflow_06": {
+        "model1": "r",
+        "model2": "r",
+    },
+}
 
 
 class TaskCreate(BaseModel):
@@ -113,6 +153,81 @@ class TaskManager:
         if normalized in {"t", "t版"} or normalized.startswith("t版"):
             return "t"
         return "other"
+
+    @staticmethod
+    def _extract_string_from_payload(payload: Any, *keys: str) -> Optional[str]:
+        if not isinstance(payload, dict):
+            return None
+        for key in keys:
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return None
+
+    @classmethod
+    def _resolve_task_channel_from_sources(
+        cls,
+        *,
+        platform: Any,
+        parameter_snapshot: Any,
+        workflow_parameters: Any,
+        stored_channel: Any,
+    ) -> Optional[str]:
+        explicit_channel = cls._normalize_task_channel_from_label(stored_channel)
+        if explicit_channel and explicit_channel != "other":
+            return explicit_channel
+
+        for payload in (parameter_snapshot, workflow_parameters):
+            normalized = cls._normalize_task_channel_from_label(
+                cls._extract_string_from_payload(payload, "channel", "channelKey", "channel_key")
+            )
+            if normalized and normalized != "other":
+                return normalized
+
+        platform_key = str(platform or "").strip().lower()
+        if platform_key == "local_comfyui":
+            return "local"
+        if platform_key == "local_sub2api":
+            return "free"
+        if platform_key == "tudou":
+            return "t"
+
+        for payload in (parameter_snapshot, workflow_parameters):
+            normalized = cls._normalize_task_channel_from_label(
+                cls._extract_string_from_payload(payload, "channelLabel", "channel_label")
+            )
+            if normalized and normalized != "other":
+                return normalized
+
+        for payload in (parameter_snapshot, workflow_parameters):
+            normalized = cls._normalize_task_channel_from_label(
+                cls._extract_string_from_payload(payload, "modelDisplayLabel", "model_display_label")
+            )
+            if normalized and normalized != "other":
+                return normalized
+
+        workflow_id = (
+            cls._extract_string_from_payload(parameter_snapshot, "workflowId", "workflow_id")
+            or cls._extract_string_from_payload(workflow_parameters, "workflowId", "workflow_id")
+        )
+        model_key = (
+            cls._extract_string_from_payload(workflow_parameters, "model_name", "modelName", "model")
+            or cls._extract_string_from_payload(parameter_snapshot, "model_name", "modelName", "model")
+        )
+        if workflow_id and model_key:
+            mapped_channel = 工作流模型渠道映射.get(workflow_id, {}).get(model_key)
+            if mapped_channel:
+                return mapped_channel
+
+        model_display_name = (
+            cls._extract_string_from_payload(parameter_snapshot, "modelName", "model_name")
+            or cls._extract_string_from_payload(workflow_parameters, "modelName", "model_name")
+        )
+        normalized_model_display = str(model_display_name or "").strip().lower()
+        if normalized_model_display == "gpt2" and platform_key == "local_sub2api":
+            return "free"
+
+        return None
 
     @classmethod
     def _clear_success_rate_cache(cls) -> None:
@@ -1856,29 +1971,21 @@ class TaskManager:
         if cached and (now - cached[0]) < 成功率缓存TTL秒:
             return cached[1]
 
-        rows = db.execute(
-            text(
-                "SELECT "
-                "CASE "
-                "WHEN lower(coalesce(parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', parameter_snapshot ->> 'channel_key', workflow_parameters ->> 'channel', workflow_parameters ->> 'channelKey', workflow_parameters ->> 'channel_key', parameter_snapshot ->> 'channelLabel', parameter_snapshot ->> 'channel_label', workflow_parameters ->> 'channelLabel', workflow_parameters ->> 'channel_label', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(parameter_snapshot ->> 'model_display_label', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'model_display_label', ' ', 1), '')) IN ('local', '本地', '局域', '局域网') THEN 'local' "
-                "WHEN lower(coalesce(parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', parameter_snapshot ->> 'channel_key', workflow_parameters ->> 'channel', workflow_parameters ->> 'channelKey', workflow_parameters ->> 'channel_key', parameter_snapshot ->> 'channelLabel', parameter_snapshot ->> 'channel_label', workflow_parameters ->> 'channelLabel', workflow_parameters ->> 'channel_label', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(parameter_snapshot ->> 'model_display_label', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'model_display_label', ' ', 1), '')) IN ('free', '免费') THEN 'free' "
-                "WHEN lower(coalesce(parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', parameter_snapshot ->> 'channel_key', workflow_parameters ->> 'channel', workflow_parameters ->> 'channelKey', workflow_parameters ->> 'channel_key', parameter_snapshot ->> 'channelLabel', parameter_snapshot ->> 'channel_label', workflow_parameters ->> 'channelLabel', workflow_parameters ->> 'channel_label', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(parameter_snapshot ->> 'model_display_label', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'model_display_label', ' ', 1), '')) = 'r' OR lower(coalesce(parameter_snapshot ->> 'channelLabel', parameter_snapshot ->> 'channel_label', workflow_parameters ->> 'channelLabel', workflow_parameters ->> 'channel_label', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(parameter_snapshot ->> 'model_display_label', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'model_display_label', ' ', 1), '')) LIKE 'r版%' THEN 'r' "
-                "WHEN lower(coalesce(parameter_snapshot ->> 'channel', parameter_snapshot ->> 'channelKey', parameter_snapshot ->> 'channel_key', workflow_parameters ->> 'channel', workflow_parameters ->> 'channelKey', workflow_parameters ->> 'channel_key', parameter_snapshot ->> 'channelLabel', parameter_snapshot ->> 'channel_label', workflow_parameters ->> 'channelLabel', workflow_parameters ->> 'channel_label', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(parameter_snapshot ->> 'model_display_label', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'model_display_label', ' ', 1), '')) = 't' OR lower(coalesce(parameter_snapshot ->> 'channelLabel', parameter_snapshot ->> 'channel_label', workflow_parameters ->> 'channelLabel', workflow_parameters ->> 'channel_label', split_part(parameter_snapshot ->> 'modelDisplayLabel', ' ', 1), split_part(parameter_snapshot ->> 'model_display_label', ' ', 1), split_part(workflow_parameters ->> 'modelDisplayLabel', ' ', 1), split_part(workflow_parameters ->> 'model_display_label', ' ', 1), '')) LIKE 't版%' THEN 't' "
-                "WHEN coalesce(parameter_snapshot ->> 'channelLabel', parameter_snapshot ->> 'channel_label', workflow_parameters ->> 'channelLabel', workflow_parameters ->> 'channel_label', parameter_snapshot ->> 'modelDisplayLabel', parameter_snapshot ->> 'model_display_label', workflow_parameters ->> 'modelDisplayLabel', workflow_parameters ->> 'model_display_label', '') <> '' THEN 'other' "
-                "ELSE NULL END AS channel_key, "
-                "lower(coalesce(status, '')) AS status_key, "
-                "count(id) AS count_value "
-                "FROM tasks "
-                "WHERE coalesce(is_deleted, false) = false "
-                "AND created_at >= :start_time "
-                "AND created_at < :end_time "
-                "GROUP BY 1, 2"
-            ),
-            {
-                "start_time": str(start_time),
-                "end_time": str(end_time),
-            }
-        ).fetchall()
+        rows = (
+            db.query(
+                Tasks.platform,
+                Tasks.status,
+                Tasks.parameter_snapshot,
+                Tasks.workflow_parameters,
+                Tasks.channel,
+            )
+            .filter(
+                Tasks.is_deleted == False,
+                Tasks.created_at >= str(start_time),
+                Tasks.created_at < str(end_time),
+            )
+            .all()
+        )
 
         channels = {
             channel_key: self._build_empty_success_rate_bucket(label)
@@ -1886,11 +1993,10 @@ class TaskManager:
             if channel_key != "other"
         }
         overall = self._build_empty_success_rate_bucket("整体")
+        unknown_count = 0
 
-        for raw_channel, raw_status, count in rows:
-            channel_key = self._normalize_task_channel_from_label(raw_channel) or "other"
+        for platform, raw_status, parameter_snapshot, workflow_parameters, stored_channel in rows:
             status_key = str(raw_status or "").strip().lower()
-            count_value = int(count or 0)
 
             if status_key in 状态筛选别名映射["completed"]:
                 bucket_key = "success"
@@ -1899,9 +2005,18 @@ class TaskManager:
             else:
                 continue
 
-            overall[bucket_key] += count_value
+            channel_key = self._resolve_task_channel_from_sources(
+                platform=platform,
+                parameter_snapshot=parameter_snapshot,
+                workflow_parameters=workflow_parameters,
+                stored_channel=stored_channel,
+            )
+
+            overall[bucket_key] += 1
             if channel_key in channels:
-                channels[channel_key][bucket_key] += count_value
+                channels[channel_key][bucket_key] += 1
+            else:
+                unknown_count += 1
 
         self._finalize_success_rate_bucket(overall)
         for bucket in channels.values():
@@ -1913,6 +2028,7 @@ class TaskManager:
             "timezone": resolved_timezone,
             "overall": overall,
             "channels": channels,
+            "unknown_count": unknown_count,
         }
         成功率缓存[cache_key] = (now, payload)
         return payload
