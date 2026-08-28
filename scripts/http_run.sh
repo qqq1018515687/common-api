@@ -40,7 +40,20 @@ cd "${WORK_DIR}"
 # Run database migrations before starting the HTTP service. Alembic skips
 # already-applied revisions, so this is safe to run on every deployment.
 echo "[DB] Running Alembic migrations..."
-python -m alembic upgrade head
+ALEMBIC_OK=0
+for attempt in 1 2 3; do
+  echo "[DB] Alembic attempt ${attempt}/3"
+  if python -m alembic upgrade head; then
+    ALEMBIC_OK=1
+    break
+  fi
+  echo "[DB] Alembic attempt ${attempt} failed"
+  sleep 2
+done
+
+if [ "$ALEMBIC_OK" -ne 1 ]; then
+  echo "[DB] WARNING: Alembic migrations failed after retries, continue with runtime DDL fallback"
+fi
 
 # 确保 users 表字段长度正确（Alembic 迁移 repeat 问题，每次部署兜底修复）
 echo "[DB] 确保 users 表字段长度正确..."
@@ -70,6 +83,7 @@ with e.connect() as c:
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS result_fallback JSON"))
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS persistence_status VARCHAR(20)"))
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS persistence_error TEXT"))
+    c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS channel VARCHAR(32)"))
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS failed_at VARCHAR(20)"))
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS cancelled_at VARCHAR(20)"))
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS status_updated_at VARCHAR(20)"))
@@ -88,6 +102,22 @@ with e.connect() as c:
         END
         WHERE confirmation_state IS NULL
     """))
+    c.execute(text("""
+        UPDATE tasks
+        SET channel = CASE
+            WHEN lower(coalesce(parameter_snapshot->>'channel', parameter_snapshot->>'channelKey', workflow_parameters->>'channel', parameter_snapshot->>'channelLabel', workflow_parameters->>'channelLabel', split_part(parameter_snapshot->>'modelDisplayLabel', ' ', 1), split_part(workflow_parameters->>'modelDisplayLabel', ' ', 1), '')) IN ('local', '本地', '局域', '局域网') THEN 'local'
+            WHEN lower(coalesce(parameter_snapshot->>'channel', parameter_snapshot->>'channelKey', workflow_parameters->>'channel', parameter_snapshot->>'channelLabel', workflow_parameters->>'channelLabel', split_part(parameter_snapshot->>'modelDisplayLabel', ' ', 1), split_part(workflow_parameters->>'modelDisplayLabel', ' ', 1), '')) IN ('free', '免费') THEN 'free'
+            WHEN lower(coalesce(parameter_snapshot->>'channel', parameter_snapshot->>'channelKey', workflow_parameters->>'channel', parameter_snapshot->>'channelLabel', workflow_parameters->>'channelLabel', split_part(parameter_snapshot->>'modelDisplayLabel', ' ', 1), split_part(workflow_parameters->>'modelDisplayLabel', ' ', 1), '')) = 'r'
+                OR lower(coalesce(parameter_snapshot->>'channelLabel', workflow_parameters->>'channelLabel', split_part(parameter_snapshot->>'modelDisplayLabel', ' ', 1), split_part(workflow_parameters->>'modelDisplayLabel', ' ', 1), '')) LIKE 'r版%' THEN 'r'
+            WHEN lower(coalesce(parameter_snapshot->>'channel', parameter_snapshot->>'channelKey', workflow_parameters->>'channel', parameter_snapshot->>'channelLabel', workflow_parameters->>'channelLabel', split_part(parameter_snapshot->>'modelDisplayLabel', ' ', 1), split_part(workflow_parameters->>'modelDisplayLabel', ' ', 1), '')) = 't'
+                OR lower(coalesce(parameter_snapshot->>'channelLabel', workflow_parameters->>'channelLabel', split_part(parameter_snapshot->>'modelDisplayLabel', ' ', 1), split_part(workflow_parameters->>'modelDisplayLabel', ' ', 1), '')) LIKE 't版%' THEN 't'
+            WHEN coalesce(parameter_snapshot->>'channelLabel', workflow_parameters->>'channelLabel', parameter_snapshot->>'modelDisplayLabel', workflow_parameters->>'modelDisplayLabel', '') <> '' THEN 'other'
+            ELSE channel
+        END
+        WHERE channel IS NULL OR btrim(channel) = ''
+    """))
+    c.execute(text("CREATE INDEX IF NOT EXISTS idx_tasks_channel_created_at ON tasks (channel, created_at)"))
+    c.execute(text("CREATE INDEX IF NOT EXISTS idx_tasks_channel_status_created_at ON tasks (channel, status, created_at)"))
     c.commit()
     print('✅ tasks 运行时字段已兜底修复')
 PYEOF
