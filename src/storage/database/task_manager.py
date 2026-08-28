@@ -164,6 +164,22 @@ class TaskManager:
                 return value.strip()
         return None
 
+    @staticmethod
+    def _extract_model_key_from_payload(payload: Any) -> Optional[str]:
+        if not isinstance(payload, dict):
+            return None
+
+        for key in ("model_name", "modelName", "model"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+            if isinstance(value, list):
+                for item in value:
+                    if isinstance(item, str) and item.strip():
+                        return item.strip()
+
+        return None
+
     @classmethod
     def _resolve_task_channel_from_sources(
         cls,
@@ -171,12 +187,7 @@ class TaskManager:
         platform: Any,
         parameter_snapshot: Any,
         workflow_parameters: Any,
-        stored_channel: Any,
     ) -> Optional[str]:
-        explicit_channel = cls._normalize_task_channel_from_label(stored_channel)
-        if explicit_channel and explicit_channel != "other":
-            return explicit_channel
-
         for payload in (parameter_snapshot, workflow_parameters):
             normalized = cls._normalize_task_channel_from_label(
                 cls._extract_string_from_payload(payload, "channel", "channelKey", "channel_key")
@@ -211,8 +222,8 @@ class TaskManager:
             or cls._extract_string_from_payload(workflow_parameters, "workflowId", "workflow_id")
         )
         model_key = (
-            cls._extract_string_from_payload(workflow_parameters, "model_name", "modelName", "model")
-            or cls._extract_string_from_payload(parameter_snapshot, "model_name", "modelName", "model")
+            cls._extract_model_key_from_payload(workflow_parameters)
+            or cls._extract_model_key_from_payload(parameter_snapshot)
         )
         if workflow_id and model_key:
             mapped_channel = 工作流模型渠道映射.get(workflow_id, {}).get(model_key)
@@ -226,6 +237,9 @@ class TaskManager:
         normalized_model_display = str(model_display_name or "").strip().lower()
         if normalized_model_display == "gpt2" and platform_key == "local_sub2api":
             return "free"
+
+        if platform_key in {"runninghub", "aigc", "bltcy", "plugin"}:
+            return "r"
 
         return None
 
@@ -1977,7 +1991,6 @@ class TaskManager:
                 Tasks.status,
                 Tasks.parameter_snapshot,
                 Tasks.workflow_parameters,
-                Tasks.channel,
             )
             .filter(
                 Tasks.is_deleted == False,
@@ -1995,7 +2008,7 @@ class TaskManager:
         overall = self._build_empty_success_rate_bucket("整体")
         unknown_count = 0
 
-        for platform, raw_status, parameter_snapshot, workflow_parameters, stored_channel in rows:
+        for platform, raw_status, parameter_snapshot, workflow_parameters in rows:
             status_key = str(raw_status or "").strip().lower()
 
             if status_key in 状态筛选别名映射["completed"]:
@@ -2009,7 +2022,6 @@ class TaskManager:
                 platform=platform,
                 parameter_snapshot=parameter_snapshot,
                 workflow_parameters=workflow_parameters,
-                stored_channel=stored_channel,
             )
 
             overall[bucket_key] += 1
