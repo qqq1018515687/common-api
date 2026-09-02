@@ -345,6 +345,18 @@ ALLOWED_MULTIPART_UPLOAD_TYPES = {
     "image/webp",
     "image/gif",
     "image/bmp",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/plain",
+    "text/markdown",
+    "application/json",
+    "text/csv",
+    "application/csv",
 }
 
 

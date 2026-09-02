@@ -244,6 +244,72 @@ class RuntimeConfigs(Base):
     updated_at: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='更新时间（毫秒）')
 
 
+class MarsAssistantAttachments(Base):
+    __tablename__ = 'mars_assistant_attachments'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='mars_assistant_attachments_pkey'),
+        Index('ix_mars_assistant_attachments_session_created', 'session_id', 'created_at'),
+        Index('ix_mars_assistant_attachments_user_created', 'user_id', 'created_at'),
+        {'comment': '火星助手附件表，保存会话附件原件元数据与存储位置'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='附件ID')
+    session_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='会话ID')
+    user_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='用户ID')
+    team_id: Mapped[Optional[str]] = mapped_column(String(64), comment='团队ID')
+    name: Mapped[str] = mapped_column(String(255), nullable=False, comment='原始文件名')
+    mime_type: Mapped[str] = mapped_column(String(128), nullable=False, comment='文件 MIME 类型')
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, comment='附件类型：image/document')
+    size: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='文件大小')
+    storage_provider: Mapped[Optional[str]] = mapped_column(String(32), comment='存储提供方')
+    storage_key: Mapped[Optional[str]] = mapped_column(String(512), comment='对象存储 key')
+    public_url: Mapped[Optional[str]] = mapped_column(Text, comment='对象存储 URL')
+    file_key: Mapped[Optional[str]] = mapped_column(String(512), comment='对象存储文件 key（兼容字段）')
+    expires_at: Mapped[Optional[BigInteger]] = mapped_column(BigInteger, comment='对象存储 URL 过期时间')
+    parse_status: Mapped[str] = mapped_column(String(24), nullable=False, server_default=text("'pending'::character varying"), comment='解析状态：pending/completed/failed')
+    parse_error: Mapped[Optional[str]] = mapped_column(Text, comment='解析错误信息')
+    text_preview: Mapped[Optional[str]] = mapped_column(Text, comment='文本预览')
+    metadata_json: Mapped[Optional[dict]] = mapped_column('metadata', JSON, comment='附件扩展元数据')
+    created_at: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='创建时间（毫秒）')
+    updated_at: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='更新时间（毫秒）')
+
+
+class MarsAssistantAttachmentContents(Base):
+    __tablename__ = 'mars_assistant_attachment_contents'
+    __table_args__ = (
+        PrimaryKeyConstraint('attachment_id', name='mars_assistant_attachment_contents_pkey'),
+        {'comment': '火星助手附件解析结果表，保存全文、摘要与结构化内容'}
+    )
+
+    attachment_id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='附件ID')
+    full_text: Mapped[Optional[str]] = mapped_column(Text, comment='解析后的全文文本')
+    summary: Mapped[Optional[str]] = mapped_column(Text, comment='解析摘要')
+    structured_json: Mapped[Optional[dict]] = mapped_column(JSON, comment='结构化解析结果')
+    page_count: Mapped[Optional[int]] = mapped_column(Integer, comment='页数')
+    sheet_count: Mapped[Optional[int]] = mapped_column(Integer, comment='工作表数')
+    updated_at: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='更新时间（毫秒）')
+
+
+class MarsAssistantAttachmentChunks(Base):
+    __tablename__ = 'mars_assistant_attachment_chunks'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='mars_assistant_attachment_chunks_pkey'),
+        Index('ix_mars_assistant_attachment_chunks_attachment_index', 'attachment_id', 'chunk_index'),
+        {'comment': '火星助手附件分块表，供后续检索和上下文拼装'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='分块ID')
+    attachment_id: Mapped[str] = mapped_column(String(64), nullable=False, comment='附件ID')
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False, comment='分块序号')
+    chunk_text: Mapped[str] = mapped_column(Text, nullable=False, comment='分块文本')
+    source_type: Mapped[Optional[str]] = mapped_column(String(32), comment='来源类型：page/sheet/paragraph')
+    source_label: Mapped[Optional[str]] = mapped_column(String(255), comment='来源标签')
+    page_number: Mapped[Optional[int]] = mapped_column(Integer, comment='页码')
+    sheet_name: Mapped[Optional[str]] = mapped_column(String(255), comment='工作表名')
+    token_estimate: Mapped[Optional[int]] = mapped_column(Integer, comment='预估 token 数')
+    created_at: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='创建时间（毫秒）')
+
+
 class TagPoolVersions(Base):
     __tablename__ = 'tag_pool_versions'
     __table_args__ = (
