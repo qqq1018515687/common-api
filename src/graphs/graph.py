@@ -27,6 +27,8 @@ from graphs.state import (
     UnpackInputDataOutput,
     SystemNotificationInput,
     SystemNotificationOutput,
+    RuntimeConfigInput,
+    RuntimeConfigOutput,
     AnnouncementInput,
     AnnouncementOutput,
     CheckNeedTagsOutput,
@@ -73,6 +75,7 @@ from graphs.node import (
 from graphs.nodes.system_notification_handler_node import (
     system_notification_handler_node,
 )
+from graphs.nodes.runtime_config_handler_node import runtime_config_handler_node
 from graphs.nodes.announcement_handler_node import announcement_handler_node
 from graphs.nodes.image_tagging_node import image_tagging_node
 from graphs.nodes.save_image_tags_node import save_image_tags_node
@@ -134,6 +137,8 @@ def route_by_call_type(state: RouterOutput) -> str:
         return "通知管理"
     elif call_type == "announcement_management":
         return "公告管理"
+    elif call_type == "runtime_config_management":
+        return "运行时配置管理"
     elif call_type == "team_balance":
         return "团队余额"
     elif call_type == "runninghub_error_analysis":
@@ -229,6 +234,7 @@ builder.add_node(
 )
 builder.add_node("unknown_operation_error", unknown_operation_error_node)
 builder.add_node("system_notification_handler", system_notification_handler_node)
+builder.add_node("runtime_config_handler", runtime_config_handler_node)
 builder.add_node("announcement_handler", announcement_handler_node)
 builder.add_node("format_response", format_response_node)
 builder.add_node("check_need_tags", check_need_tags_node)
@@ -305,6 +311,7 @@ builder.add_conditional_edges(
         "任务管理": "task_route",
         "工具中心": "tool_route",
         "通知管理": "system_notification_handler",
+        "运行时配置管理": "runtime_config_handler",
         "公告管理": "announcement_handler",
         "团队余额": "team_route",  # 路由到团队余额路由节点
         "RunningHub错误分析": "runninghub_error_analysis",
@@ -427,6 +434,7 @@ builder.add_edge("admin_task_dashboard", "format_response")
 builder.add_edge("unknown_operation_error", "format_response")
 builder.add_edge("local_comfyui_queue_snapshot", "format_response")
 builder.add_edge("system_notification_handler", "format_response")
+builder.add_edge("runtime_config_handler", "format_response")
 builder.add_edge("announcement_handler", "format_response")
 builder.add_edge("reverse_image", "format_response")
 builder.add_edge("translate_doubao", "format_response")

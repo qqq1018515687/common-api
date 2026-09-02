@@ -412,6 +412,12 @@ def unpack_input_data_node(
         notification_data=input_data.notification_data if input_data else None,
         current_time=input_data.current_time if input_data else None,
         biz_key=input_data.biz_key if input_data else None,
+        config_key=input_data.config_key if input_data else None,
+        config_scope=input_data.config_scope if input_data else None,
+        config_type=input_data.config_type if input_data else None,
+        content_json=input_data.content_json if input_data else None,
+        is_public=input_data.is_public if input_data else None,
+        is_active=input_data.is_active if input_data else None,
         # 更新公告相关字段
         announcement_id=input_data.announcement_id if input_data else None,
         announcement_data=input_data.announcement_data if input_data else None,

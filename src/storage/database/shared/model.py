@@ -222,6 +222,28 @@ class UpdateAnnouncements(Base):
     created_by: Mapped[str] = mapped_column(String(36), nullable=False, comment='创建者用户ID')
 
 
+class RuntimeConfigs(Base):
+    __tablename__ = 'runtime_configs'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='runtime_configs_pkey'),
+        UniqueConstraint('config_key', name='uq_runtime_configs_config_key'),
+        Index('ix_runtime_configs_scope_type', 'config_scope', 'config_type'),
+        Index('ix_runtime_configs_is_active_public', 'is_active', 'is_public'),
+        {'comment': '运行时配置表，用于存储前端/站点可热更新的运营配置'}
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, comment='运行时配置ID')
+    config_key: Mapped[str] = mapped_column(String(128), nullable=False, comment='配置唯一键，如 frontend_availability_config_v1')
+    config_scope: Mapped[str] = mapped_column(String(32), nullable=False, comment='配置作用域：frontend/site/plugin')
+    config_type: Mapped[str] = mapped_column(String(32), nullable=False, comment='配置类型：availability/capability/...')
+    content_json: Mapped[dict] = mapped_column(JSON, nullable=False, comment='配置内容 JSON')
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text('true'), comment='是否启用')
+    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text('false'), comment='是否允许公开读取')
+    updated_by: Mapped[str] = mapped_column(String(36), nullable=False, comment='最后更新人用户ID')
+    created_at: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='创建时间（毫秒）')
+    updated_at: Mapped[int] = mapped_column(BigInteger, nullable=False, comment='更新时间（毫秒）')
+
+
 class TagPoolVersions(Base):
     __tablename__ = 'tag_pool_versions'
     __table_args__ = (

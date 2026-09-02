@@ -216,6 +216,12 @@ class InputData(BaseModel):
     biz_key: Optional[str] = Field(
         default=None, description="业务标识（get_by_biz_key/upsert_by_biz_key 使用）"
     )
+    config_key: Optional[str] = Field(default=None, description="运行时配置 key")
+    config_scope: Optional[str] = Field(default=None, description="运行时配置作用域")
+    config_type: Optional[str] = Field(default=None, description="运行时配置类型")
+    content_json: Optional[dict] = Field(default=None, description="运行时配置内容 JSON")
+    is_public: Optional[bool] = Field(default=None, description="运行时配置是否公开可读")
+    is_active: Optional[bool] = Field(default=None, description="运行时配置是否启用")
 
     # 更新公告相关字段
     announcement_id: Optional[str] = Field(
@@ -316,7 +322,7 @@ class GlobalState(BaseModel):
 
     call_type: str = Field(
         ...,
-        description="调用类型：account_management/upload/delete_upload/storage_management/save/tool/user_task_management/notification_management/announcement_management/team_balance/billing/recharge_code/agent_intent/agent_run",
+        description="调用类型：account_management/upload/delete_upload/storage_management/save/tool/user_task_management/notification_management/announcement_management/runtime_config_management/team_balance/billing/recharge_code/agent_intent/agent_run",
     )
     input: Optional[InputData] = Field(default=None, description="业务数据对象")
     username: Optional[str] = Field(default=None, description="用户名")
@@ -491,6 +497,12 @@ class GlobalState(BaseModel):
     biz_key: Optional[str] = Field(
         default=None, description="业务标识（get_by_biz_key/upsert_by_biz_key 使用）"
     )
+    config_key: Optional[str] = Field(default=None, description="运行时配置 key")
+    config_scope: Optional[str] = Field(default=None, description="运行时配置作用域")
+    config_type: Optional[str] = Field(default=None, description="运行时配置类型")
+    content_json: Optional[dict] = Field(default=None, description="运行时配置内容 JSON")
+    is_public: Optional[bool] = Field(default=None, description="运行时配置是否公开可读")
+    is_active: Optional[bool] = Field(default=None, description="运行时配置是否启用")
 
     # 更新公告相关字段
     announcement_id: Optional[str] = Field(
@@ -575,7 +587,7 @@ class GraphInput(BaseModel):
 
     call_type: str = Field(
         ...,
-        description="调用类型：account_management/upload/delete_upload/storage_management/save/history/tool/task_management/notification_management/announcement_management/team_balance/billing/agent_intent/agent_run",
+        description="调用类型：account_management/upload/delete_upload/storage_management/save/history/tool/task_management/notification_management/announcement_management/runtime_config_management/team_balance/billing/agent_intent/agent_run",
     )
     tool_type: Optional[str] = Field(
         default=None,
@@ -1460,6 +1472,12 @@ class UnpackInputDataOutput(BaseModel):
     notification_data: Optional[dict] = Field(default=None, description="通知数据")
     current_time: Optional[int] = Field(default=None, description="当前时间戳")
     biz_key: Optional[str] = Field(default=None, description="业务标识")
+    config_key: Optional[str] = Field(default=None, description="运行时配置 key")
+    config_scope: Optional[str] = Field(default=None, description="运行时配置作用域")
+    config_type: Optional[str] = Field(default=None, description="运行时配置类型")
+    content_json: Optional[dict] = Field(default=None, description="运行时配置内容 JSON")
+    is_public: Optional[bool] = Field(default=None, description="运行时配置是否公开可读")
+    is_active: Optional[bool] = Field(default=None, description="运行时配置是否启用")
 
     # 更新公告相关字段
     announcement_id: Optional[str] = Field(default=None, description="公告ID")
@@ -1626,6 +1644,27 @@ class SystemNotificationInput(BaseModel):
 
 class SystemNotificationOutput(BaseModel):
     """系统通知处理节点的输出"""
+
+    result: dict = Field(..., description="操作结果")
+
+
+class RuntimeConfigInput(BaseModel):
+    """运行时配置处理节点的输入"""
+
+    operation_type: str = Field(
+        ..., description="操作类型：get_public_config/get_config_by_key/upsert_config"
+    )
+    config_key: Optional[str] = Field(default=None, description="配置唯一键")
+    config_scope: Optional[str] = Field(default=None, description="配置作用域")
+    config_type: Optional[str] = Field(default=None, description="配置类型")
+    content_json: Optional[dict] = Field(default=None, description="配置内容 JSON")
+    is_public: Optional[bool] = Field(default=None, description="是否公开可读")
+    is_active: Optional[bool] = Field(default=True, description="是否启用")
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
+
+
+class RuntimeConfigOutput(BaseModel):
+    """运行时配置处理节点的输出"""
 
     result: dict = Field(..., description="操作结果")
 
