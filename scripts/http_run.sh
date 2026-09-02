@@ -30,9 +30,13 @@ while getopts "p:h" opt; do
   esac
 done
 
-# 设置 PYTHONPATH，确保 Python 可以找到所有模块
-# 包含项目根目录和 src 目录
-export PYTHONPATH="${WORK_DIR}:${WORK_DIR}/src:${PYTHONPATH}"
+# 设置 PYTHONPATH，确保 Python 可以找到所有模块。
+# 部署环境会把依赖安装到 PIP_TARGET；不把它加进来，启动时会报 ModuleNotFoundError（如 uvicorn）。
+if [ -n "$PIP_TARGET" ]; then
+  export PYTHONPATH="${PIP_TARGET}:${WORK_DIR}:${WORK_DIR}/src:${PYTHONPATH}"
+else
+  export PYTHONPATH="${WORK_DIR}:${WORK_DIR}/src:${PYTHONPATH}"
+fi
 
 # 切换到工作目录
 cd "${WORK_DIR}"
