@@ -483,7 +483,11 @@ def patch_session_state(
     if merge_generated_images:
         image_asset_assignment = """
             image_asset_state = (
-                COALESCE(mars_assistant_sessions.image_asset_state, '{}'::jsonb)
+                CASE
+                    WHEN jsonb_typeof(mars_assistant_sessions.image_asset_state) = 'object'
+                    THEN mars_assistant_sessions.image_asset_state
+                    ELSE '{}'::jsonb
+                END
                 || CAST(:image_asset_state AS JSONB)
                 || jsonb_build_object(
                     'generatedImages',
@@ -492,7 +496,11 @@ def patch_session_state(
                         FROM (
                             SELECT DISTINCT ON (item->>'id') item, position
                             FROM jsonb_array_elements(
-                                COALESCE(mars_assistant_sessions.image_asset_state->'generatedImages', '[]'::jsonb)
+                                CASE
+                                    WHEN jsonb_typeof(mars_assistant_sessions.image_asset_state->'generatedImages') = 'array'
+                                    THEN mars_assistant_sessions.image_asset_state->'generatedImages'
+                                    ELSE '[]'::jsonb
+                                END
                                 || COALESCE(CAST(:image_asset_state AS JSONB)->'generatedImages', '[]'::jsonb)
                             ) WITH ORDINALITY AS images(item, position)
                             ORDER BY item->>'id', position DESC
@@ -504,7 +512,7 @@ def patch_session_state(
     field_sql = {
         "task_state": "task_state = CAST(:task_state AS JSONB)",
         "image_asset_state": image_asset_assignment,
-        "metadata": "metadata = COALESCE(mars_assistant_sessions.metadata, '{}'::jsonb) || CAST(:metadata AS JSONB)",
+        "metadata": "metadata = CASE WHEN jsonb_typeof(mars_assistant_sessions.metadata) = 'object' THEN mars_assistant_sessions.metadata ELSE '{}'::jsonb END || CAST(:metadata AS JSONB)",
     }
     assignments = [field_sql[field] for field in field_sql if field in update_fields]
     assignments.extend([

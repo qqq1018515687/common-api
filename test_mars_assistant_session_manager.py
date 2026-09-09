@@ -93,7 +93,8 @@ class MarsAssistantSessionManagerTest(unittest.TestCase):
         )
 
         sql, _ = connection.calls[0]
-        self.assertIn("COALESCE(mars_assistant_sessions.metadata, '{}'::jsonb)", sql)
+        self.assertIn("jsonb_typeof(mars_assistant_sessions.metadata) = 'object'", sql)
+        self.assertIn("ELSE '{}'::jsonb", sql)
         self.assertIn("|| CAST(:metadata AS JSONB)", sql)
 
     def test_patch_state_uses_atomic_generated_image_merge(self):
@@ -110,6 +111,8 @@ class MarsAssistantSessionManagerTest(unittest.TestCase):
         sql, params = connection.calls[0]
         self.assertIn("jsonb_array_elements", sql)
         self.assertIn("DISTINCT ON (item->>'id')", sql)
+        self.assertIn("jsonb_typeof(mars_assistant_sessions.image_asset_state) = 'object'", sql)
+        self.assertIn("jsonb_typeof(mars_assistant_sessions.image_asset_state->'generatedImages') = 'array'", sql)
         self.assertIn("mars_assistant_sessions.image_asset_state", sql)
         self.assertIn('"image-2"', params["image_asset_state"])
 
