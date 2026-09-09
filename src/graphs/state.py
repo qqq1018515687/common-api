@@ -107,6 +107,7 @@ class InputData(BaseModel):
     session_id: Optional[str] = Field(default=None, description="火星助手会话ID")
     task_state: Optional[dict] = Field(default=None, description="火星助手任务状态快照")
     image_asset_state: Optional[dict] = Field(default=None, description="火星助手图片资产状态快照")
+    merge_generated_images: bool = Field(default=False, description="是否按图片ID原子合并生成图列表")
     agent_run_id: Optional[str] = Field(default=None, description="Agent Run ID")
     agent_step_id: Optional[str] = Field(default=None, description="Agent Step ID")
     agent_plan_type: Optional[str] = Field(default=None, description="Agent 计划类型")
@@ -120,10 +121,6 @@ class InputData(BaseModel):
     agent_step_updates: Optional[dict] = Field(
         default=None, description="Agent Step 更新字段"
     )
-    session_id: Optional[str] = Field(default=None, description="火星助手会话ID")
-    task_state: Optional[dict] = Field(default=None, description="火星助手任务状态快照")
-    image_asset_state: Optional[dict] = Field(default=None, description="火星助手图片资产状态快照")
-
     # 用户管理相关字段
     phone: Optional[str] = Field(default=None, description="手机号")
     ip: Optional[str] = Field(default=None, description="IP地址")
@@ -413,6 +410,7 @@ class GlobalState(BaseModel):
     session_id: Optional[str] = Field(default=None, description="火星助手会话ID")
     task_state: Optional[dict] = Field(default=None, description="火星助手任务状态快照")
     image_asset_state: Optional[dict] = Field(default=None, description="火星助手图片资产状态快照")
+    merge_generated_images: bool = Field(default=False, description="是否按图片ID原子合并生成图列表")
     agent_run_id: Optional[str] = Field(default=None, description="Agent Run ID")
     agent_step_id: Optional[str] = Field(default=None, description="Agent Step ID")
     agent_plan_type: Optional[str] = Field(default=None, description="Agent 计划类型")
@@ -1390,6 +1388,7 @@ class UnpackInputDataOutput(BaseModel):
     session_id: Optional[str] = Field(default=None, description="火星助手会话ID")
     task_state: Optional[dict] = Field(default=None, description="火星助手任务状态快照")
     image_asset_state: Optional[dict] = Field(default=None, description="火星助手图片资产状态快照")
+    merge_generated_images: bool = Field(default=False, description="是否按图片ID原子合并生成图列表")
     agent_run_id: Optional[str] = Field(default=None, description="Agent Run ID")
     agent_step_id: Optional[str] = Field(default=None, description="Agent Step ID")
     agent_plan_type: Optional[str] = Field(default=None, description="Agent 计划类型")

@@ -360,6 +360,7 @@ def unpack_input_data_node(
         session_id=input_data.session_id if input_data else None,
         task_state=input_data.task_state if input_data else None,
         image_asset_state=input_data.image_asset_state if input_data else None,
+        merge_generated_images=input_data.merge_generated_images if input_data else False,
         agent_run_id=input_data.agent_run_id if input_data else None,
         agent_step_id=input_data.agent_step_id if input_data else None,
         agent_plan_type=input_data.agent_plan_type if input_data else None,

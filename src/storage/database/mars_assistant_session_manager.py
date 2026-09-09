@@ -263,15 +263,15 @@ def upsert_attachment(
     now = _now_ms()
     created_at = created_at or now
     with get_engine().begin() as conn:
-        conn.execute(
+        row = conn.execute(
             text("""
                 INSERT INTO mars_assistant_attachments
                     (id, session_id, user_id, team_id, name, mime_type, kind, size, storage_provider, storage_key, public_url, file_key, expires_at, parse_status, parse_error, text_preview, metadata, created_at, updated_at)
-                VALUES
-                    (:id, :session_id, :user_id, :team_id, :name, :mime_type, :kind, :size, :storage_provider, :storage_key, :public_url, :file_key, :expires_at, :parse_status, :parse_error, :text_preview, CAST(:metadata AS JSONB), :created_at, :updated_at)
+                SELECT
+                    :id, :session_id, :user_id, :team_id, :name, :mime_type, :kind, :size, :storage_provider, :storage_key, :public_url, :file_key, :expires_at, :parse_status, :parse_error, :text_preview, CAST(:metadata AS JSONB), :created_at, :updated_at
+                FROM mars_assistant_sessions
+                WHERE session_id = :session_id AND user_id = :user_id
                 ON CONFLICT (id) DO UPDATE SET
-                    session_id = EXCLUDED.session_id,
-                    user_id = EXCLUDED.user_id,
                     team_id = EXCLUDED.team_id,
                     name = EXCLUDED.name,
                     mime_type = EXCLUDED.mime_type,
@@ -287,6 +287,9 @@ def upsert_attachment(
                     text_preview = EXCLUDED.text_preview,
                     metadata = EXCLUDED.metadata,
                     updated_at = EXCLUDED.updated_at
+                WHERE mars_assistant_attachments.user_id = EXCLUDED.user_id
+                  AND mars_assistant_attachments.session_id = EXCLUDED.session_id
+                RETURNING *
             """),
             {
                 "id": attachment_id,
@@ -309,17 +312,17 @@ def upsert_attachment(
                 "created_at": created_at,
                 "updated_at": now,
             },
-        )
-        row = conn.execute(
-            text("SELECT * FROM mars_assistant_attachments WHERE id = :attachment_id"),
-            {"attachment_id": attachment_id},
         ).mappings().first()
+        if not row:
+            raise PermissionError("附件不存在或无权访问")
         return dict(row)
 
 
 def upsert_attachment_content(
     *,
     attachment_id: str,
+    session_id: str,
+    user_id: str,
     full_text: Optional[str],
     summary: Optional[str],
     structured_json: Optional[dict],
@@ -330,7 +333,24 @@ def upsert_attachment_content(
     ensure_mars_assistant_attachment_tables()
     now = _now_ms()
     with get_engine().begin() as conn:
-        conn.execute(
+        attachment = conn.execute(
+            text("""
+                SELECT id
+                FROM mars_assistant_attachments
+                WHERE id = :attachment_id
+                  AND session_id = :session_id
+                  AND user_id = :user_id
+                FOR UPDATE
+            """),
+            {
+                "attachment_id": attachment_id,
+                "session_id": session_id,
+                "user_id": user_id,
+            },
+        ).mappings().first()
+        if not attachment:
+            raise PermissionError("附件不存在或无权访问")
+        row = conn.execute(
             text("""
                 INSERT INTO mars_assistant_attachment_contents
                     (attachment_id, full_text, summary, structured_json, page_count, sheet_count, updated_at)
@@ -415,19 +435,20 @@ def upsert_session_state(
     ensure_mars_assistant_session_table()
     now = _now_ms()
     with get_engine().begin() as conn:
-        conn.execute(
+        row = conn.execute(
             text("""
                 INSERT INTO mars_assistant_sessions
                     (session_id, user_id, team_id, task_state, image_asset_state, metadata, created_at, updated_at)
                 VALUES
                     (:session_id, :user_id, :team_id, CAST(:task_state AS JSONB), CAST(:image_asset_state AS JSONB), CAST(:metadata AS JSONB), :created_at, :updated_at)
                 ON CONFLICT (session_id) DO UPDATE SET
-                    user_id = EXCLUDED.user_id,
                     team_id = EXCLUDED.team_id,
                     task_state = EXCLUDED.task_state,
                     image_asset_state = EXCLUDED.image_asset_state,
                     metadata = EXCLUDED.metadata,
                     updated_at = EXCLUDED.updated_at
+                WHERE mars_assistant_sessions.user_id = EXCLUDED.user_id
+                RETURNING *
             """),
             {
                 "session_id": session_id,
@@ -439,11 +460,82 @@ def upsert_session_state(
                 "created_at": now,
                 "updated_at": now,
             },
-        )
-        row = conn.execute(
-            text("SELECT * FROM mars_assistant_sessions WHERE session_id = :session_id"),
-            {"session_id": session_id},
         ).mappings().first()
+        if not row:
+            raise PermissionError("会话不存在或无权访问")
+        return dict(row)
+
+
+def patch_session_state(
+    *,
+    session_id: str,
+    user_id: str,
+    team_id: Optional[str] = None,
+    task_state: Optional[dict] = None,
+    image_asset_state: Optional[dict] = None,
+    metadata: Optional[dict] = None,
+    update_fields: set[str],
+    merge_generated_images: bool = False,
+) -> dict:
+    ensure_mars_assistant_session_table()
+    now = _now_ms()
+    image_asset_assignment = "image_asset_state = CAST(:image_asset_state AS JSONB)"
+    if merge_generated_images:
+        image_asset_assignment = """
+            image_asset_state = (
+                COALESCE(mars_assistant_sessions.image_asset_state, '{}'::jsonb)
+                || CAST(:image_asset_state AS JSONB)
+                || jsonb_build_object(
+                    'generatedImages',
+                    COALESCE((
+                        SELECT jsonb_agg(deduplicated.item ORDER BY deduplicated.position)
+                        FROM (
+                            SELECT DISTINCT ON (item->>'id') item, position
+                            FROM jsonb_array_elements(
+                                COALESCE(mars_assistant_sessions.image_asset_state->'generatedImages', '[]'::jsonb)
+                                || COALESCE(CAST(:image_asset_state AS JSONB)->'generatedImages', '[]'::jsonb)
+                            ) WITH ORDINALITY AS images(item, position)
+                            ORDER BY item->>'id', position DESC
+                        ) AS deduplicated
+                    ), '[]'::jsonb)
+                )
+            )
+        """
+    field_sql = {
+        "task_state": "task_state = CAST(:task_state AS JSONB)",
+        "image_asset_state": image_asset_assignment,
+        "metadata": "metadata = COALESCE(mars_assistant_sessions.metadata, '{}'::jsonb) || CAST(:metadata AS JSONB)",
+    }
+    assignments = [field_sql[field] for field in field_sql if field in update_fields]
+    assignments.extend([
+        "team_id = COALESCE(:team_id, mars_assistant_sessions.team_id)",
+        "updated_at = :updated_at",
+    ])
+    with get_engine().begin() as conn:
+        row = conn.execute(
+            text(f"""
+                INSERT INTO mars_assistant_sessions
+                    (session_id, user_id, team_id, task_state, image_asset_state, metadata, created_at, updated_at)
+                VALUES
+                    (:session_id, :user_id, :team_id, CAST(:task_state AS JSONB), CAST(:image_asset_state AS JSONB), CAST(:metadata AS JSONB), :created_at, :updated_at)
+                ON CONFLICT (session_id) DO UPDATE SET
+                    {', '.join(assignments)}
+                WHERE mars_assistant_sessions.user_id = EXCLUDED.user_id
+                RETURNING *
+            """),
+            {
+                "session_id": session_id,
+                "user_id": user_id,
+                "team_id": team_id,
+                "task_state": json.dumps(task_state, ensure_ascii=False),
+                "image_asset_state": json.dumps(image_asset_state, ensure_ascii=False),
+                "metadata": json.dumps(metadata, ensure_ascii=False),
+                "created_at": now,
+                "updated_at": now,
+            },
+        ).mappings().first()
+        if not row:
+            raise PermissionError("会话不存在或无权访问")
         return dict(row)
 
 
@@ -510,15 +602,15 @@ def upsert_session_message(
     now = _now_ms()
     created_at = created_at or now
     with get_engine().begin() as conn:
-        conn.execute(
+        row = conn.execute(
             text("""
                 INSERT INTO mars_assistant_messages
                     (id, session_id, user_id, team_id, role, content, status, model, error, attachment_ids, quoted_message, skill_payload, metadata, created_at, updated_at)
-                VALUES
-                    (:id, :session_id, :user_id, :team_id, :role, :content, :status, :model, :error, CAST(:attachment_ids AS JSONB), CAST(:quoted_message AS JSONB), CAST(:skill_payload AS JSONB), CAST(:metadata AS JSONB), :created_at, :updated_at)
+                SELECT
+                    :id, :session_id, :user_id, :team_id, :role, :content, :status, :model, :error, CAST(:attachment_ids AS JSONB), CAST(:quoted_message AS JSONB), CAST(:skill_payload AS JSONB), CAST(:metadata AS JSONB), :created_at, :updated_at
+                FROM mars_assistant_sessions
+                WHERE session_id = :session_id AND user_id = :user_id
                 ON CONFLICT (id) DO UPDATE SET
-                    session_id = EXCLUDED.session_id,
-                    user_id = EXCLUDED.user_id,
                     team_id = EXCLUDED.team_id,
                     role = EXCLUDED.role,
                     content = EXCLUDED.content,
@@ -530,6 +622,9 @@ def upsert_session_message(
                     skill_payload = EXCLUDED.skill_payload,
                     metadata = EXCLUDED.metadata,
                     updated_at = EXCLUDED.updated_at
+                WHERE mars_assistant_messages.user_id = EXCLUDED.user_id
+                  AND mars_assistant_messages.session_id = EXCLUDED.session_id
+                RETURNING *
             """),
             {
                 "id": message_id,
@@ -548,11 +643,9 @@ def upsert_session_message(
                 "created_at": created_at,
                 "updated_at": now,
             },
-        )
-        row = conn.execute(
-            text("SELECT * FROM mars_assistant_messages WHERE id = :id"),
-            {"id": message_id},
         ).mappings().first()
+        if not row:
+            raise PermissionError("消息不存在或无权访问")
         return dict(row)
 
 
@@ -577,16 +670,16 @@ def upsert_session_artifact(
     now = _now_ms()
     created_at = created_at or now
     with get_engine().begin() as conn:
-        conn.execute(
+        row = conn.execute(
             text("""
                 INSERT INTO mars_assistant_artifacts
                     (id, session_id, message_id, user_id, team_id, artifact_type, artifact_role, url, file_key, prompt, source_artifact_id, source_image_url, metadata, created_at, updated_at)
-                VALUES
-                    (:id, :session_id, :message_id, :user_id, :team_id, :artifact_type, :artifact_role, :url, :file_key, :prompt, :source_artifact_id, :source_image_url, CAST(:metadata AS JSONB), :created_at, :updated_at)
+                SELECT
+                    :id, :session_id, :message_id, :user_id, :team_id, :artifact_type, :artifact_role, :url, :file_key, :prompt, :source_artifact_id, :source_image_url, CAST(:metadata AS JSONB), :created_at, :updated_at
+                FROM mars_assistant_sessions
+                WHERE session_id = :session_id AND user_id = :user_id
                 ON CONFLICT (id) DO UPDATE SET
-                    session_id = EXCLUDED.session_id,
                     message_id = EXCLUDED.message_id,
-                    user_id = EXCLUDED.user_id,
                     team_id = EXCLUDED.team_id,
                     artifact_type = EXCLUDED.artifact_type,
                     artifact_role = EXCLUDED.artifact_role,
@@ -597,6 +690,9 @@ def upsert_session_artifact(
                     source_image_url = EXCLUDED.source_image_url,
                     metadata = EXCLUDED.metadata,
                     updated_at = EXCLUDED.updated_at
+                WHERE mars_assistant_artifacts.user_id = EXCLUDED.user_id
+                  AND mars_assistant_artifacts.session_id = EXCLUDED.session_id
+                RETURNING *
             """),
             {
                 "id": artifact_id,
@@ -615,9 +711,7 @@ def upsert_session_artifact(
                 "created_at": created_at,
                 "updated_at": now,
             },
-        )
-        row = conn.execute(
-            text("SELECT * FROM mars_assistant_artifacts WHERE id = :id"),
-            {"id": artifact_id},
         ).mappings().first()
+        if not row:
+            raise PermissionError("产物不存在或无权访问")
         return dict(row)

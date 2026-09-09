@@ -16,6 +16,7 @@ from storage.database.mars_assistant_session_manager import (
     list_session_attachments,
     list_session_artifacts,
     list_session_messages,
+    patch_session_state,
     upsert_attachment,
     upsert_attachment_content,
     upsert_session_state,
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class MarsAssistantSessionInput(BaseModel):
-    operation_type: Optional[str] = Field(default=None, description="get_state/upsert_state/clear_state/list_messages/upsert_message/list_artifacts/upsert_artifact/list_attachments/get_attachment/upsert_attachment/upsert_attachment_content")
+    operation_type: Optional[str] = Field(default=None, description="get_state/upsert_state/patch_state/clear_state/list_messages/upsert_message/list_artifacts/upsert_artifact/list_attachments/get_attachment/upsert_attachment/upsert_attachment_content")
     session_id: Optional[str] = Field(default=None, description="火星助手会话ID")
     user_id: Optional[str] = Field(default=None, description="用户ID")
     team_id: Optional[str] = Field(default=None, description="团队ID")
@@ -70,6 +71,8 @@ class MarsAssistantSessionInput(BaseModel):
     page_count: Optional[int] = Field(default=None, description="页数")
     sheet_count: Optional[int] = Field(default=None, description="sheet 数")
     chunks: Optional[list] = Field(default=None, description="附件分块结果")
+    merge_generated_images: bool = Field(default=False, description="是否按图片ID原子合并生成图列表")
+    provided_fields: Optional[list[str]] = Field(default=None, description="请求中显式提供的字段名")
 
 
 class MarsAssistantSessionOutput(BaseModel):
@@ -99,22 +102,32 @@ def mars_assistant_session_node(
             return _failure("session_id 不能为空", error_code="SESSION_ID_REQUIRED")
 
         if operation_type == "get_state":
+            if not state.user_id:
+                return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
             data = get_session_state(state.session_id, user_id=state.user_id)
             return _success({"session": data}, "会话状态已获取")
 
         if operation_type == "list_messages":
+            if not state.user_id:
+                return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
             data = list_session_messages(state.session_id, user_id=state.user_id)
             return _success({"messages": data}, "会话消息已获取")
 
         if operation_type == "list_artifacts":
+            if not state.user_id:
+                return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
             data = list_session_artifacts(state.session_id, user_id=state.user_id)
             return _success({"artifacts": data}, "会话产物已获取")
 
         if operation_type == "list_attachments":
+            if not state.user_id:
+                return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
             data = list_session_attachments(state.session_id, user_id=state.user_id)
             return _success({"attachments": data}, "会话附件已获取")
 
         if operation_type == "get_attachment":
+            if not state.user_id:
+                return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
             attachment_id = state.attachment_id or metadata.get("attachment_id")
             if not attachment_id:
                 return _failure("attachment_id 不能为空", error_code="ATTACHMENT_ID_REQUIRED")
@@ -137,6 +150,29 @@ def mars_assistant_session_node(
                 metadata=state.metadata,
             )
             return _success({"session": data}, "会话状态已保存")
+
+        if operation_type == "patch_state":
+            if not state.user_id:
+                return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
+            update_fields = set(state.provided_fields or []) & {"task_state", "image_asset_state", "metadata"}
+            if state.merge_generated_images:
+                generated_images = (state.image_asset_state or {}).get("generatedImages") if isinstance(state.image_asset_state, dict) else None
+                if not isinstance(generated_images, list) or any(
+                    not isinstance(image, dict) or not isinstance(image.get("id"), str) or not image["id"].strip()
+                    for image in generated_images
+                ):
+                    return _failure("合并生成图时 image_asset_state.generatedImages 必须是带有效 id 的数组", code=400, error_code="INVALID_IMAGE_ASSET_STATE")
+            data = patch_session_state(
+                session_id=state.session_id,
+                user_id=state.user_id,
+                team_id=state.team_id,
+                task_state=state.task_state,
+                image_asset_state=state.image_asset_state,
+                metadata=state.metadata,
+                update_fields=update_fields,
+                merge_generated_images=state.merge_generated_images,
+            )
+            return _success({"session": data}, "会话状态已更新")
 
         if operation_type == "upsert_message":
             message_id = state.message_id or message_payload.get("message_id") or message_payload.get("id")
@@ -230,10 +266,14 @@ def mars_assistant_session_node(
         if operation_type == "upsert_attachment_content":
             attachment_payload = metadata.get("attachment") if isinstance(metadata.get("attachment"), dict) else {}
             attachment_id = state.attachment_id or attachment_payload.get("attachment_id") or attachment_payload.get("id")
+            if not state.user_id:
+                return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
             if not attachment_id:
                 return _failure("attachment_id 不能为空", error_code="ATTACHMENT_ID_REQUIRED")
             data = upsert_attachment_content(
                 attachment_id=attachment_id,
+                session_id=state.session_id,
+                user_id=state.user_id,
                 full_text=state.full_text if state.full_text is not None else attachment_payload.get("full_text"),
                 summary=state.summary if state.summary is not None else attachment_payload.get("summary"),
                 structured_json=state.structured_json if state.structured_json is not None else attachment_payload.get("structured_json"),
@@ -244,6 +284,8 @@ def mars_assistant_session_node(
             return _success({"content": data, "chunks": list_attachment_chunks(attachment_id)}, "附件解析结果已保存")
 
         if operation_type == "clear_state":
+            if not state.user_id:
+                return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
             removed = clear_session_state(state.session_id, user_id=state.user_id)
             return _success({"removed": removed}, "会话状态已清理")
 
