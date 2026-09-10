@@ -8,19 +8,19 @@ from pydantic import BaseModel, Field
 
 from storage.database.mars_assistant_session_manager import (
     clear_session_state,
-    get_attachment,
+    create_agent_run,
+    get_agent_run,
     get_attachment_detail,
-    get_attachment_content,
     get_session_state,
     list_attachment_chunks,
+    list_agent_runs,
     list_session_attachments,
     list_session_artifacts,
-    list_session_messages,
     patch_session_state,
+    update_agent_run,
     upsert_attachment,
     upsert_attachment_content,
     upsert_session_state,
-    upsert_session_message,
     upsert_session_artifact,
 )
 
@@ -28,31 +28,19 @@ logger = logging.getLogger(__name__)
 
 
 class MarsAssistantSessionInput(BaseModel):
-    operation_type: Optional[str] = Field(default=None, description="get_state/upsert_state/patch_state/clear_state/list_messages/upsert_message/list_artifacts/upsert_artifact/list_attachments/get_attachment/upsert_attachment/upsert_attachment_content")
+    operation_type: Optional[str] = Field(default=None, description="会话、附件、产物和 Agent Run 操作类型")
     session_id: Optional[str] = Field(default=None, description="火星助手会话ID")
     user_id: Optional[str] = Field(default=None, description="用户ID")
     team_id: Optional[str] = Field(default=None, description="团队ID")
-    task_state: Optional[dict] = Field(default=None, description="任务状态快照")
-    image_asset_state: Optional[dict] = Field(default=None, description="图片资产状态快照")
     metadata: Optional[dict] = Field(default=None, description="扩展元数据")
     message_id: Optional[str] = Field(default=None, description="消息ID")
     file_name: Optional[str] = Field(default=None, description="附件文件名")
-    role: Optional[str] = Field(default=None, description="消息角色")
-    content: Optional[str] = Field(default=None, description="消息内容")
-    status: Optional[str] = Field(default=None, description="消息状态")
-    model: Optional[str] = Field(default=None, description="模型ID")
-    error: Optional[str] = Field(default=None, description="错误信息")
-    attachment_ids: Optional[list] = Field(default=None, description="附件ID列表")
-    quoted_message: Optional[dict] = Field(default=None, description="引用消息")
-    skill_payload: Optional[dict] = Field(default=None, description="技能负载")
     artifact_id: Optional[str] = Field(default=None, description="产物ID")
     artifact_type: Optional[str] = Field(default=None, description="产物类型")
     artifact_role: Optional[str] = Field(default=None, description="产物角色")
     url: Optional[str] = Field(default=None, description="产物URL")
     file_key: Optional[str] = Field(default=None, description="文件Key")
-    prompt: Optional[str] = Field(default=None, description="提示词")
     source_artifact_id: Optional[str] = Field(default=None, description="来源产物ID")
-    source_image_url: Optional[str] = Field(default=None, description="来源图片URL")
     created_at: Optional[int] = Field(default=None, description="创建时间")
     attachment_id: Optional[str] = Field(default=None, description="附件ID")
     mime_type: Optional[str] = Field(default=None, description="附件 MIME 类型")
@@ -71,7 +59,6 @@ class MarsAssistantSessionInput(BaseModel):
     page_count: Optional[int] = Field(default=None, description="页数")
     sheet_count: Optional[int] = Field(default=None, description="sheet 数")
     chunks: Optional[list] = Field(default=None, description="附件分块结果")
-    merge_generated_images: bool = Field(default=False, description="是否按图片ID原子合并生成图列表")
     provided_fields: Optional[list[str]] = Field(default=None, description="请求中显式提供的字段名")
 
 
@@ -96,8 +83,8 @@ def mars_assistant_session_node(
     try:
         operation_type = state.operation_type or "get_state"
         metadata = state.metadata if isinstance(state.metadata, dict) else {}
-        message_payload = metadata.get("message") if isinstance(metadata.get("message"), dict) else {}
         artifact_payload = metadata.get("artifact") if isinstance(metadata.get("artifact"), dict) else {}
+        run_payload = metadata.get("run") if isinstance(metadata.get("run"), dict) else {}
         if not state.session_id:
             return _failure("session_id 不能为空", error_code="SESSION_ID_REQUIRED")
 
@@ -106,12 +93,6 @@ def mars_assistant_session_node(
                 return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
             data = get_session_state(state.session_id, user_id=state.user_id)
             return _success({"session": data}, "会话状态已获取")
-
-        if operation_type == "list_messages":
-            if not state.user_id:
-                return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
-            data = list_session_messages(state.session_id, user_id=state.user_id)
-            return _success({"messages": data}, "会话消息已获取")
 
         if operation_type == "list_artifacts":
             if not state.user_id:
@@ -138,6 +119,77 @@ def mars_assistant_session_node(
             )
             return _success({"attachment": attachment, "content": content, "chunks": chunks}, "附件详情已获取")
 
+        if operation_type == "create_run":
+            if not state.user_id:
+                return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
+            run_id = run_payload.get("run_id") or run_payload.get("id")
+            idempotency_key = run_payload.get("idempotency_key")
+            status = run_payload.get("status")
+            if not run_id:
+                return _failure("run.id 不能为空", error_code="RUN_ID_REQUIRED")
+            if not idempotency_key:
+                return _failure("run.idempotency_key 不能为空", error_code="IDEMPOTENCY_KEY_REQUIRED")
+            if not status:
+                return _failure("run.status 不能为空", error_code="RUN_STATUS_REQUIRED")
+            data = create_agent_run(
+                run_id=run_id,
+                conversation_id=state.session_id,
+                user_id=state.user_id,
+                team_id=run_payload.get("team_id", state.team_id),
+                model=run_payload.get("model"),
+                provider=run_payload.get("provider"),
+                provider_task_id=run_payload.get("provider_task_id"),
+                status=status,
+                idempotency_key=idempotency_key,
+                continuation_of_run_id=run_payload.get("continuation_of_run_id"),
+                tool_name=run_payload.get("tool_name"),
+                tool_arguments=run_payload.get("tool_arguments"),
+                input_resources=run_payload.get("input_resources"),
+                result_artifact_ids=run_payload.get("result_artifact_ids"),
+                error=run_payload.get("error"),
+                created_at=run_payload.get("created_at"),
+                completed_at=run_payload.get("completed_at"),
+            )
+            return _success({"run": data}, "Agent Run 已创建")
+
+        if operation_type == "get_run":
+            if not state.user_id:
+                return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
+            run_id = run_payload.get("run_id") or run_payload.get("id")
+            if not run_id:
+                return _failure("run.id 不能为空", error_code="RUN_ID_REQUIRED")
+            data = get_agent_run(run_id, conversation_id=state.session_id, user_id=state.user_id)
+            return _success({"run": data}, "Agent Run 已获取")
+
+        if operation_type == "update_run":
+            if not state.user_id:
+                return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
+            run_id = run_payload.get("run_id") or run_payload.get("id")
+            updates = run_payload.get("updates")
+            if not run_id:
+                return _failure("run.id 不能为空", error_code="RUN_ID_REQUIRED")
+            if not isinstance(updates, dict) or not updates:
+                return _failure("run.updates 不能为空", error_code="RUN_UPDATES_REQUIRED")
+            data = update_agent_run(
+                run_id=run_id,
+                conversation_id=state.session_id,
+                user_id=state.user_id,
+                updates=updates,
+            )
+            return _success({"run": data}, "Agent Run 已更新")
+
+        if operation_type == "list_runs":
+            if not state.user_id:
+                return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
+            data = list_agent_runs(
+                state.session_id,
+                user_id=state.user_id,
+                status=run_payload.get("status"),
+                tool_name=run_payload.get("tool_name"),
+                limit=int(run_payload.get("limit") or 100),
+            )
+            return _success({"runs": data}, "Agent Run 列表已获取")
+
         if operation_type == "upsert_state":
             if not state.user_id:
                 return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
@@ -145,8 +197,6 @@ def mars_assistant_session_node(
                 session_id=state.session_id,
                 user_id=state.user_id,
                 team_id=state.team_id,
-                task_state=state.task_state,
-                image_asset_state=state.image_asset_state,
                 metadata=state.metadata,
             )
             return _success({"session": data}, "会话状态已保存")
@@ -154,52 +204,15 @@ def mars_assistant_session_node(
         if operation_type == "patch_state":
             if not state.user_id:
                 return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
-            update_fields = set(state.provided_fields or []) & {"task_state", "image_asset_state", "metadata"}
-            if state.merge_generated_images:
-                generated_images = (state.image_asset_state or {}).get("generatedImages") if isinstance(state.image_asset_state, dict) else None
-                if not isinstance(generated_images, list) or any(
-                    not isinstance(image, dict) or not isinstance(image.get("id"), str) or not image["id"].strip()
-                    for image in generated_images
-                ):
-                    return _failure("合并生成图时 image_asset_state.generatedImages 必须是带有效 id 的数组", code=400, error_code="INVALID_IMAGE_ASSET_STATE")
+            update_fields = set(state.provided_fields or []) & {"metadata"}
             data = patch_session_state(
                 session_id=state.session_id,
                 user_id=state.user_id,
                 team_id=state.team_id,
-                task_state=state.task_state,
-                image_asset_state=state.image_asset_state,
                 metadata=state.metadata,
                 update_fields=update_fields,
-                merge_generated_images=state.merge_generated_images,
             )
             return _success({"session": data}, "会话状态已更新")
-
-        if operation_type == "upsert_message":
-            message_id = state.message_id or message_payload.get("message_id") or message_payload.get("id")
-            role = state.role or message_payload.get("role")
-            if not state.user_id:
-                return _failure("user_id 不能为空", error_code="USER_ID_REQUIRED")
-            if not message_id:
-                return _failure("message_id 不能为空", error_code="MESSAGE_ID_REQUIRED")
-            if not role:
-                return _failure("role 不能为空", error_code="ROLE_REQUIRED")
-            data = upsert_session_message(
-                message_id=message_id,
-                session_id=state.session_id,
-                user_id=state.user_id,
-                team_id=state.team_id,
-                role=role,
-                content=state.content if state.content is not None else message_payload.get("content"),
-                status=state.status if state.status is not None else message_payload.get("status"),
-                model=state.model if state.model is not None else message_payload.get("model"),
-                error=state.error if state.error is not None else message_payload.get("error"),
-                attachment_ids=state.attachment_ids if state.attachment_ids is not None else message_payload.get("attachment_ids"),
-                quoted_message=state.quoted_message if state.quoted_message is not None else message_payload.get("quoted_message"),
-                skill_payload=state.skill_payload if state.skill_payload is not None else message_payload.get("skill_payload"),
-                metadata=message_payload.get("metadata") if isinstance(message_payload.get("metadata"), dict) else metadata,
-                created_at=state.created_at if state.created_at is not None else message_payload.get("created_at"),
-            )
-            return _success({"message": data}, "会话消息已保存")
 
         if operation_type == "upsert_artifact":
             artifact_id = state.artifact_id or artifact_payload.get("artifact_id") or artifact_payload.get("id")
@@ -220,10 +233,8 @@ def mars_assistant_session_node(
                 artifact_role=state.artifact_role if state.artifact_role is not None else artifact_payload.get("artifact_role"),
                 url=state.url if state.url is not None else artifact_payload.get("url"),
                 file_key=state.file_key if state.file_key is not None else artifact_payload.get("file_key"),
-                prompt=state.prompt if state.prompt is not None else artifact_payload.get("prompt"),
                 source_artifact_id=state.source_artifact_id if state.source_artifact_id is not None else artifact_payload.get("source_artifact_id"),
-                source_image_url=state.source_image_url if state.source_image_url is not None else artifact_payload.get("source_image_url"),
-                metadata=artifact_payload.get("metadata") if isinstance(artifact_payload.get("metadata"), dict) else metadata,
+                metadata=artifact_payload.get("metadata") if isinstance(artifact_payload.get("metadata"), dict) else {},
                 created_at=state.created_at if state.created_at is not None else artifact_payload.get("created_at"),
             )
             return _success({"artifact": data}, "会话产物已保存")
@@ -258,7 +269,7 @@ def mars_assistant_session_node(
                 parse_status=state.parse_status or attachment_payload.get("parse_status") or 'pending',
                 parse_error=state.parse_error if state.parse_error is not None else attachment_payload.get("parse_error"),
                 text_preview=state.text_preview if state.text_preview is not None else attachment_payload.get("text_preview"),
-                metadata=attachment_payload.get("metadata") if isinstance(attachment_payload.get("metadata"), dict) else metadata,
+                metadata=attachment_payload.get("metadata") if isinstance(attachment_payload.get("metadata"), dict) else {},
                 created_at=state.created_at if state.created_at is not None else attachment_payload.get("created_at"),
             )
             return _success({"attachment": data}, "会话附件已保存")

@@ -25,6 +25,9 @@ class FakeResult:
     def first(self):
         return self.row
 
+    def all(self):
+        return self.row or []
+
 
 class FakeConnection:
     def __init__(self, row):
@@ -50,33 +53,76 @@ class FakeEngine:
 
 def install_fake_database(test_case, row):
     connection = FakeConnection(row)
-    for name in (
-        "ensure_mars_assistant_session_table",
-        "ensure_mars_assistant_message_table",
-        "ensure_mars_assistant_artifact_table",
-        "ensure_mars_assistant_attachment_tables",
-    ):
-        test_case.enterContext(patch.object(manager, name, lambda: None))
     test_case.enterContext(patch.object(manager, "get_engine", lambda: FakeEngine(connection)))
     return connection
 
 
 class MarsAssistantSessionManagerTest(unittest.TestCase):
-    def test_patch_state_updates_only_explicit_fields(self):
+    def test_image_tool_arguments_keep_only_scalar_execution_metadata(self):
+        result = manager._compact_image_tool_arguments({
+            "instruction": "完整提示词",
+            "requestedImageCount": 2,
+            "sequenceStart": 4,
+            "requestedAspectRatio": "1:1",
+            "model": {"instruction": "嵌套提示词"},
+        })
+
+        self.assertEqual(result, {
+            "requestedImageCount": 2,
+            "sequenceStart": 4,
+            "requestedAspectRatio": "1:1",
+        })
+        self.assertEqual(manager._compact_image_tool_arguments(["完整提示词"]), {})
+
+    def test_artifact_metadata_keeps_only_execution_relationships(self):
+        result = manager._compact_artifact_metadata({
+            "runId": "run-1",
+            "prompt": "顶层提示词",
+            "frame": {"index": 1, "instruction": "嵌套指令"},
+            "items": [{"prompt": "列表提示词", "sequence": 1}],
+        })
+
+        self.assertEqual(result, {
+            "runId": "run-1",
+            "frame": {"index": 1},
+        })
+
+    def test_session_metadata_keeps_only_artifact_pointers(self):
+        result = manager._compact_session_metadata({
+            "activeEditBaseArtifactId": "artifact-1",
+            "latestGeneratedArtifactId": "artifact-2",
+            "task_state": {"instruction": "不应保存"},
+            "run": {"tool_arguments": {"prompt": "不应保存"}},
+        })
+
+        self.assertEqual(result, {
+            "activeEditBaseArtifactId": "artifact-1",
+            "latestGeneratedArtifactId": "artifact-2",
+        })
+
+    def test_attachment_metadata_keeps_only_parse_summary(self):
+        result = manager._compact_attachment_metadata({
+            "summary": "文档摘要",
+            "contentLength": 128,
+            "prompt": "不应保存",
+            "run": {"instruction": "不应保存"},
+        })
+
+        self.assertEqual(result, {"summary": "文档摘要", "contentLength": 128})
+
+    def test_patch_state_ignores_server_side_chat_payload_fields(self):
         connection = install_fake_database(self, {"session_id": "session-1", "user_id": "user-1"})
 
         result = manager.patch_session_state(
             session_id="session-1",
             user_id="user-1",
-            task_state={"status": "running"},
-            image_asset_state=None,
             metadata=None,
-            update_fields={"task_state"},
+            update_fields={"task_state", "image_asset_state"},
         )
 
         sql, _ = connection.calls[0]
         self.assertEqual(result["user_id"], "user-1")
-        self.assertIn("task_state = CAST(:task_state AS JSONB)", sql)
+        self.assertNotIn("task_state = CAST(:task_state AS JSONB)", sql)
         self.assertNotIn("image_asset_state = CAST(:image_asset_state AS JSONB)", sql)
         self.assertNotIn("metadata = CAST(:metadata AS JSONB)", sql)
         self.assertIn("WHERE mars_assistant_sessions.user_id = EXCLUDED.user_id", sql)
@@ -97,36 +143,12 @@ class MarsAssistantSessionManagerTest(unittest.TestCase):
         self.assertIn("ELSE '{}'::jsonb", sql)
         self.assertIn("|| CAST(:metadata AS JSONB)", sql)
 
-    def test_patch_state_uses_atomic_generated_image_merge(self):
-        connection = install_fake_database(self, {"session_id": "session-1", "user_id": "user-1"})
-
-        manager.patch_session_state(
-            session_id="session-1",
-            user_id="user-1",
-            image_asset_state={"generatedImages": [{"id": "image-2"}]},
-            update_fields={"image_asset_state"},
-            merge_generated_images=True,
-        )
-
-        sql, params = connection.calls[0]
-        self.assertIn("jsonb_array_elements", sql)
-        self.assertIn("DISTINCT ON (item->>'id')", sql)
-        self.assertIn("jsonb_typeof(mars_assistant_sessions.image_asset_state) = 'object'", sql)
-        self.assertIn("jsonb_typeof(mars_assistant_sessions.image_asset_state->'generatedImages') = 'array'", sql)
-        self.assertIn("mars_assistant_sessions.image_asset_state", sql)
-        self.assertIn('"image-2"', params["image_asset_state"])
-
     def test_owner_conflicts_are_rejected(self):
         cases = [
             (
                 manager.upsert_session_state,
                 {"session_id": "session-1", "user_id": "user-2"},
                 "会话不存在或无权访问",
-            ),
-            (
-                manager.upsert_session_message,
-                {"message_id": "message-1", "session_id": "session-1", "user_id": "user-2", "role": "user"},
-                "消息不存在或无权访问",
             ),
             (
                 manager.upsert_session_artifact,
@@ -181,10 +203,6 @@ class MarsAssistantSessionManagerTest(unittest.TestCase):
     def test_child_resources_require_owned_session_on_insert(self):
         cases = [
             (
-                manager.upsert_session_message,
-                {"message_id": "message-1", "session_id": "session-1", "user_id": "user-1", "role": "user"},
-            ),
-            (
                 manager.upsert_session_artifact,
                 {"artifact_id": "artifact-1", "session_id": "session-1", "user_id": "user-1", "artifact_type": "image"},
             ),
@@ -209,6 +227,171 @@ class MarsAssistantSessionManagerTest(unittest.TestCase):
                 self.assertIn("FROM mars_assistant_sessions", sql)
                 self.assertIn("session_id = :session_id AND user_id = :user_id", sql)
 
+    def test_create_agent_run_is_idempotent_and_serializes_payloads(self):
+        connection = install_fake_database(self, [
+            {"id": "attachment-1"},
+            {"id": "artifact-1"},
+            {"id": "run-existing", "user_id": "user-1"},
+        ])
+
+        result = manager.create_agent_run(
+            run_id="run-new",
+            conversation_id="session-1",
+            user_id="user-1",
+            idempotency_key="request-1",
+            status="queued",
+            provider_task_id="provider-task-1",
+            tool_name="generate_images",
+            tool_arguments={"prompt": "火星", "requestedImageCount": 2},
+            input_resources=[{
+                "resource_type": "attachment",
+                "resource_id": "attachment-1",
+                "binding_role": "product_reference",
+                "unexpected": "不应保存",
+            }],
+            result_artifact_ids=["artifact-1"],
+            error={"message": "可重试"},
+        )
+
+        sql, params = connection.calls[-1]
+        self.assertEqual(result["id"], "run-existing")
+        self.assertIn("FROM mars_assistant_sessions", sql)
+        self.assertIn("session_id = :conversation_id AND user_id = :user_id", sql)
+        self.assertIn("ON CONFLICT (user_id, conversation_id, idempotency_key)", sql)
+        self.assertEqual(params["provider_task_id"], "provider-task-1")
+        self.assertNotIn("prompt", params["tool_arguments"])
+        self.assertIn('"requestedImageCount": 2', params["tool_arguments"])
+        self.assertIn('"attachment-1"', params["input_resources"])
+        self.assertNotIn("unexpected", params["input_resources"])
+        self.assertIn('"artifact-1"', params["result_artifact_ids"])
+        self.assertIn('"message": "可重试"', params["error"])
+
+    def test_create_agent_run_requires_owned_continuation_parent(self):
+        connection = install_fake_database(
+            self,
+            None,
+        )
+
+        with self.assertRaisesRegex(ValueError, "不属于当前用户和会话"):
+            manager.create_agent_run(
+                run_id="run-child",
+                conversation_id="session-1",
+                user_id="user-1",
+                idempotency_key="request-child",
+                status="queued",
+                tool_name="generate_images",
+                continuation_of_run_id="run-other-owner",
+            )
+
+        sql, params = connection.calls[0]
+        self.assertIn("id = :continuation_of_run_id", sql)
+        self.assertIn("conversation_id = :conversation_id", sql)
+        self.assertIn("user_id = :user_id", sql)
+        self.assertEqual(params["continuation_of_run_id"], "run-other-owner")
+
+    def test_create_agent_run_rejects_non_image_tools(self):
+        install_fake_database(self, None)
+
+        with self.assertRaisesRegex(ValueError, "只允许创建 generate_images Run"):
+            manager.create_agent_run(
+                run_id="run-chat",
+                conversation_id="session-1",
+                user_id="user-1",
+                idempotency_key="request-chat",
+                status="queued",
+                tool_name="chat_response",
+            )
+
+    def test_create_agent_run_rejects_non_array_resources(self):
+        install_fake_database(self, None)
+
+        with self.assertRaisesRegex(ValueError, "输入资源格式无效"):
+            manager.create_agent_run(
+                run_id="run-invalid-input",
+                conversation_id="session-1",
+                user_id="user-1",
+                idempotency_key="request-invalid-input",
+                status="queued",
+                tool_name="generate_images",
+                input_resources={},
+            )
+        with self.assertRaisesRegex(ValueError, "结果产物格式无效"):
+            manager.create_agent_run(
+                run_id="run-invalid-result",
+                conversation_id="session-1",
+                user_id="user-1",
+                idempotency_key="request-invalid-result",
+                status="queued",
+                tool_name="generate_images",
+                result_artifact_ids={},
+            )
+
+    def test_update_agent_run_serializes_result_fields(self):
+        connection = install_fake_database(self, [
+            {"id": "artifact-1"},
+            {"id": "run-1", "status": "completed"},
+        ])
+
+        manager.update_agent_run(
+            run_id="run-1",
+            conversation_id="session-1",
+            user_id="user-1",
+            updates={
+                "status": "completed",
+                "result_artifact_ids": ["artifact-1"],
+            },
+        )
+
+        sql, params = connection.calls[-1]
+        self.assertIn("result_artifact_ids = CAST(:result_artifact_ids AS JSONB)", sql)
+        self.assertIn('"artifact-1"', params["result_artifact_ids"])
+
+    def test_update_agent_run_rejects_unknown_fields(self):
+        install_fake_database(self, None)
+
+        with self.assertRaisesRegex(ValueError, "不支持的 run 更新字段"):
+            manager.update_agent_run(
+                run_id="run-1",
+                conversation_id="session-1",
+                user_id="user-1",
+                updates={"idempotency_key": "changed"},
+            )
+
+        with self.assertRaisesRegex(ValueError, "不支持的 run 更新字段"):
+            manager.update_agent_run(
+                run_id="run-1",
+                conversation_id="session-1",
+                user_id="user-1",
+                updates={"continuation_of_run_id": "run-other"},
+            )
+
+        with self.assertRaisesRegex(ValueError, "结果产物格式无效"):
+            manager.update_agent_run(
+                run_id="run-1",
+                conversation_id="session-1",
+                user_id="user-1",
+                updates={"result_artifact_ids": {}},
+            )
+
+    def test_list_agent_runs_filters_tool_and_status_by_creation_time(self):
+        connection = install_fake_database(self, [[{"id": "run-1"}]])
+
+        result = manager.list_agent_runs(
+            "session-1",
+            user_id="user-1",
+            status="completed",
+            tool_name="generate_images",
+            limit=1,
+        )
+
+        sql, params = connection.calls[0]
+        self.assertEqual(result, [{"id": "run-1"}])
+        self.assertIn("r.status = :status", sql)
+        self.assertIn("r.tool_name = :tool_name", sql)
+        self.assertIn("ORDER BY r.created_at DESC", sql)
+        self.assertEqual(params["status"], "completed")
+        self.assertEqual(params["tool_name"], "generate_images")
+        self.assertEqual(params["limit"], 1)
 
 if __name__ == "__main__":
     unittest.main()

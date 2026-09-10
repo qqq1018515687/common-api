@@ -14,131 +14,325 @@ def _now_ms() -> int:
     return int(time.time() * 1000)
 
 
-def ensure_mars_assistant_session_table() -> None:
+def _compact_image_tool_arguments(value: object) -> dict:
+    if not isinstance(value, dict):
+        return {}
+    compact = {}
+    for key in ("requestedImageCount", "sequenceStart"):
+        item = value.get(key)
+        if isinstance(item, int) and not isinstance(item, bool) and item > 0:
+            compact[key] = item
+    for key in ("requestedAspectRatio", "model"):
+        item = value.get(key)
+        if isinstance(item, str) and item.strip():
+            compact[key] = item.strip()
+    return compact
+
+
+def _compact_session_metadata(value: object) -> dict:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        key: value[key]
+        for key in ("activeEditBaseArtifactId", "latestGeneratedArtifactId")
+        if isinstance(value.get(key), str) and value[key].strip()
+    }
+
+
+def _compact_artifact_metadata(value: object) -> dict:
+    if not isinstance(value, dict):
+        return {}
+    compact = {}
+    if isinstance(value.get("runId"), str) and value["runId"].strip():
+        compact["runId"] = value["runId"].strip()
+    if isinstance(value.get("sequence"), int) and not isinstance(value["sequence"], bool) and value["sequence"] > 0:
+        compact["sequence"] = value["sequence"]
+    if isinstance(value.get("frameIndex"), int) and not isinstance(value["frameIndex"], bool) and value["frameIndex"] > 0:
+        compact["frameIndex"] = value["frameIndex"]
+    if isinstance(value.get("frameTitle"), str) and value["frameTitle"].strip():
+        compact["frameTitle"] = value["frameTitle"].strip()
+    frame = value.get("frame")
+    if isinstance(frame, dict):
+        compact_frame = {}
+        if isinstance(frame.get("index"), int) and not isinstance(frame["index"], bool) and frame["index"] > 0:
+            compact_frame["index"] = frame["index"]
+        if isinstance(frame.get("title"), str) and frame["title"].strip():
+            compact_frame["title"] = frame["title"].strip()
+        if compact_frame:
+            compact["frame"] = compact_frame
+    return compact
+
+
+def _compact_attachment_metadata(value: object) -> dict:
+    if not isinstance(value, dict):
+        return {}
+    compact = {}
+    summary = value.get("summary")
+    if isinstance(summary, str) and summary.strip():
+        compact["summary"] = summary.strip()
+    content_length = value.get("contentLength")
+    if isinstance(content_length, int) and not isinstance(content_length, bool) and content_length >= 0:
+        compact["contentLength"] = content_length
+    return compact
+
+
+def _require_owned_resource(conn, *, resource_type: str, resource_id: str, conversation_id: str, user_id: str) -> None:
+    table_name = "mars_assistant_attachments" if resource_type == "attachment" else "mars_assistant_artifacts"
+    id_column = "id"
+    session_column = "session_id"
+    row = conn.execute(
+        text(f"SELECT {id_column} FROM {table_name} WHERE {id_column} = :resource_id AND {session_column} = :conversation_id AND user_id = :user_id"),
+        {"resource_id": resource_id, "conversation_id": conversation_id, "user_id": user_id},
+    ).mappings().first()
+    if not row:
+        raise ValueError("Run 引用资源不属于当前用户和会话")
+
+
+def create_agent_run(
+    *,
+    run_id: str,
+    conversation_id: str,
+    user_id: str,
+    idempotency_key: str,
+    status: str,
+    team_id: Optional[str] = None,
+    model: Optional[str] = None,
+    provider: Optional[str] = None,
+    provider_task_id: Optional[str] = None,
+    continuation_of_run_id: Optional[str] = None,
+    tool_name: Optional[str] = None,
+    tool_arguments: Optional[dict] = None,
+    input_resources: Optional[list] = None,
+    result_artifact_ids: Optional[list] = None,
+    error: Optional[dict] = None,
+    created_at: Optional[int] = None,
+    completed_at: Optional[int] = None,
+) -> dict:
+    now = _now_ms()
+    if tool_name != "generate_images":
+        raise ValueError("只允许创建 generate_images Run")
+    tool_arguments = _compact_image_tool_arguments(tool_arguments)
+    if input_resources is not None and not isinstance(input_resources, list):
+        raise ValueError("Run 输入资源格式无效")
+    if result_artifact_ids is not None and not isinstance(result_artifact_ids, list):
+        raise ValueError("Run 结果产物格式无效")
     with get_engine().begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS mars_assistant_sessions (
-                session_id VARCHAR(64) PRIMARY KEY,
-                user_id VARCHAR(64) NOT NULL,
-                team_id VARCHAR(64),
-                task_state JSONB,
-                image_asset_state JSONB,
-                metadata JSONB,
-                created_at BIGINT NOT NULL,
-                updated_at BIGINT NOT NULL
+        if continuation_of_run_id:
+            parent = conn.execute(
+                text("""
+                    SELECT id FROM mars_agent_runs
+                    WHERE id = :continuation_of_run_id
+                      AND conversation_id = :conversation_id
+                      AND user_id = :user_id
+                """),
+                {
+                    "continuation_of_run_id": continuation_of_run_id,
+                    "conversation_id": conversation_id,
+                    "user_id": user_id,
+                },
+            ).mappings().first()
+            if not parent:
+                raise ValueError("continuation_of_run_id 不属于当前用户和会话")
+        compact_input_resources = []
+        for resource in input_resources or []:
+            if not isinstance(resource, dict):
+                raise ValueError("Run 输入资源格式无效")
+            resource_type = resource.get("resource_type")
+            resource_id = resource.get("resource_id")
+            if resource_type not in {"attachment", "artifact"} or not isinstance(resource_id, str):
+                raise ValueError("Run 输入资源格式无效")
+            _require_owned_resource(
+                conn,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                conversation_id=conversation_id,
+                user_id=user_id,
             )
-        """))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_mars_assistant_sessions_user_updated ON mars_assistant_sessions(user_id, updated_at DESC)"))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_mars_assistant_sessions_team_updated ON mars_assistant_sessions(team_id, updated_at DESC)"))
+            binding_role = resource.get("binding_role")
+            compact_input_resources.append({
+                "resource_type": resource_type,
+                "resource_id": resource_id,
+                "binding_role": binding_role if isinstance(binding_role, str) else "general_reference",
+            })
+        compact_result_artifact_ids = []
+        for artifact_id in result_artifact_ids or []:
+            if not isinstance(artifact_id, str):
+                raise ValueError("Run 结果产物格式无效")
+            _require_owned_resource(
+                conn,
+                resource_type="artifact",
+                resource_id=artifact_id,
+                conversation_id=conversation_id,
+                user_id=user_id,
+            )
+            compact_result_artifact_ids.append(artifact_id)
+        row = conn.execute(
+            text("""
+                INSERT INTO mars_agent_runs
+                    (id, conversation_id, user_id, team_id, model, provider, provider_task_id,
+                     status, idempotency_key, continuation_of_run_id, tool_name, tool_arguments,
+                     input_resources, result_artifact_ids, error, created_at, updated_at, completed_at)
+                SELECT
+                    :id, :conversation_id, :user_id, :team_id, :model, :provider, :provider_task_id,
+                    :status, :idempotency_key, :continuation_of_run_id, :tool_name,
+                    CAST(:tool_arguments AS JSONB), CAST(:input_resources AS JSONB),
+                    CAST(:result_artifact_ids AS JSONB), CAST(:error AS JSONB),
+                    :created_at, :updated_at, :completed_at
+                FROM mars_assistant_sessions
+                WHERE session_id = :conversation_id AND user_id = :user_id
+                ON CONFLICT (user_id, conversation_id, idempotency_key) DO UPDATE SET
+                    idempotency_key = EXCLUDED.idempotency_key
+                RETURNING *
+            """),
+            {
+                "id": run_id,
+                "conversation_id": conversation_id,
+                "user_id": user_id,
+                "team_id": team_id,
+                "model": model,
+                "provider": provider,
+                "provider_task_id": provider_task_id,
+                "status": status,
+                "idempotency_key": idempotency_key,
+                "continuation_of_run_id": continuation_of_run_id,
+                "tool_name": tool_name,
+                "tool_arguments": json.dumps(tool_arguments, ensure_ascii=False),
+                "input_resources": json.dumps(compact_input_resources, ensure_ascii=False),
+                "result_artifact_ids": json.dumps(compact_result_artifact_ids, ensure_ascii=False),
+                "error": json.dumps(error, ensure_ascii=False),
+                "created_at": created_at or now,
+                "updated_at": now,
+                "completed_at": completed_at,
+            },
+        ).mappings().first()
+        if not row:
+            raise PermissionError("会话不存在或无权访问")
+        return dict(row)
 
 
-def ensure_mars_assistant_message_table() -> None:
+def get_agent_run(run_id: str, *, conversation_id: str, user_id: str) -> Optional[dict]:
     with get_engine().begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS mars_assistant_messages (
-                id VARCHAR(64) PRIMARY KEY,
-                session_id VARCHAR(64) NOT NULL,
-                user_id VARCHAR(64) NOT NULL,
-                team_id VARCHAR(64),
-                role VARCHAR(16) NOT NULL,
-                content TEXT,
-                status VARCHAR(20),
-                model VARCHAR(64),
-                error TEXT,
-                attachment_ids JSONB,
-                quoted_message JSONB,
-                skill_payload JSONB,
-                metadata JSONB,
-                created_at BIGINT NOT NULL,
-                updated_at BIGINT NOT NULL
-            )
-        """))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_mars_assistant_messages_session_created ON mars_assistant_messages(session_id, created_at ASC)"))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_mars_assistant_messages_user_created ON mars_assistant_messages(user_id, created_at ASC)"))
+        row = conn.execute(
+            text("""
+                SELECT r.*
+                FROM mars_agent_runs r
+                INNER JOIN mars_assistant_sessions s
+                    ON s.session_id = r.conversation_id AND s.user_id = r.user_id
+                WHERE r.id = :run_id
+                  AND r.conversation_id = :conversation_id
+                  AND r.user_id = :user_id
+            """),
+            {"run_id": run_id, "conversation_id": conversation_id, "user_id": user_id},
+        ).mappings().first()
+        return dict(row) if row else None
 
 
-def ensure_mars_assistant_artifact_table() -> None:
+def update_agent_run(
+    *,
+    run_id: str,
+    conversation_id: str,
+    user_id: str,
+    updates: dict,
+) -> dict:
+    field_sql = {
+        "team_id": "team_id = :team_id",
+        "model": "model = :model",
+        "provider": "provider = :provider",
+        "provider_task_id": "provider_task_id = :provider_task_id",
+        "status": "status = :status",
+        "result_artifact_ids": "result_artifact_ids = CAST(:result_artifact_ids AS JSONB)",
+        "error": "error = CAST(:error AS JSONB)",
+        "completed_at": "completed_at = :completed_at",
+    }
+    unsupported_fields = set(updates) - set(field_sql)
+    if unsupported_fields:
+        raise ValueError(f"不支持的 run 更新字段: {', '.join(sorted(unsupported_fields))}")
+    selected_fields = [field for field in field_sql if field in updates]
+    if not selected_fields:
+        raise ValueError("run 更新字段不能为空")
+    result_artifact_ids = updates.get("result_artifact_ids")
+    if "result_artifact_ids" in updates and not isinstance(result_artifact_ids, list):
+        raise ValueError("Run 结果产物格式无效")
+    params = {
+        "run_id": run_id,
+        "conversation_id": conversation_id,
+        "user_id": user_id,
+        "updated_at": _now_ms(),
+        **{field: updates[field] for field in selected_fields},
+    }
+    for field in ("result_artifact_ids", "error"):
+        if field in selected_fields:
+            params[field] = json.dumps(updates[field], ensure_ascii=False)
+    assignments = [field_sql[field] for field in selected_fields]
+    assignments.append("updated_at = :updated_at")
     with get_engine().begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS mars_assistant_artifacts (
-                id VARCHAR(64) PRIMARY KEY,
-                session_id VARCHAR(64) NOT NULL,
-                message_id VARCHAR(64),
-                user_id VARCHAR(64) NOT NULL,
-                team_id VARCHAR(64),
-                artifact_type VARCHAR(32) NOT NULL,
-                artifact_role VARCHAR(32),
-                url TEXT,
-                file_key VARCHAR(512),
-                prompt TEXT,
-                source_artifact_id VARCHAR(64),
-                source_image_url TEXT,
-                metadata JSONB,
-                created_at BIGINT NOT NULL,
-                updated_at BIGINT NOT NULL
+        compact_result_artifact_ids = []
+        for artifact_id in result_artifact_ids or []:
+            if not isinstance(artifact_id, str):
+                raise ValueError("Run 结果产物格式无效")
+            _require_owned_resource(
+                conn,
+                resource_type="artifact",
+                resource_id=artifact_id,
+                conversation_id=conversation_id,
+                user_id=user_id,
             )
-        """))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_mars_assistant_artifacts_session_created ON mars_assistant_artifacts(session_id, created_at ASC)"))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_mars_assistant_artifacts_message ON mars_assistant_artifacts(message_id)"))
+            compact_result_artifact_ids.append(artifact_id)
+        if "result_artifact_ids" in selected_fields:
+            params["result_artifact_ids"] = json.dumps(compact_result_artifact_ids, ensure_ascii=False)
+        row = conn.execute(
+            text(f"""
+                UPDATE mars_agent_runs r
+                SET {', '.join(assignments)}
+                FROM mars_assistant_sessions s
+                WHERE r.id = :run_id
+                  AND r.conversation_id = :conversation_id
+                  AND r.user_id = :user_id
+                  AND s.session_id = r.conversation_id
+                  AND s.user_id = r.user_id
+                RETURNING r.*
+            """),
+            params,
+        ).mappings().first()
+        if not row:
+            raise PermissionError("Run 不存在或无权访问")
+        return dict(row)
 
 
-def ensure_mars_assistant_attachment_tables() -> None:
+def list_agent_runs(
+    conversation_id: str,
+    *,
+    user_id: str,
+    status: Optional[str] = None,
+    tool_name: Optional[str] = None,
+    limit: int = 100,
+) -> list[dict]:
+    status_clause = " AND r.status = :status" if status else ""
+    tool_clause = " AND r.tool_name = :tool_name" if tool_name else ""
+    params = {
+        "conversation_id": conversation_id,
+        "user_id": user_id,
+        "status": status,
+        "tool_name": tool_name,
+        "limit": max(1, min(limit, 300)),
+    }
     with get_engine().begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS mars_assistant_attachments (
-                id VARCHAR(64) PRIMARY KEY,
-                session_id VARCHAR(64) NOT NULL,
-                user_id VARCHAR(64) NOT NULL,
-                team_id VARCHAR(64),
-                name VARCHAR(255) NOT NULL,
-                mime_type VARCHAR(128) NOT NULL,
-                kind VARCHAR(16) NOT NULL,
-                size BIGINT NOT NULL,
-                storage_provider VARCHAR(32),
-                storage_key VARCHAR(512),
-                public_url TEXT,
-                file_key VARCHAR(512),
-                expires_at BIGINT,
-                parse_status VARCHAR(24) NOT NULL DEFAULT 'pending',
-                parse_error TEXT,
-                text_preview TEXT,
-                metadata JSONB,
-                created_at BIGINT NOT NULL,
-                updated_at BIGINT NOT NULL
-            )
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS mars_assistant_attachment_contents (
-                attachment_id VARCHAR(64) PRIMARY KEY,
-                full_text TEXT,
-                summary TEXT,
-                structured_json JSONB,
-                page_count INTEGER,
-                sheet_count INTEGER,
-                updated_at BIGINT NOT NULL
-            )
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS mars_assistant_attachment_chunks (
-                id VARCHAR(64) PRIMARY KEY,
-                attachment_id VARCHAR(64) NOT NULL,
-                chunk_index INTEGER NOT NULL,
-                chunk_text TEXT NOT NULL,
-                source_type VARCHAR(32),
-                source_label VARCHAR(255),
-                page_number INTEGER,
-                sheet_name VARCHAR(255),
-                token_estimate INTEGER,
-                created_at BIGINT NOT NULL
-            )
-        """))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_mars_assistant_attachments_session_created ON mars_assistant_attachments(session_id, created_at ASC)"))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_mars_assistant_attachments_user_created ON mars_assistant_attachments(user_id, created_at ASC)"))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_mars_assistant_attachment_chunks_attachment_index ON mars_assistant_attachment_chunks(attachment_id, chunk_index ASC)"))
+        rows = conn.execute(
+            text(f"""
+                SELECT r.*
+                FROM mars_agent_runs r
+                INNER JOIN mars_assistant_sessions s
+                    ON s.session_id = r.conversation_id AND s.user_id = r.user_id
+                WHERE r.conversation_id = :conversation_id AND r.user_id = :user_id{status_clause}{tool_clause}
+                ORDER BY r.created_at DESC
+                LIMIT :limit
+            """),
+            params,
+        ).mappings().all()
+        return [dict(row) for row in rows]
 
 
 def list_session_attachments(session_id: str, user_id: Optional[str] = None) -> list[dict]:
-    ensure_mars_assistant_attachment_tables()
     owner_clause = " AND user_id = :user_id" if user_id else ""
     params = {"session_id": session_id}
     if user_id:
@@ -152,7 +346,6 @@ def list_session_attachments(session_id: str, user_id: Optional[str] = None) -> 
 
 
 def get_attachment(attachment_id: str, user_id: Optional[str] = None) -> Optional[dict]:
-    ensure_mars_assistant_attachment_tables()
     owner_clause = " AND user_id = :user_id" if user_id else ""
     params = {"attachment_id": attachment_id}
     if user_id:
@@ -171,7 +364,6 @@ def get_attachment_detail(
     session_id: str,
     user_id: Optional[str] = None,
 ) -> tuple[Optional[dict], Optional[dict], list[dict]]:
-    ensure_mars_assistant_attachment_tables()
     owner_clause = " AND a.user_id = :user_id" if user_id else ""
     params = {
         "attachment_id": attachment_id,
@@ -219,7 +411,6 @@ def get_attachment_detail(
 
 
 def get_attachment_content(attachment_id: str) -> Optional[dict]:
-    ensure_mars_assistant_attachment_tables()
     with get_engine().begin() as conn:
         row = conn.execute(
             text("SELECT * FROM mars_assistant_attachment_contents WHERE attachment_id = :attachment_id"),
@@ -229,7 +420,6 @@ def get_attachment_content(attachment_id: str) -> Optional[dict]:
 
 
 def list_attachment_chunks(attachment_id: str) -> list[dict]:
-    ensure_mars_assistant_attachment_tables()
     with get_engine().begin() as conn:
         rows = conn.execute(
             text("SELECT * FROM mars_assistant_attachment_chunks WHERE attachment_id = :attachment_id ORDER BY chunk_index ASC"),
@@ -259,7 +449,6 @@ def upsert_attachment(
     metadata: Optional[dict] = None,
     created_at: Optional[int] = None,
 ) -> dict:
-    ensure_mars_assistant_attachment_tables()
     now = _now_ms()
     created_at = created_at or now
     with get_engine().begin() as conn:
@@ -308,7 +497,7 @@ def upsert_attachment(
                 "parse_status": parse_status,
                 "parse_error": parse_error,
                 "text_preview": text_preview,
-                "metadata": json.dumps(metadata, ensure_ascii=False),
+                "metadata": json.dumps(_compact_attachment_metadata(metadata), ensure_ascii=False),
                 "created_at": created_at,
                 "updated_at": now,
             },
@@ -330,7 +519,6 @@ def upsert_attachment_content(
     sheet_count: Optional[int] = None,
     chunks: Optional[list[dict]] = None,
 ) -> dict:
-    ensure_mars_assistant_attachment_tables()
     now = _now_ms()
     with get_engine().begin() as conn:
         attachment = conn.execute(
@@ -410,7 +598,6 @@ def upsert_attachment_content(
 
 
 def get_session_state(session_id: str, user_id: Optional[str] = None) -> Optional[dict]:
-    ensure_mars_assistant_session_table()
     owner_clause = " AND user_id = :user_id" if user_id else ""
     params = {"session_id": session_id}
     if user_id:
@@ -428,24 +615,20 @@ def upsert_session_state(
     session_id: str,
     user_id: str,
     team_id: Optional[str] = None,
-    task_state: Optional[dict] = None,
-    image_asset_state: Optional[dict] = None,
     metadata: Optional[dict] = None,
 ) -> dict:
-    ensure_mars_assistant_session_table()
     now = _now_ms()
+    compact_metadata = _compact_session_metadata(metadata)
     with get_engine().begin() as conn:
         row = conn.execute(
             text("""
                 INSERT INTO mars_assistant_sessions
-                    (session_id, user_id, team_id, task_state, image_asset_state, metadata, created_at, updated_at)
+                    (session_id, user_id, team_id, metadata, created_at, updated_at)
                 VALUES
-                    (:session_id, :user_id, :team_id, CAST(:task_state AS JSONB), CAST(:image_asset_state AS JSONB), CAST(:metadata AS JSONB), :created_at, :updated_at)
+                    (:session_id, :user_id, :team_id, CAST(:metadata AS JSONB), :created_at, :updated_at)
                 ON CONFLICT (session_id) DO UPDATE SET
                     team_id = EXCLUDED.team_id,
-                    task_state = EXCLUDED.task_state,
-                    image_asset_state = EXCLUDED.image_asset_state,
-                    metadata = EXCLUDED.metadata,
+                    metadata = COALESCE(EXCLUDED.metadata, '{}'::jsonb),
                     updated_at = EXCLUDED.updated_at
                 WHERE mars_assistant_sessions.user_id = EXCLUDED.user_id
                 RETURNING *
@@ -454,9 +637,7 @@ def upsert_session_state(
                 "session_id": session_id,
                 "user_id": user_id,
                 "team_id": team_id,
-                "task_state": json.dumps(task_state, ensure_ascii=False),
-                "image_asset_state": json.dumps(image_asset_state, ensure_ascii=False),
-                "metadata": json.dumps(metadata, ensure_ascii=False),
+                "metadata": json.dumps(compact_metadata, ensure_ascii=False) if compact_metadata else None,
                 "created_at": now,
                 "updated_at": now,
             },
@@ -471,48 +652,13 @@ def patch_session_state(
     session_id: str,
     user_id: str,
     team_id: Optional[str] = None,
-    task_state: Optional[dict] = None,
-    image_asset_state: Optional[dict] = None,
     metadata: Optional[dict] = None,
     update_fields: set[str],
-    merge_generated_images: bool = False,
 ) -> dict:
-    ensure_mars_assistant_session_table()
     now = _now_ms()
-    image_asset_assignment = "image_asset_state = CAST(:image_asset_state AS JSONB)"
-    if merge_generated_images:
-        image_asset_assignment = """
-            image_asset_state = (
-                CASE
-                    WHEN jsonb_typeof(mars_assistant_sessions.image_asset_state) = 'object'
-                    THEN mars_assistant_sessions.image_asset_state
-                    ELSE '{}'::jsonb
-                END
-                || CAST(:image_asset_state AS JSONB)
-                || jsonb_build_object(
-                    'generatedImages',
-                    COALESCE((
-                        SELECT jsonb_agg(deduplicated.item ORDER BY deduplicated.position)
-                        FROM (
-                            SELECT DISTINCT ON (item->>'id') item, position
-                            FROM jsonb_array_elements(
-                                CASE
-                                    WHEN jsonb_typeof(mars_assistant_sessions.image_asset_state->'generatedImages') = 'array'
-                                    THEN mars_assistant_sessions.image_asset_state->'generatedImages'
-                                    ELSE '[]'::jsonb
-                                END
-                                || COALESCE(CAST(:image_asset_state AS JSONB)->'generatedImages', '[]'::jsonb)
-                            ) WITH ORDINALITY AS images(item, position)
-                            ORDER BY item->>'id', position DESC
-                        ) AS deduplicated
-                    ), '[]'::jsonb)
-                )
-            )
-        """
+    compact_metadata = _compact_session_metadata(metadata)
     field_sql = {
-        "task_state": "task_state = CAST(:task_state AS JSONB)",
-        "image_asset_state": image_asset_assignment,
-        "metadata": "metadata = CASE WHEN jsonb_typeof(mars_assistant_sessions.metadata) = 'object' THEN mars_assistant_sessions.metadata ELSE '{}'::jsonb END || CAST(:metadata AS JSONB)",
+        "metadata": "metadata = CASE WHEN jsonb_typeof(mars_assistant_sessions.metadata) = 'object' THEN jsonb_strip_nulls(jsonb_build_object('activeEditBaseArtifactId', mars_assistant_sessions.metadata->'activeEditBaseArtifactId', 'latestGeneratedArtifactId', mars_assistant_sessions.metadata->'latestGeneratedArtifactId')) ELSE '{}'::jsonb END || CAST(:metadata AS JSONB)",
     }
     assignments = [field_sql[field] for field in field_sql if field in update_fields]
     assignments.extend([
@@ -523,9 +669,9 @@ def patch_session_state(
         row = conn.execute(
             text(f"""
                 INSERT INTO mars_assistant_sessions
-                    (session_id, user_id, team_id, task_state, image_asset_state, metadata, created_at, updated_at)
+                    (session_id, user_id, team_id, metadata, created_at, updated_at)
                 VALUES
-                    (:session_id, :user_id, :team_id, CAST(:task_state AS JSONB), CAST(:image_asset_state AS JSONB), CAST(:metadata AS JSONB), :created_at, :updated_at)
+                    (:session_id, :user_id, :team_id, CAST(:metadata AS JSONB), :created_at, :updated_at)
                 ON CONFLICT (session_id) DO UPDATE SET
                     {', '.join(assignments)}
                 WHERE mars_assistant_sessions.user_id = EXCLUDED.user_id
@@ -535,9 +681,7 @@ def patch_session_state(
                 "session_id": session_id,
                 "user_id": user_id,
                 "team_id": team_id,
-                "task_state": json.dumps(task_state, ensure_ascii=False),
-                "image_asset_state": json.dumps(image_asset_state, ensure_ascii=False),
-                "metadata": json.dumps(metadata, ensure_ascii=False),
+                "metadata": json.dumps(compact_metadata, ensure_ascii=False),
                 "created_at": now,
                 "updated_at": now,
             },
@@ -548,7 +692,6 @@ def patch_session_state(
 
 
 def clear_session_state(session_id: str, user_id: Optional[str] = None) -> bool:
-    ensure_mars_assistant_session_table()
     owner_clause = " AND user_id = :user_id" if user_id else ""
     params = {"session_id": session_id}
     if user_id:
@@ -561,22 +704,7 @@ def clear_session_state(session_id: str, user_id: Optional[str] = None) -> bool:
         return bool(result.rowcount)
 
 
-def list_session_messages(session_id: str, user_id: Optional[str] = None) -> list[dict]:
-    ensure_mars_assistant_message_table()
-    owner_clause = " AND user_id = :user_id" if user_id else ""
-    params = {"session_id": session_id}
-    if user_id:
-        params["user_id"] = user_id
-    with get_engine().begin() as conn:
-        rows = conn.execute(
-            text(f"SELECT * FROM mars_assistant_messages WHERE session_id = :session_id{owner_clause} ORDER BY created_at ASC"),
-            params,
-        ).mappings().all()
-        return [dict(row) for row in rows]
-
-
 def list_session_artifacts(session_id: str, user_id: Optional[str] = None) -> list[dict]:
-    ensure_mars_assistant_artifact_table()
     owner_clause = " AND user_id = :user_id" if user_id else ""
     params = {"session_id": session_id}
     if user_id:
@@ -587,74 +715,6 @@ def list_session_artifacts(session_id: str, user_id: Optional[str] = None) -> li
             params,
         ).mappings().all()
         return [dict(row) for row in rows]
-
-
-def upsert_session_message(
-    *,
-    message_id: str,
-    session_id: str,
-    user_id: str,
-    team_id: Optional[str] = None,
-    role: str,
-    content: Optional[str] = None,
-    status: Optional[str] = None,
-    model: Optional[str] = None,
-    error: Optional[str] = None,
-    attachment_ids: Optional[list] = None,
-    quoted_message: Optional[dict] = None,
-    skill_payload: Optional[dict] = None,
-    metadata: Optional[dict] = None,
-    created_at: Optional[int] = None,
-) -> dict:
-    ensure_mars_assistant_message_table()
-    now = _now_ms()
-    created_at = created_at or now
-    with get_engine().begin() as conn:
-        row = conn.execute(
-            text("""
-                INSERT INTO mars_assistant_messages
-                    (id, session_id, user_id, team_id, role, content, status, model, error, attachment_ids, quoted_message, skill_payload, metadata, created_at, updated_at)
-                SELECT
-                    :id, :session_id, :user_id, :team_id, :role, :content, :status, :model, :error, CAST(:attachment_ids AS JSONB), CAST(:quoted_message AS JSONB), CAST(:skill_payload AS JSONB), CAST(:metadata AS JSONB), :created_at, :updated_at
-                FROM mars_assistant_sessions
-                WHERE session_id = :session_id AND user_id = :user_id
-                ON CONFLICT (id) DO UPDATE SET
-                    team_id = EXCLUDED.team_id,
-                    role = EXCLUDED.role,
-                    content = EXCLUDED.content,
-                    status = EXCLUDED.status,
-                    model = EXCLUDED.model,
-                    error = EXCLUDED.error,
-                    attachment_ids = EXCLUDED.attachment_ids,
-                    quoted_message = EXCLUDED.quoted_message,
-                    skill_payload = EXCLUDED.skill_payload,
-                    metadata = EXCLUDED.metadata,
-                    updated_at = EXCLUDED.updated_at
-                WHERE mars_assistant_messages.user_id = EXCLUDED.user_id
-                  AND mars_assistant_messages.session_id = EXCLUDED.session_id
-                RETURNING *
-            """),
-            {
-                "id": message_id,
-                "session_id": session_id,
-                "user_id": user_id,
-                "team_id": team_id,
-                "role": role,
-                "content": content,
-                "status": status,
-                "model": model,
-                "error": error,
-                "attachment_ids": json.dumps(attachment_ids, ensure_ascii=False),
-                "quoted_message": json.dumps(quoted_message, ensure_ascii=False),
-                "skill_payload": json.dumps(skill_payload, ensure_ascii=False),
-                "metadata": json.dumps(metadata, ensure_ascii=False),
-                "created_at": created_at,
-                "updated_at": now,
-            },
-        ).mappings().first()
-        if not row:
-            raise PermissionError("消息不存在或无权访问")
-        return dict(row)
 
 
 def upsert_session_artifact(
@@ -668,22 +728,27 @@ def upsert_session_artifact(
     message_id: Optional[str] = None,
     url: Optional[str] = None,
     file_key: Optional[str] = None,
-    prompt: Optional[str] = None,
     source_artifact_id: Optional[str] = None,
-    source_image_url: Optional[str] = None,
     metadata: Optional[dict] = None,
     created_at: Optional[int] = None,
 ) -> dict:
-    ensure_mars_assistant_artifact_table()
     now = _now_ms()
     created_at = created_at or now
     with get_engine().begin() as conn:
+        if source_artifact_id:
+            _require_owned_resource(
+                conn,
+                resource_type="artifact",
+                resource_id=source_artifact_id,
+                conversation_id=session_id,
+                user_id=user_id,
+            )
         row = conn.execute(
             text("""
                 INSERT INTO mars_assistant_artifacts
-                    (id, session_id, message_id, user_id, team_id, artifact_type, artifact_role, url, file_key, prompt, source_artifact_id, source_image_url, metadata, created_at, updated_at)
+                    (id, session_id, message_id, user_id, team_id, artifact_type, artifact_role, url, file_key, source_artifact_id, metadata, created_at, updated_at)
                 SELECT
-                    :id, :session_id, :message_id, :user_id, :team_id, :artifact_type, :artifact_role, :url, :file_key, :prompt, :source_artifact_id, :source_image_url, CAST(:metadata AS JSONB), :created_at, :updated_at
+                    :id, :session_id, :message_id, :user_id, :team_id, :artifact_type, :artifact_role, :url, :file_key, :source_artifact_id, CAST(:metadata AS JSONB), :created_at, :updated_at
                 FROM mars_assistant_sessions
                 WHERE session_id = :session_id AND user_id = :user_id
                 ON CONFLICT (id) DO UPDATE SET
@@ -693,9 +758,7 @@ def upsert_session_artifact(
                     artifact_role = EXCLUDED.artifact_role,
                     url = EXCLUDED.url,
                     file_key = EXCLUDED.file_key,
-                    prompt = EXCLUDED.prompt,
                     source_artifact_id = EXCLUDED.source_artifact_id,
-                    source_image_url = EXCLUDED.source_image_url,
                     metadata = EXCLUDED.metadata,
                     updated_at = EXCLUDED.updated_at
                 WHERE mars_assistant_artifacts.user_id = EXCLUDED.user_id
@@ -712,10 +775,8 @@ def upsert_session_artifact(
                 "artifact_role": artifact_role,
                 "url": url,
                 "file_key": file_key,
-                "prompt": prompt,
                 "source_artifact_id": source_artifact_id,
-                "source_image_url": source_image_url,
-                "metadata": json.dumps(metadata, ensure_ascii=False),
+                "metadata": json.dumps(_compact_artifact_metadata(metadata), ensure_ascii=False),
                 "created_at": created_at,
                 "updated_at": now,
             },

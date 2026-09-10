@@ -105,9 +105,6 @@ class InputData(BaseModel):
         default=None, description="Agent 能力表快照"
     )
     session_id: Optional[str] = Field(default=None, description="火星助手会话ID")
-    task_state: Optional[dict] = Field(default=None, description="火星助手任务状态快照")
-    image_asset_state: Optional[dict] = Field(default=None, description="火星助手图片资产状态快照")
-    merge_generated_images: bool = Field(default=False, description="是否按图片ID原子合并生成图列表")
     agent_run_id: Optional[str] = Field(default=None, description="Agent Run ID")
     agent_step_id: Optional[str] = Field(default=None, description="Agent Step ID")
     agent_plan_type: Optional[str] = Field(default=None, description="Agent 计划类型")
@@ -408,9 +405,6 @@ class GlobalState(BaseModel):
         default=None, description="Agent 能力表快照"
     )
     session_id: Optional[str] = Field(default=None, description="火星助手会话ID")
-    task_state: Optional[dict] = Field(default=None, description="火星助手任务状态快照")
-    image_asset_state: Optional[dict] = Field(default=None, description="火星助手图片资产状态快照")
-    merge_generated_images: bool = Field(default=False, description="是否按图片ID原子合并生成图列表")
     agent_run_id: Optional[str] = Field(default=None, description="Agent Run ID")
     agent_step_id: Optional[str] = Field(default=None, description="Agent Step ID")
     agent_plan_type: Optional[str] = Field(default=None, description="Agent 计划类型")
@@ -1386,9 +1380,6 @@ class UnpackInputDataOutput(BaseModel):
         default=None, description="Agent 能力表快照"
     )
     session_id: Optional[str] = Field(default=None, description="火星助手会话ID")
-    task_state: Optional[dict] = Field(default=None, description="火星助手任务状态快照")
-    image_asset_state: Optional[dict] = Field(default=None, description="火星助手图片资产状态快照")
-    merge_generated_images: bool = Field(default=False, description="是否按图片ID原子合并生成图列表")
     agent_run_id: Optional[str] = Field(default=None, description="Agent Run ID")
     agent_step_id: Optional[str] = Field(default=None, description="Agent Step ID")
     agent_plan_type: Optional[str] = Field(default=None, description="Agent 计划类型")
