@@ -488,12 +488,18 @@ def _trigger_third_party_task_recovery() -> None:
             snapshot = task.parameter_snapshot if isinstance(task.parameter_snapshot, dict) else {}
             confirmation_pending = snapshot.get("confirmationState") == "pending"
 
-        task_updated_ms = 0
+        snapshot = task.parameter_snapshot if isinstance(task.parameter_snapshot, dict) else {}
+        pending_started_ms = 0
         try:
-            task_updated_ms = int(str(getattr(task, "updated_at", "") or "0")[:13])
+            pending_started_ms = int(str(snapshot.get("pendingSince") or "0")[:13])
         except (TypeError, ValueError):
-            task_updated_ms = 0
-        pending_duration_ms = (now_ms - task_updated_ms) if task_updated_ms else 0
+            pending_started_ms = 0
+        if not pending_started_ms:
+            try:
+                pending_started_ms = int(str(getattr(task, "updated_at", "") or "0")[:13])
+            except (TypeError, ValueError):
+                pending_started_ms = 0
+        pending_duration_ms = (now_ms - pending_started_ms) if pending_started_ms else 0
 
         is_submit_unconfirmed_task = task_status == "submitted_unconfirmed"
         # 无法恢复查询的任务（sync 提交模式：无真实平台 task_id）不能转发 recover 恢复；
@@ -524,21 +530,9 @@ def _trigger_third_party_task_recovery() -> None:
                 task.platform,
                 platform_task_id,
             )
-            # 平台确认失败 → 强制终态（绕过 confirmation 守卫）+ 退款
-            if isinstance(result, dict) and int(result.get("code", -1)) == 805:
-                _force_fail_stale_pending_task(task, task_mgr, db)
-                continue
-            # 用户主动取消（code=806）→ main 已把任务收敛为 cancelled，不退款，直接跳过
-            if isinstance(result, dict) and int(result.get("code", -1)) == 806:
-                logger.info("[third-party-recovery] 用户取消任务已收敛为 cancelled: task_id=%s", task.id)
-                continue
-            # 平台任务已不存在（code=807，即 APIKEY_TASK_NOT_FOUND）
-            # → 若任务已取消保持 cancelled；否则按平台终态收敛为 failed，避免挂死
-            if isinstance(result, dict) and int(result.get("code", -1)) == 807:
-                current_status = str(getattr(task, "status", "") or "").strip().lower()
-                if current_status == "cancelled":
-                    logger.info("[third-party-recovery] cancelled 任务保持终态: task_id=%s", task.id)
-                    continue
+            recovery_status = str(result.get("recovery_status") or "") if isinstance(result, dict) else ""
+            # main 返回明确语义，common 不再猜测 provider 私有数字错误码。
+            if recovery_status == "terminal_failure":
                 _force_fail_stale_pending_task(task, task_mgr, db)
                 continue
             logger.info("[third-party-recovery] 触发任务补偿完成: task_id=%s result=%s", task.id, result)

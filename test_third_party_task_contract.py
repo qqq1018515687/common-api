@@ -5,6 +5,7 @@ ROOT = Path(__file__).parent
 TASK_SOURCE = ROOT.joinpath("src/storage/database/task_manager.py").read_text(encoding="utf-8")
 BILLING_SOURCE = ROOT.joinpath("src/storage/database/billing_manager.py").read_text(encoding="utf-8")
 NODE_SOURCE = ROOT.joinpath("src/graphs/node.py").read_text(encoding="utf-8")
+MAIN_SOURCE = ROOT.joinpath("src/main.py").read_text(encoding="utf-8")
 
 
 def test_third_party_placeholder_is_a_submission_pending_state():
@@ -30,3 +31,10 @@ def test_failed_task_refund_is_persisted_and_retried():
     assert '"status": "refunded"' in TASK_SOURCE
     assert 'updated_deduction["status"] = "settled"' in TASK_SOURCE
     assert "def retry_failed_task_refunds" in TASK_SOURCE
+
+
+def test_recovery_timeout_uses_original_pending_time():
+    assert 'snapshot.get("pendingSince")' in MAIN_SOURCE
+    recovery_section = MAIN_SOURCE.split("def _trigger_third_party_task_recovery", 1)[1]
+    assert 'recovery_status == "terminal_failure"' in recovery_section
+    assert 'int(result.get("code", -1)) == 807' not in recovery_section
