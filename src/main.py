@@ -433,46 +433,21 @@ def _force_fail_stale_pending_task(task: Any, task_mgr: Any, db: Any) -> None:
         logger.error("[third-party-recovery] 强制失败任务异常: task_id=%s error=%s", task.id, exc)
         return
 
-    try:
-        deduction = task.deduction_result if isinstance(task.deduction_result, dict) else {}
-        original_record_id = str(
-            deduction.get("billing_record_id")
-            or deduction.get("team_record_id")
-            or ""
-        ).strip()
-        if not original_record_id:
-            logger.warning("[third-party-recovery] 任务无扣费记录，跳过退款: task_id=%s", task.id)
-            return
-
-        from storage.database.billing_manager import refund as billing_refund
-
-        user_id = str(task.user_id or "").strip()
-        if not user_id:
-            logger.warning("[third-party-recovery] 任务无 user_id，跳过退款: task_id=%s", task.id)
-            return
-
-        result = billing_refund(
-            user_id=user_id,
-            original_record_id=original_record_id,
-            idempotency_key=f"refund:{task.id}",
-            service_secret=os.getenv("SERVICE_SECRET", ""),
-            metadata={
-                "platform": task.platform,
-                "recovery": "stale_pending_force_fail",
-                "refund_reason": "channel_failed",
-            },
-        )
-        logger.info("[third-party-recovery] 强制失败退款结果: task_id=%s result=%s", task.id, result)
-    except Exception as exc:
-        logger.error("[third-party-recovery] 强制失败退款异常: task_id=%s error=%s", task.id, exc)
-
-
 def _trigger_third_party_task_recovery() -> None:
     db = get_session()
     try:
         from storage.database.task_manager import TaskManager
 
         task_mgr = TaskManager()
+        retried_refunds = task_mgr.retry_failed_task_refunds(
+            db,
+            limit=THIRD_PARTY_TASK_RECOVERY_BATCH_SIZE,
+        )
+        if retried_refunds > 0:
+            logger.info(
+                "[third-party-recovery] 失败任务退款重试成功: refunded=%s",
+                retried_refunds,
+            )
         repaired_failed_tasks = task_mgr.backfill_failed_terminal_time(
             db,
             limit=THIRD_PARTY_TASK_RECOVERY_BATCH_SIZE,

@@ -2134,6 +2134,9 @@ def update_task_node(
                 "parameter_snapshot",
                 "connection_mode",
                 "deleted_image_urls",
+                "confirmation_state",
+                "final_reason",
+                "cancellation_source",
             ]:
                 if field in state.task_updates:
                     update_kwargs[field] = state.task_updates.get(field)
@@ -2501,6 +2504,8 @@ def list_tasks_node(
                     "type": task.type,
                     "status": task.status,
                     "confirmation_state": getattr(task, "confirmation_state", None),
+                    "final_reason": getattr(task, "final_reason", None),
+                    "cancellation_source": getattr(task, "cancellation_source", None),
                     "pending_reason": task_mgr._pending_reason_from_snapshot(parameter_snapshot),
                     "pending_since": task_mgr._pending_since_from_snapshot(parameter_snapshot),
                     "gray_diagnostics": task_mgr._gray_diagnostics_from_snapshot(parameter_snapshot),

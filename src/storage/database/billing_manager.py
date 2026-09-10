@@ -363,14 +363,15 @@ def _find_by_idempotency_key(db, idempotency_key: str) -> Optional[Dict[str, Any
     return None
 
 
-def _find_deduct_record(db, record_id: str) -> Optional[Dict[str, Any]]:
+def _find_deduct_record(db, record_id: str, *, lock: bool = False) -> Optional[Dict[str, Any]]:
     """查找原始 deduct 记录"""
+    lock_clause = " FOR UPDATE" if lock else ""
     row = db.execute(text(
-        "SELECT id, user_id, credit_type, amount, task_id, status, extra_data "
-        "FROM billing_records WHERE id = :id AND operation_type = 'deduct'"
+        "SELECT id, user_id, team_id, credit_type, amount, task_id, status, extra_data "
+        "FROM billing_records WHERE id = :id AND operation_type = 'deduct'" + lock_clause
     ), {"id": record_id}).fetchone()
     if row:
-        raw_extra = row[6]
+        raw_extra = row[7]
         if isinstance(raw_extra, str):
             try:
                 parsed_extra = json.loads(raw_extra)
@@ -383,23 +384,37 @@ def _find_deduct_record(db, record_id: str) -> Optional[Dict[str, Any]]:
         return {
             "id": row[0],
             "user_id": row[1],
-            "credit_type": row[2],
-            "amount": row[3],
-            "task_id": row[4],
-            "status": row[5],
+            "team_id": row[2],
+            "credit_type": row[3],
+            "amount": row[4],
+            "task_id": row[5],
+            "status": row[6],
             "extra_data": parsed_extra,
         }
     return None
 
 
-def _has_existing_refund(db, original_record_id: str) -> bool:
-    """检查是否已有针对同一 original_record_id 的退款"""
+def _find_existing_refund(db, original_record_id: str) -> Optional[Dict[str, Any]]:
+    """查找针对同一 original_record_id 的已完成退款。"""
     row = db.execute(text(
-        "SELECT id FROM billing_records "
+        "SELECT id, credit_type, amount, balance_before, balance_after FROM billing_records "
         "WHERE related_id = :rid AND operation_type = 'refund' AND status = 'completed' "
         "LIMIT 1"
     ), {"rid": original_record_id}).fetchone()
-    return row is not None
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "credit_type": row[1],
+        "amount": row[2],
+        "balance_before": row[3],
+        "balance_after": row[4],
+    }
+
+
+def _has_existing_refund(db, original_record_id: str) -> bool:
+    """检查是否已有针对同一 original_record_id 的退款。"""
+    return _find_existing_refund(db, original_record_id) is not None
 
 
 def _has_existing_settle(db, original_record_id: str) -> bool:
@@ -788,13 +803,24 @@ def refund(
             }, "已处理（幂等）")
 
         # 查找原始 deduct 记录
-        original = _find_deduct_record(db, original_record_id)
+        original = _find_deduct_record(db, original_record_id, lock=True)
         if not original:
             return _make_error(ORIGINAL_RECORD_NOT_FOUND, "原扣费记录不存在")
+        if str(original.get("user_id") or "") != str(user_id or ""):
+            return _make_error(UNAUTHORIZED, "退款用户与原扣费用户不一致")
 
         # 检查是否已退款
-        if _has_existing_refund(db, original_record_id):
-            return _make_error(ALREADY_REFUNDED, "该记录已退款，不能重复退款")
+        existing_refund = _find_existing_refund(db, original_record_id)
+        if existing_refund:
+            return _make_success({
+                "record_id": existing_refund["id"],
+                "already_processed": True,
+                "credit_type": existing_refund["credit_type"],
+                "amount": amount_to_response_number(existing_refund["credit_type"], existing_refund["amount"]),
+                "balance_before": amount_to_response_number(existing_refund["credit_type"], existing_refund["balance_before"]),
+                "balance_after": amount_to_response_number(existing_refund["credit_type"], existing_refund["balance_after"]),
+                "original_record_id": original_record_id,
+            }, "已退款（幂等）")
 
         # 已经结算的扣费记录不能再退款，避免取消/完成竞态导致既 settle 又 refund。
         if _has_existing_settle(db, original_record_id):
@@ -868,8 +894,9 @@ def refund(
             balance_after = result_row[1]
 
         elif credit_type == "team_gold":
-            if not user.team_id:
-                return _make_error(TEAM_NOT_FOUND, "用户未加入任何团队")
+            original_team_id = str(original.get("team_id") or "").strip()
+            if not original_team_id:
+                return _make_error(TEAM_NOT_FOUND, "原扣费记录缺少团队ID")
 
             result_row = db.execute(text(
                 "UPDATE teams SET balance = balance + :amount, "
@@ -877,7 +904,7 @@ def refund(
                 "updated_at = now() "
                 "WHERE id = :team_id "
                 "RETURNING balance - :amount AS before_val, balance AS after_val"
-            ), {"amount": refund_amount_val, "team_id": user.team_id}).fetchone()
+            ), {"amount": refund_amount_val, "team_id": original_team_id}).fetchone()
 
             if not result_row:
                 db.rollback()
@@ -900,7 +927,7 @@ def refund(
             )
             consumption_record = TeamConsumptionRecords(
                 id=consumption_record_id,
-                team_id=user.team_id,
+                team_id=original_team_id,
                 user_id=user_id,
                 username=user.username,
                 amount=refund_amount_val,
@@ -922,7 +949,7 @@ def refund(
             record_id=record_id,
             idempotency_key=idempotency_key,
             user_id=user_id,
-            team_id=user.team_id if credit_type == "team_gold" else None,
+            team_id=original.get("team_id") if credit_type == "team_gold" else None,
             operation_type="refund",
             credit_type=credit_type,
             amount=refund_amount_val,
@@ -992,13 +1019,17 @@ def settle(
             }, "已处理（幂等）")
 
         # 查找原始 deduct 记录
-        original = _find_deduct_record(db, original_record_id)
+        original = _find_deduct_record(db, original_record_id, lock=True)
         if not original:
             return _make_error(ORIGINAL_RECORD_NOT_FOUND, "原扣费记录不存在")
+        if str(original.get("user_id") or "") != str(user_id or ""):
+            return _make_error(UNAUTHORIZED, "结算用户与原扣费用户不一致")
 
         # 检查是否已结算
         if _has_existing_settle(db, original_record_id):
             return _make_error(ALREADY_REFUNDED, "该记录已结算，不能重复结算")
+        if _has_existing_refund(db, original_record_id):
+            return _make_error(ALREADY_REFUNDED, "该记录已退款，不能再结算")
 
         # 查询用户
         user = db.query(Users).filter(Users.user_id == user_id).first()
@@ -1029,8 +1060,9 @@ def settle(
 
         if credit_type != "personal_silver":
             record_id = str(uuid.uuid4())
-            if credit_type == "team_gold" and user.team_id:
-                team = db.query(Teams).filter(Teams.id == user.team_id).first()
+            original_team_id = str(original.get("team_id") or "").strip()
+            if credit_type == "team_gold" and original_team_id:
+                team = db.query(Teams).filter(Teams.id == original_team_id).first()
                 current_balance = team.balance if team else 0
             else:
                 current_balance = user.gold_credits or 0
@@ -1040,7 +1072,7 @@ def settle(
                 record_id=record_id,
                 idempotency_key=idempotency_key,
                 user_id=user_id,
-                team_id=user.team_id if credit_type == "team_gold" else None,
+                team_id=original_team_id if credit_type == "team_gold" else None,
                 operation_type="settle",
                 credit_type=credit_type,
                 amount=normalize_gold_amount(0, allow_zero=True),

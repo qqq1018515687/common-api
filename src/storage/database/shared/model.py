@@ -85,7 +85,7 @@ class Tasks(Base):
     platform: Mapped[str] = mapped_column(String(50), nullable=False)
     platform_task_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     type: Mapped[str] = mapped_column(String(10), nullable=False)
-    status: Mapped[str] = mapped_column(String(10), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
     created_at: Mapped[str] = mapped_column(String(20), nullable=False)
     updated_at: Mapped[str] = mapped_column(String(20), nullable=False)
     workflow_parameters: Mapped[Optional[dict]] = mapped_column(JSON)

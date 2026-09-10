@@ -628,6 +628,33 @@ class TaskManager:
                             and not existing_task.started_at
                         ):
                             existing_task.started_at = current_time
+                        if (
+                            field == "platform_task_id"
+                            and self._should_use_platform_task_id_as_started_anchor(value)
+                            and existing_task.status == "submitted_unconfirmed"
+                        ):
+                            existing_task.status = "running"
+                            existing_task.confirmation_state = "confirmed"
+                            snapshot = dict(existing_task.parameter_snapshot or {})
+                            snapshot["confirmationState"] = "confirmed"
+                            snapshot.pop("pendingReason", None)
+                            snapshot.pop("pendingSince", None)
+                            existing_task.parameter_snapshot = snapshot
+
+            existing_platform_task_id = str(existing_task.platform_task_id or "").strip()
+            incoming_platform = str(task_data.get("platform") or existing_task.platform or "").strip()
+            if (
+                incoming_platform in THIRD_PARTY_PLATFORMS
+                and existing_platform_task_id.startswith("pending:")
+                and existing_task.status in ("running", "submitted_unconfirmed")
+            ):
+                existing_task.status = "submitted_unconfirmed"
+                existing_task.confirmation_state = "pending"
+                snapshot = dict(existing_task.parameter_snapshot or {})
+                snapshot["confirmationState"] = "pending"
+                snapshot.setdefault("pendingReason", "等待第三方平台返回任务ID")
+                snapshot.setdefault("pendingSince", int(current_time))
+                existing_task.parameter_snapshot = snapshot
 
             existing_task.updated_at = current_time
             existing_task.status_updated_at = existing_task.status_updated_at or current_time
@@ -645,7 +672,18 @@ class TaskManager:
         task_data = task_in.model_dump()
         if not task_data.get("platform_task_id"):
             task_data["platform_task_id"] = self._pending_platform_task_id(task_in.id)
-        task_data["status"] = "running"
+            if str(task_data.get("platform") or "").strip() in THIRD_PARTY_PLATFORMS:
+                task_data["status"] = "submitted_unconfirmed"
+                task_data["confirmation_state"] = "pending"
+                snapshot = dict(task_data.get("parameter_snapshot") or {})
+                snapshot["confirmationState"] = "pending"
+                snapshot["pendingReason"] = "等待第三方平台返回任务ID"
+                snapshot["pendingSince"] = int(current_time)
+                task_data["parameter_snapshot"] = snapshot
+            else:
+                task_data["status"] = "running"
+        else:
+            task_data["status"] = "running"
         task_data["created_at"] = current_time
         task_data["updated_at"] = current_time
         task_data["status_updated_at"] = current_time
@@ -1104,6 +1142,27 @@ class TaskManager:
 
         return query.order_by(Tasks.updated_at.asc()).limit(limit).all()
 
+    def retry_failed_task_refunds(self, db: Session, *, limit: int = 50) -> int:
+        """重试第三方失败任务中尚未收敛的扣费退款。"""
+        self._ensure_task_schema(db)
+        rows = (
+            db.query(Tasks)
+            .filter(
+                Tasks.is_deleted == False,
+                Tasks.platform.in_(set(THIRD_PARTY_PLATFORMS)),
+                Tasks.status == "failed",
+                Tasks.deduction_result.op("->>")("status") == "deducted",
+            )
+            .order_by(Tasks.updated_at.asc())
+            .limit(min(max(limit, 1), 200))
+            .all()
+        )
+        refunded = 0
+        for task in rows:
+            if self._maybe_refund_on_failed_transition(db, task):
+                refunded += 1
+        return refunded
+
     def list_stale_running_tasks(
         self,
         db: Session,
@@ -1233,6 +1292,24 @@ class TaskManager:
                 update_data.pop("completed_at", None)
                 incoming_status = None
 
+        deduction = db_task.deduction_result if isinstance(db_task.deduction_result, dict) else {}
+        deduction_status = str(deduction.get("status") or "").strip()
+        if (
+            (db_task.status == "failed" or deduction_status == "refunded")
+            and incoming_status in ("running", "submitted_unconfirmed", "completed")
+        ):
+            logger.error(
+                "[task-guard] 终态/已退款任务拒绝迟到状态覆盖: task_id=%s current=%s incoming=%s deduction=%s",
+                task_id,
+                db_task.status,
+                incoming_status,
+                deduction_status,
+            )
+            update_data.pop("status", None)
+            update_data.pop("result", None)
+            update_data.pop("completed_at", None)
+            incoming_status = None
+
         if "elapsed_time_seconds" in update_data:
             elapsed_time_seconds = update_data.get("elapsed_time_seconds")
             if not isinstance(elapsed_time_seconds, int) or elapsed_time_seconds < 0:
@@ -1359,14 +1436,14 @@ class TaskManager:
             db.refresh(db_task)
             # 【统一退款】终态为 failed 且非用户手动取消，触发退款；幂等键统一 refund:{task_id}
             if next_status == "failed":
-                self._maybe_refund_on_failed_transition(db_task)
+                self._maybe_refund_on_failed_transition(db, db_task)
             self._clear_success_rate_cache()
             return db_task
         except Exception:
             db.rollback()
             raise
 
-    def _maybe_refund_on_failed_transition(self, db_task: "Tasks") -> None:
+    def _maybe_refund_on_failed_transition(self, db: Session, db_task: "Tasks") -> bool:
         """终态 failed 且非用户手动取消时触发退款。
 
         退款唯一执行方为 common；幂等键统一 `refund:{task_id}`，
@@ -1375,45 +1452,82 @@ class TaskManager:
         try:
             final_reason = getattr(db_task, "final_reason", None)
             if final_reason == "user_cancelled":
-                return
+                return False
             deduction = db_task.deduction_result if isinstance(db_task.deduction_result, dict) else {}
             original_record_id = str(
                 deduction.get("billing_record_id") or deduction.get("team_record_id") or ""
             ).strip()
             if not original_record_id:
-                return
+                return False
             user_id = str(getattr(db_task, "user_id", "") or "").strip()
             if not user_id:
-                return
+                return False
             # 已退款/已结算则跳过
             ded_status = str(deduction.get("status") or "").strip()
             if ded_status in ("refunded", "settled"):
-                return
+                return False
 
-            from storage.database.billing_manager import refund as billing_refund
+            from storage.database.billing_manager import (
+                _has_existing_settle,
+                refund as billing_refund,
+            )
 
-            billing_refund(
+            if _has_existing_settle(db, original_record_id):
+                updated_deduction = dict(deduction)
+                updated_deduction["status"] = "settled"
+                db_task.deduction_result = updated_deduction
+                db.add(db_task)
+                db.commit()
+                db.refresh(db_task)
+                logger.error(
+                    "[task-refund] failed 任务已有结算记录，停止自动退款并等待人工核查: task_id=%s",
+                    db_task.id,
+                )
+                return False
+
+            result = billing_refund(
                 user_id=user_id,
                 original_record_id=original_record_id,
                 idempotency_key=f"refund:{db_task.id}",
-                service_secret=os.getenv("SERVICE_SECRET", ""),
+                service_secret=(
+                    os.getenv("BILLING_SERVICE_SECRET", "")
+                    or os.getenv("SERVICE_SECRET", "")
+                ),
                 metadata={
                     "platform": getattr(db_task, "platform", None),
                     "final_reason": final_reason or "provider_failed",
                     "refund_reason": "provider_failed",
                 },
             )
+            if result.get("code") != 0:
+                raise RuntimeError(result.get("msg") or result.get("error_code") or "退款失败")
+
+            result_data = result.get("data") if isinstance(result.get("data"), dict) else {}
+            updated_deduction = dict(deduction)
+            updated_deduction.update({
+                "status": "refunded",
+                "refunded_at": int(time.time() * 1000),
+                "refund_record_id": result_data.get("record_id"),
+                "refund_reason": final_reason or "provider_failed",
+            })
+            db_task.deduction_result = updated_deduction
+            db.add(db_task)
+            db.commit()
+            db.refresh(db_task)
             logger.info(
-                "[task-refund] failed 终态退款触发: task_id=%s final_reason=%s",
+                "[task-refund] failed 终态退款成功: task_id=%s final_reason=%s",
                 db_task.id,
                 final_reason,
             )
+            return True
         except Exception as exc:
+            db.rollback()
             logger.error(
                 "[task-refund] failed 终态退款异常: task_id=%s error=%s",
                 getattr(db_task, "id", "?"),
                 exc,
             )
+            return False
 
     def force_fail_third_party_task(
         self,
@@ -1442,9 +1556,14 @@ class TaskManager:
             )
             return None
 
+        previous_status = str(db_task.status or "").strip()
         db_task.status = "failed"
         db_task.confirmation_state = "confirmed"
-        db_task.final_reason = "recovery_timeout_failed"
+        db_task.final_reason = (
+            "submitted_unconfirmed_failed"
+            if previous_status == "submitted_unconfirmed"
+            else "recovery_timeout_failed"
+        )
         db_task.cancellation_source = "system"
         db_task.error = error or "任务处理超时，已强制结束"
         if user_friendly_message:
@@ -1461,6 +1580,7 @@ class TaskManager:
             db.add(db_task)
             db.commit()
             db.refresh(db_task)
+            self._maybe_refund_on_failed_transition(db, db_task)
             self._clear_success_rate_cache()
             return db_task
         except Exception:
