@@ -278,7 +278,13 @@ def _is_bltcy_record(
 
     channel_keys = {"platform", "selected_account", "provider"}
     model_keys = {"model_name", "model_key"}
-    no_refund_model_values = {"model6", "banana2_tudou", "banana_pro_tudou", "gpt_image_2_tudou"}
+    no_refund_model_values = {
+        "model6",
+        "banana2_tudou",
+        "banana_pro_tudou",
+        "gpt_image_2_tudou",
+        "gpt_image_2_5_flare_tudou",
+    }
     third_party_platforms = set(THIRD_PARTY_PLATFORMS)
 
     sources: List[Dict[str, Any]] = []

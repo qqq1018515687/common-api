@@ -52,6 +52,7 @@ logger = logging.getLogger(__name__)
         "model5": "r",
         "local_gpt2_free": "free",
         "gpt_image_2_tudou": "t",
+        "gpt_image_2_5_flare_tudou": "t",
         "banana_pro_tudou": "t",
         "banana2_tudou": "t",
     },
