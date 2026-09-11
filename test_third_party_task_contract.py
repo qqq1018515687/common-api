@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from src.storage.database.task_manager import TaskManager
+
 
 ROOT = Path(__file__).parent
 TASK_SOURCE = ROOT.joinpath("src/storage/database/task_manager.py").read_text(encoding="utf-8")
@@ -38,3 +40,26 @@ def test_recovery_timeout_uses_original_pending_time():
     recovery_section = MAIN_SOURCE.split("def _trigger_third_party_task_recovery", 1)[1]
     assert 'recovery_status == "terminal_failure"' in recovery_section
     assert 'int(result.get("code", -1)) == 807' not in recovery_section
+
+
+def test_single_image_channels_keep_only_the_last_result():
+    result = {
+        "imageUrls": ["preview", "final"],
+        "files": [{"file_url": "preview"}, {"file_url": "final"}],
+        "previewUrl": "preview",
+        "raw_response": {"data": [{"fileUrl": "preview"}, {"fileUrl": "final"}]},
+    }
+
+    normalized = TaskManager._normalize_single_image_channel_result("tudou", result)
+
+    assert normalized["imageUrls"] == ["final"]
+    assert normalized["files"] == [{"file_url": "final"}]
+    assert normalized["previewUrl"] == "final"
+    assert normalized["raw_response"]["data"] == [{"fileUrl": "final"}]
+    assert len(result["imageUrls"]) == 2
+
+
+def test_multi_image_channel_result_is_unchanged():
+    result = {"imageUrls": ["first", "second"]}
+
+    assert TaskManager._normalize_single_image_channel_result("runninghub", result) is result

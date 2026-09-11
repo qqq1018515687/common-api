@@ -409,6 +409,44 @@ class TaskManager:
         return has_bad_value(result) or metadata.get("pendingPersist") is True
 
     @staticmethod
+    def _normalize_single_image_channel_result(platform: Any, result: Any) -> Any:
+        """T版和免费渠道只支持单图，供应商多返回时统一保留数组最后一项。"""
+        if str(platform or "").strip() not in {"tudou", "local_sub2api"}:
+            return result
+        if not isinstance(result, dict):
+            return result
+
+        image_urls = result.get("imageUrls")
+        if not isinstance(image_urls, list) or len(image_urls) <= 1:
+            return result
+
+        normalized = dict(result)
+        for key in ("imageUrls", "files", "images", "outputs", "thumbnailUrls", "previewUrls"):
+            value = normalized.get(key)
+            if isinstance(value, list) and value:
+                normalized[key] = [value[-1]]
+
+        final_url = normalized["imageUrls"][0]
+        for key in ("image_url", "thumbnailUrl", "previewUrl"):
+            if key in normalized:
+                normalized[key] = final_url
+
+        raw_response = normalized.get("raw_response")
+        if isinstance(raw_response, dict):
+            normalized_raw_response = dict(raw_response)
+            raw_data = normalized_raw_response.get("data")
+            if isinstance(raw_data, list) and raw_data:
+                normalized_raw_response["data"] = [raw_data[-1]]
+            normalized["raw_response"] = normalized_raw_response
+
+        logger.warning(
+            "[task-result] 单图渠道返回多图，已保留最后一张: platform=%s count=%s",
+            platform,
+            len(image_urls),
+        )
+        return normalized
+
+    @staticmethod
     def _is_completed_with_result(task: Tasks) -> bool:
         return task.status == "completed" and TaskManager._has_displayable_result(task.result)
 
@@ -1291,6 +1329,11 @@ class TaskManager:
             return None
 
         update_data = task_in.model_dump(exclude_unset=True)
+        if "result" in update_data:
+            update_data["result"] = self._normalize_single_image_channel_result(
+                db_task.platform,
+                update_data.get("result"),
+            )
 
         # 【守卫】已取消/已删除任务是终态语义，禁止被状态回写覆盖为 failed/running，
         # 避免用户取消成功后 main 残留轮询 807（任务已不存在）把任务改成 failed。
