@@ -80,6 +80,7 @@ from storage.database.db import get_engine
 
 e = get_engine()
 with e.connect() as c:
+    c.execute(text("ALTER TABLE tasks ALTER COLUMN status TYPE VARCHAR(32)"))
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS started_at VARCHAR(20)"))
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS elapsed_time_seconds INTEGER DEFAULT 0"))
     c.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS confirmation_state VARCHAR(20) DEFAULT 'none'"))

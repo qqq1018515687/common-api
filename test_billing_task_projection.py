@@ -19,6 +19,10 @@ BILLING_SOURCE = ROOT.joinpath("src/storage/database/billing_manager.py").read_t
 MIGRATION_SOURCE = ROOT.joinpath(
     "migrations/versions/billtask001_backfill_tudou_tasks_from_billing.py"
 ).read_text(encoding="utf-8")
+STATUS_MIGRATION_SOURCE = ROOT.joinpath(
+    "migrations/versions/taskstatus001_reassert_task_status_length.py"
+).read_text(encoding="utf-8")
+START_SCRIPT_SOURCE = ROOT.joinpath("scripts/http_run.sh").read_text(encoding="utf-8")
 
 
 def test_builds_tudou_generation_skeleton_with_deducted_billing_result():
@@ -52,6 +56,13 @@ def test_builds_tudou_generation_skeleton_with_deducted_billing_result():
         "amount": 40,
         "mode": "team_gold",
     }
+
+
+def test_task_status_schema_is_reasserted_by_migration_and_runtime_fallbacks():
+    expected_ddl = "ALTER TABLE tasks ALTER COLUMN status TYPE VARCHAR(32)"
+
+    assert expected_ddl in STATUS_MIGRATION_SOURCE
+    assert expected_ddl in START_SCRIPT_SOURCE
 
 
 def test_non_generation_billing_does_not_create_task_projection():

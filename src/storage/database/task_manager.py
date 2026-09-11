@@ -502,6 +502,7 @@ class TaskManager:
         cls._task_schema_lock = True
 
         try:
+            db.execute(text("ALTER TABLE tasks ALTER COLUMN status TYPE VARCHAR(32)"))
             db.execute(
                 text(
                     "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deleted_image_urls JSON"
