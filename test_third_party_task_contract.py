@@ -47,6 +47,14 @@ def test_single_image_channels_keep_only_the_last_result():
         "imageUrls": ["preview", "final"],
         "files": [{"file_url": "preview"}, {"file_url": "final"}],
         "previewUrl": "preview",
+        "metadata": {
+            "localProvider": {
+                "commonPublicUrl": "preview",
+                "commonPublicUrls": ["preview", "final"],
+                "imageUrls": ["preview", "final"],
+                "rawImageUrls": ["raw-preview", "raw-final"],
+            },
+        },
         "raw_response": {"data": [{"fileUrl": "preview"}, {"fileUrl": "final"}]},
     }
 
@@ -55,7 +63,11 @@ def test_single_image_channels_keep_only_the_last_result():
     assert normalized["imageUrls"] == ["final"]
     assert normalized["files"] == [{"file_url": "final"}]
     assert normalized["previewUrl"] == "final"
-    assert normalized["raw_response"]["data"] == [{"fileUrl": "final"}]
+    assert normalized["metadata"]["localProvider"]["commonPublicUrl"] == "final"
+    assert normalized["metadata"]["localProvider"]["commonPublicUrls"] == ["final"]
+    assert normalized["metadata"]["localProvider"]["imageUrls"] == ["final"]
+    assert normalized["metadata"]["localProvider"]["rawImageUrls"] == ["raw-preview", "raw-final"]
+    assert normalized["raw_response"] == result["raw_response"]
     assert len(result["imageUrls"]) == 2
 
 

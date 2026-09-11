@@ -431,13 +431,18 @@ class TaskManager:
             if key in normalized:
                 normalized[key] = final_url
 
-        raw_response = normalized.get("raw_response")
-        if isinstance(raw_response, dict):
-            normalized_raw_response = dict(raw_response)
-            raw_data = normalized_raw_response.get("data")
-            if isinstance(raw_data, list) and raw_data:
-                normalized_raw_response["data"] = [raw_data[-1]]
-            normalized["raw_response"] = normalized_raw_response
+        metadata = normalized.get("metadata")
+        if isinstance(metadata, dict) and isinstance(metadata.get("localProvider"), dict):
+            normalized_metadata = dict(metadata)
+            local_provider = dict(metadata["localProvider"])
+            for key in ("imageUrls", "commonPublicUrls"):
+                value = local_provider.get(key)
+                if isinstance(value, list) and value:
+                    local_provider[key] = [value[-1]]
+            if "commonPublicUrl" in local_provider:
+                local_provider["commonPublicUrl"] = final_url
+            normalized_metadata["localProvider"] = local_provider
+            normalized["metadata"] = normalized_metadata
 
         logger.warning(
             "[task-result] 单图渠道返回多图，已保留最后一张: platform=%s count=%s",
