@@ -13,6 +13,7 @@ import json
 from zoneinfo import ZoneInfo
 
 from storage.database.shared.model import Tasks, Users
+from storage.database.task_source_scope import normalize_source_scope
 from storage.database.referral_manager import process_first_completed_task_reward
 from config.third_party_platforms import THIRD_PARTY_PLATFORMS
 import time
@@ -139,6 +140,15 @@ class TaskManager:
     _task_schema_lock = False
 
     @staticmethod
+    def _apply_source_scope(query, source_scope: Optional[str]):
+        normalized = normalize_source_scope(source_scope)
+        if normalized == "plugin":
+            return query.filter(Tasks.platform == "plugin")
+        if normalized == "main":
+            return query.filter(Tasks.platform != "plugin")
+        return query
+
+    @staticmethod
     def _normalize_task_channel_from_label(value: Any) -> Optional[str]:
         text_value = str(value or "").strip()
         if not text_value:
@@ -249,8 +259,10 @@ class TaskManager:
         成功率缓存.clear()
 
     @staticmethod
-    def _build_success_rate_cache_key(date_text: str, timezone_name: str) -> str:
-        return f"{date_text}:{timezone_name}"
+    def _build_success_rate_cache_key(
+        date_text: str, timezone_name: str, source_scope: Optional[str] = None
+    ) -> str:
+        return f"{date_text}:{timezone_name}:{source_scope or 'all'}"
 
     @staticmethod
     def _resolve_timezone(timezone_name: Optional[str]) -> ZoneInfo:
@@ -785,6 +797,7 @@ class TaskManager:
         admin_full_list: bool = False,
         include_deleted: bool = False,
         platform: Optional[str] = None,
+        source_scope: Optional[str] = None,
         keyword: Optional[str] = None,
         username: Optional[str] = None,
         workflow_keyword: Optional[str] = None,
@@ -842,6 +855,7 @@ class TaskManager:
 
         if platform:
             query = query.filter(Tasks.platform == platform)
+        query = self._apply_source_scope(query, source_scope)
 
         if keyword:
             from sqlalchemy import or_
@@ -901,6 +915,7 @@ class TaskManager:
         before_id: Optional[str] = None,
         include_deleted: bool = False,
         platform: Optional[str] = None,
+        source_scope: Optional[str] = None,
         keyword: Optional[str] = None,
         username: Optional[str] = None,
         workflow_keyword: Optional[str] = None,
@@ -952,6 +967,7 @@ class TaskManager:
 
         if platform:
             query = query.filter(Tasks.platform == platform)
+        query = self._apply_source_scope(query, source_scope)
 
         if keyword:
             from sqlalchemy import or_
@@ -1742,8 +1758,10 @@ class TaskManager:
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
         before_time: Optional[int] = None,
+        admin_full_list: bool = False,
         include_deleted: bool = False,
         platform: Optional[str] = None,
+        source_scope: Optional[str] = None,
         keyword: Optional[str] = None,
         username: Optional[str] = None,
         workflow_keyword: Optional[str] = None,
@@ -1763,7 +1781,7 @@ class TaskManager:
             query = query.filter(Tasks.team_id == team_id)
         elif user_id:
             query = query.filter(Tasks.user_id == user_id)
-        else:
+        elif not admin_full_list:
             return 0
 
         resolved_time_dimension = self._resolve_effective_time_dimension('completed', None, time_dimension)
@@ -1773,6 +1791,7 @@ class TaskManager:
 
         if platform:
             query = query.filter(Tasks.platform == platform)
+        query = self._apply_source_scope(query, source_scope)
 
         if keyword:
             from sqlalchemy import or_
@@ -1840,6 +1859,7 @@ class TaskManager:
         admin_full_list: bool = False,
         include_deleted: bool = False,
         platform: Optional[str] = None,
+        source_scope: Optional[str] = None,
         keyword: Optional[str] = None,
         username: Optional[str] = None,
         workflow_keyword: Optional[str] = None,
@@ -1888,6 +1908,7 @@ class TaskManager:
 
         if platform:
             query = query.filter(Tasks.platform == platform)
+        query = self._apply_source_scope(query, source_scope)
 
         if keyword:
             from sqlalchemy import or_
@@ -1936,6 +1957,7 @@ class TaskManager:
         admin_full_list: bool = False,
         include_deleted: bool = False,
         platform: Optional[str] = None,
+        source_scope: Optional[str] = None,
         keyword: Optional[str] = None,
         username: Optional[str] = None,
         workflow_keyword: Optional[str] = None,
@@ -1965,6 +1987,7 @@ class TaskManager:
                 admin_full_list=admin_full_list,
                 include_deleted=include_deleted,
                 platform=platform,
+                source_scope=source_scope,
                 keyword=keyword,
                 username=username,
                 workflow_keyword=workflow_keyword,
@@ -1975,8 +1998,10 @@ class TaskManager:
                 db,
                 start_time=start_time,
                 end_time=end_time,
+                admin_full_list=admin_full_list,
                 include_deleted=include_deleted,
                 platform=platform,
+                source_scope=source_scope,
                 keyword=keyword,
                 username=username,
                 workflow_keyword=workflow_keyword,
@@ -1991,6 +2016,7 @@ class TaskManager:
                 admin_full_list=admin_full_list,
                 include_deleted=include_deleted,
                 platform=platform,
+                source_scope=source_scope,
                 keyword=keyword,
                 username=username,
                 workflow_keyword=workflow_keyword,
@@ -2005,6 +2031,7 @@ class TaskManager:
                 admin_full_list=admin_full_list,
                 include_deleted=include_deleted,
                 platform=platform,
+                source_scope=source_scope,
                 keyword=keyword,
                 username=username,
                 workflow_keyword=workflow_keyword,
@@ -2020,6 +2047,7 @@ class TaskManager:
                     admin_full_list=admin_full_list,
                     include_deleted=include_deleted,
                     platform=platform,
+                    source_scope=source_scope,
                     keyword=keyword,
                     username=username,
                     workflow_keyword=workflow_keyword,
@@ -2048,6 +2076,7 @@ class TaskManager:
 
         if platform:
             query = query.filter(Tasks.platform == platform)
+        query = self._apply_source_scope(query, source_scope)
 
         if keyword:
             from sqlalchemy import or_
@@ -2093,6 +2122,7 @@ class TaskManager:
         *,
         date_text: Optional[str] = None,
         timezone_name: Optional[str] = None,
+        source_scope: Optional[str] = None,
     ) -> dict:
         self._ensure_task_schema(db)
 
@@ -2100,26 +2130,25 @@ class TaskManager:
             date_text,
             timezone_name,
         )
-        cache_key = self._build_success_rate_cache_key(resolved_date, resolved_timezone)
+        cache_key = self._build_success_rate_cache_key(
+            resolved_date, resolved_timezone, normalize_source_scope(source_scope)
+        )
         cached = 成功率缓存.get(cache_key)
         now = time.time()
         if cached and (now - cached[0]) < 成功率缓存TTL秒:
             return cached[1]
 
-        rows = (
-            db.query(
+        query = db.query(
                 Tasks.platform,
                 Tasks.status,
                 Tasks.parameter_snapshot,
                 Tasks.workflow_parameters,
-            )
-            .filter(
+            ).filter(
                 Tasks.is_deleted == False,
                 Tasks.created_at >= str(start_time),
                 Tasks.created_at < str(end_time),
             )
-            .all()
-        )
+        rows = self._apply_source_scope(query, source_scope).all()
 
         channels = {
             channel_key: self._build_empty_success_rate_bucket(label)

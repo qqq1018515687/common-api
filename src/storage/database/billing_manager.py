@@ -8,8 +8,13 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from storage.database.db import get_session
-from storage.database.shared.model import BillingRecords, Users, Teams, TeamConsumptionRecords
+from storage.database.shared.model import BillingRecords, Tasks, Users, Teams, TeamConsumptionRecords
+from storage.database.billing_task_projection import (
+    build_billing_task_projection,
+    build_terminal_deduction_result,
+)
 from storage.database.amounts import (
     amount_to_response_number,
     assert_gold_amount_schema,
@@ -348,10 +353,17 @@ def _insert_billing_record(db, record_id: str, idempotency_key: str, user_id: st
 def _find_by_idempotency_key(db, idempotency_key: str) -> Optional[Dict[str, Any]]:
     """通过 idempotency_key 查询 billing_records"""
     row = db.execute(text(
-        "SELECT id, credit_type, amount, balance_before, balance_after, operation_type "
+        "SELECT id, credit_type, amount, balance_before, balance_after, operation_type, "
+        "user_id, team_id, task_id, extra_data, related_id "
         "FROM billing_records WHERE idempotency_key = :key"
     ), {"key": idempotency_key}).fetchone()
     if row:
+        raw_extra = row[9]
+        if isinstance(raw_extra, str):
+            try:
+                raw_extra = json.loads(raw_extra)
+            except (TypeError, ValueError):
+                raw_extra = None
         return {
             "id": row[0],
             "credit_type": row[1],
@@ -359,6 +371,11 @@ def _find_by_idempotency_key(db, idempotency_key: str) -> Optional[Dict[str, Any
             "balance_before": row[3],
             "balance_after": row[4],
             "operation_type": row[5],
+            "user_id": row[6],
+            "team_id": row[7],
+            "task_id": row[8],
+            "extra_data": raw_extra if isinstance(raw_extra, dict) else None,
+            "related_id": row[10],
         }
     return None
 
@@ -425,6 +442,75 @@ def _has_existing_settle(db, original_record_id: str) -> bool:
         "LIMIT 1"
     ), {"rid": original_record_id}).fetchone()
     return row is not None
+
+
+def _ensure_billing_task(
+    db,
+    original: Dict[str, Any],
+    *,
+    billing_record_id: str,
+    terminal_status: Optional[str] = None,
+    terminal_record_id: Optional[str] = None,
+    billing_metadata: Optional[Dict[str, Any]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> bool:
+    projection = build_billing_task_projection(
+        task_id=original.get("task_id"),
+        user_id=original.get("user_id"),
+        team_id=original.get("team_id"),
+        billing_record_id=billing_record_id,
+        amount=original.get("amount"),
+        mode=original.get("credit_type"),
+        extra_data=original.get("extra_data"),
+        billing_metadata=billing_metadata,
+        metadata=metadata,
+    )
+    if projection is None:
+        return False
+
+    now_ms = str(int(time.time() * 1000))
+    insert_result = db.execute(
+        pg_insert(Tasks)
+        .values(
+            **projection,
+            created_at=now_ms,
+            updated_at=now_ms,
+            status_updated_at=now_ms,
+            confirmation_state="pending",
+            connection_mode="sse",
+        )
+        .on_conflict_do_nothing(index_elements=[Tasks.id])
+    )
+    changed = bool(insert_result.rowcount)
+    task = db.query(Tasks).filter(Tasks.id == projection["id"]).first()
+    if task is None:
+        raise RuntimeError(f"账单任务骨架创建后不可见: {projection['id']}")
+    if not task.deduction_result:
+        task.deduction_result = projection["deduction_result"]
+        changed = True
+
+    if terminal_status and terminal_record_id:
+        deduction_status = (task.deduction_result or {}).get("status")
+        # Refund is authoritative if historical settle/refund records conflict.
+        if terminal_status == "refunded" or deduction_status != "refunded":
+            task.status = "failed" if terminal_status == "refunded" else "completed"
+            task.deduction_result = build_terminal_deduction_result(
+                projection, status=terminal_status, record_id=terminal_record_id
+            )
+            task.status_updated_at = now_ms
+            task.updated_at = now_ms
+            task.confirmation_state = "confirmed"
+            if terminal_status == "refunded":
+                task.failed_at = now_ms
+                task.completed_at = None
+                task.error = task.error or "生成失败，费用已退回"
+                task.final_reason = task.final_reason or "provider_failed"
+            else:
+                task.completed_at = now_ms
+                task.failed_at = None
+                task.error = None
+            changed = True
+    return changed
 
 
 def get_balance(user_id: str) -> Dict[str, Any]:
@@ -601,6 +687,16 @@ def deduct(
         # 幂等性检查
         existing = _find_by_idempotency_key(db, idempotency_key)
         if existing:
+            if existing["operation_type"] == "deduct":
+                changed = _ensure_billing_task(
+                    db,
+                    existing,
+                    billing_record_id=existing["id"],
+                    billing_metadata=billing_metadata,
+                    metadata=metadata,
+                )
+                if changed:
+                    db.commit()
             return _make_success({
                 "record_id": existing["id"],
                 "already_processed": True,
@@ -705,10 +801,12 @@ def deduct(
             db.add(consumption_record)
 
         # 写入 billing_records（将 billing_metadata 关键字段存入 extra_data，供 refund 时校验）
-        billing_extra_data = extra_data or {}
+        billing_extra_data = dict(extra_data or {})
         if billing_metadata:
             for _bk in ("platform", "selected_account", "provider", "model_name", "model_key",
-                        "workflow", "workflow_name", "model_display_name", "title",
+                        "workflow", "workflow_id", "workflow_name", "model_display_name", "title",
+                        "task_id", "billing_task_id", "team_id", "task_type", "type", "source",
+                        "channel_label", "model_billing_label",
                         "base_cost_amount", "cost_amount", "pricing_tier", "pricing_multiplier",
                         "user_tier", "tier_multiplier", "quote_source",
                         "agent_run_id", "agent_step_id", "agent_step_index",
@@ -718,7 +816,9 @@ def deduct(
                     billing_extra_data[_bk] = _bv
         if metadata and isinstance(metadata.get("billing_metadata"), dict):
             for _bk in ("platform", "selected_account", "provider", "model_name", "model_key",
-                        "workflow", "workflow_name", "model_display_name", "title",
+                        "workflow", "workflow_id", "workflow_name", "model_display_name", "title",
+                        "task_id", "billing_task_id", "team_id", "task_type", "type", "source",
+                        "channel_label", "model_billing_label",
                         "base_cost_amount", "cost_amount", "pricing_tier", "pricing_multiplier",
                         "user_tier", "tier_multiplier", "quote_source",
                         "agent_run_id", "agent_step_id", "agent_step_index",
@@ -740,6 +840,20 @@ def deduct(
             task_id=task_id,
             description=description,
             extra_data=billing_extra_data if billing_extra_data else None,
+        )
+        _ensure_billing_task(
+            db,
+            {
+                "task_id": task_id,
+                "user_id": user_id,
+                "team_id": user.team_id if credit_type == "team_gold" else None,
+                "credit_type": credit_type,
+                "amount": amount,
+                "extra_data": billing_extra_data,
+            },
+            billing_record_id=record_id,
+            billing_metadata=billing_metadata,
+            metadata=metadata,
         )
         db.commit()
 
@@ -793,6 +907,23 @@ def refund(
         # 幂等性检查
         existing = _find_by_idempotency_key(db, idempotency_key)
         if existing:
+            original = _find_deduct_record(db, original_record_id, lock=True)
+            if (
+                existing["operation_type"] == "refund"
+                and existing.get("related_id") == original_record_id
+                and original
+            ):
+                changed = _ensure_billing_task(
+                    db,
+                    original,
+                    billing_record_id=original["id"],
+                    terminal_status="refunded",
+                    terminal_record_id=existing["id"],
+                    billing_metadata=billing_metadata,
+                    metadata=metadata,
+                )
+                if changed:
+                    db.commit()
             return _make_success({
                 "record_id": existing["id"],
                 "already_processed": True,
@@ -812,6 +943,17 @@ def refund(
         # 检查是否已退款
         existing_refund = _find_existing_refund(db, original_record_id)
         if existing_refund:
+            changed = _ensure_billing_task(
+                db,
+                original,
+                billing_record_id=original["id"],
+                terminal_status="refunded",
+                terminal_record_id=existing_refund["id"],
+                billing_metadata=billing_metadata,
+                metadata=metadata,
+            )
+            if changed:
+                db.commit()
             return _make_success({
                 "record_id": existing_refund["id"],
                 "already_processed": True,
@@ -959,6 +1101,15 @@ def refund(
             task_id=original.get("task_id"),
             description=description or "退款",
         )
+        _ensure_billing_task(
+            db,
+            original,
+            billing_record_id=original["id"],
+            terminal_status="refunded",
+            terminal_record_id=record_id,
+            billing_metadata=billing_metadata,
+            metadata=metadata,
+        )
         db.commit()
 
         return _make_success({
@@ -1009,6 +1160,23 @@ def settle(
         # 幂等性检查
         existing = _find_by_idempotency_key(db, idempotency_key)
         if existing:
+            original = _find_deduct_record(db, original_record_id, lock=True)
+            if (
+                existing["operation_type"] == "settle"
+                and existing.get("related_id") == original_record_id
+                and original
+            ):
+                changed = _ensure_billing_task(
+                    db,
+                    original,
+                    billing_record_id=original["id"],
+                    terminal_status="settled",
+                    terminal_record_id=existing["id"],
+                    billing_metadata=billing_metadata,
+                    metadata=metadata,
+                )
+                if changed:
+                    db.commit()
             return _make_success({
                 "record_id": existing["id"],
                 "already_processed": True,
@@ -1027,8 +1195,37 @@ def settle(
 
         # 检查是否已结算
         if _has_existing_settle(db, original_record_id):
+            settle_row = db.execute(text(
+                "SELECT id FROM billing_records WHERE related_id = :rid "
+                "AND operation_type = 'settle' AND status = 'completed' LIMIT 1"
+            ), {"rid": original_record_id}).fetchone()
+            if settle_row:
+                changed = _ensure_billing_task(
+                    db,
+                    original,
+                    billing_record_id=original["id"],
+                    terminal_status="settled",
+                    terminal_record_id=settle_row[0],
+                    billing_metadata=billing_metadata,
+                    metadata=metadata,
+                )
+                if changed:
+                    db.commit()
             return _make_error(ALREADY_REFUNDED, "该记录已结算，不能重复结算")
         if _has_existing_refund(db, original_record_id):
+            existing_refund = _find_existing_refund(db, original_record_id)
+            if existing_refund:
+                changed = _ensure_billing_task(
+                    db,
+                    original,
+                    billing_record_id=original["id"],
+                    terminal_status="refunded",
+                    terminal_record_id=existing_refund["id"],
+                    billing_metadata=billing_metadata,
+                    metadata=metadata,
+                )
+                if changed:
+                    db.commit()
             return _make_error(ALREADY_REFUNDED, "该记录已退款，不能再结算")
 
         # 查询用户
@@ -1083,6 +1280,11 @@ def settle(
                 description=settle_title or "结算：金豆预扣即最终",
                 extra_data=settle_extra_data if settle_extra_data else None,
             )
+            _ensure_billing_task(
+                db, original, billing_record_id=original["id"],
+                terminal_status="settled", terminal_record_id=record_id,
+                billing_metadata=billing_metadata, metadata=metadata,
+            )
             db.commit()
 
             return _make_success({
@@ -1120,6 +1322,11 @@ def settle(
                 task_id=original.get("task_id"),
                 description=settle_title or "结算：无差额可退",
                 extra_data=settle_extra_data if settle_extra_data else None,
+            )
+            _ensure_billing_task(
+                db, original, billing_record_id=original["id"],
+                terminal_status="settled", terminal_record_id=record_id,
+                billing_metadata=billing_metadata, metadata=metadata,
             )
             db.commit()
 
@@ -1173,6 +1380,11 @@ def settle(
                 description=settle_title or f"结算：补扣差额 {extra_amount} 银豆",
                 extra_data=settle_extra_data if settle_extra_data else None,
             )
+            _ensure_billing_task(
+                db, original, billing_record_id=original["id"],
+                terminal_status="settled", terminal_record_id=record_id,
+                billing_metadata=billing_metadata, metadata=metadata,
+            )
             db.commit()
 
             return _make_success({
@@ -1215,6 +1427,11 @@ def settle(
             task_id=original.get("task_id"),
             description=settle_title or f"结算：退差额 {diff} 到银豆",
             extra_data=settle_extra_data if settle_extra_data else None,
+        )
+        _ensure_billing_task(
+            db, original, billing_record_id=original["id"],
+            terminal_status="settled", terminal_record_id=record_id,
+            billing_metadata=billing_metadata, metadata=metadata,
         )
         db.commit()
 

@@ -185,6 +185,9 @@ class InputData(BaseModel):
     platform: Optional[str] = Field(
         default=None, description="平台标识，与 platform_task_id 配合使用"
     )
+    source_scope: Optional[Literal["plugin", "main"]] = Field(
+        default=None, description="任务来源范围：plugin/main"
+    )
     platform_task_id: Optional[str] = Field(
         default=None, description="平台任务ID，与 platform 配合使用"
     )
@@ -463,6 +466,9 @@ class GlobalState(BaseModel):
     )
     platform: Optional[str] = Field(
         default=None, description="平台标识，与 platform_task_id 配合使用"
+    )
+    source_scope: Optional[Literal["plugin", "main"]] = Field(
+        default=None, description="任务来源范围：plugin/main"
     )
     platform_task_id: Optional[str] = Field(
         default=None, description="平台任务ID，与 platform 配合使用"
@@ -1051,6 +1057,7 @@ class ListTasksInput(BaseModel):
     status: Optional[str] = Field(default=None, description="任务状态筛选")
     statuses: Optional[List[str]] = Field(default=None, description="任务状态数组筛选")
     platform: Optional[str] = Field(default=None, description="平台来源筛选")
+    source_scope: Optional[Literal["plugin", "main"]] = Field(default=None, description="任务来源范围：plugin/main")
     keyword: Optional[str] = Field(default=None, description="任务/用户搜索关键词")
     username: Optional[str] = Field(default=None, description="用户名筛选")
     workflow_keyword: Optional[str] = Field(default=None, description="工作流筛选")
@@ -1091,6 +1098,7 @@ class CountTasksStatsInput(BaseModel):
     start_time: Optional[int] = Field(default=None, description="统计开始时间戳（毫秒）")
     end_time: Optional[int] = Field(default=None, description="统计结束时间戳（毫秒）")
     platform: Optional[str] = Field(default=None, description="平台来源筛选")
+    source_scope: Optional[Literal["plugin", "main"]] = Field(default=None, description="任务来源范围：plugin/main")
     keyword: Optional[str] = Field(default=None, description="任务/用户搜索关键词")
     username: Optional[str] = Field(default=None, description="用户名筛选")
     workflow_keyword: Optional[str] = Field(default=None, description="工作流筛选")
@@ -1114,6 +1122,7 @@ class TodaySuccessRateInput(BaseModel):
 
     date: Optional[str] = Field(default=None, description="自然日日期（YYYY-MM-DD），默认今天")
     timezone: Optional[str] = Field(default=None, description="IANA 时区标识，默认 Asia/Shanghai")
+    source_scope: Optional[Literal["plugin", "main"]] = Field(default=None, description="任务来源范围：plugin/main")
 
 
 class TodaySuccessRateOutput(BaseModel):
@@ -1131,6 +1140,7 @@ class AdminTaskDashboardInput(BaseModel):
     limit: Optional[int] = Field(default=50, description="每个状态分组返回数量上限")
     statuses: Optional[List[str]] = Field(default=None, description="要按状态分组的任务状态数组（为空表示不按状态过滤）")
     platform: Optional[str] = Field(default=None, description="平台来源筛选")
+    source_scope: Optional[Literal["plugin", "main"]] = Field(default=None, description="任务来源范围：plugin/main")
     keyword: Optional[str] = Field(default=None, description="任务/用户搜索关键词")
     username: Optional[str] = Field(default=None, description="用户名筛选")
     workflow_keyword: Optional[str] = Field(default=None, description="工作流筛选")
@@ -1175,6 +1185,7 @@ class TaskRouteInput(BaseModel):
     user_id: Optional[str] = Field(default=None, description="用户ID")
     task_id: Optional[str] = Field(default=None, description="任务ID（前端主键）")
     platform: Optional[str] = Field(default=None, description="平台标识")
+    source_scope: Optional[Literal["plugin", "main"]] = Field(default=None, description="任务来源范围：plugin/main")
     platform_task_id: Optional[str] = Field(default=None, description="平台任务ID")
     query_id: Optional[str] = Field(default=None, description="通用查询ID")
     task_data: Optional[dict] = Field(default=None, description="任务数据")
@@ -1219,6 +1230,7 @@ class TaskRouteOutput(BaseModel):
     user_id: Optional[str] = Field(default=None, description="用户ID")
     task_id: Optional[str] = Field(default=None, description="任务ID（前端主键）")
     platform: Optional[str] = Field(default=None, description="平台标识")
+    source_scope: Optional[Literal["plugin", "main"]] = Field(default=None, description="任务来源范围：plugin/main")
     platform_task_id: Optional[str] = Field(default=None, description="平台任务ID")
     query_id: Optional[str] = Field(default=None, description="通用查询ID")
     task_data: Optional[dict] = Field(default=None, description="任务数据")
@@ -1449,6 +1461,9 @@ class UnpackInputDataOutput(BaseModel):
     )
     platform: Optional[str] = Field(
         default=None, description="平台标识，与 platform_task_id 配合使用"
+    )
+    source_scope: Optional[Literal["plugin", "main"]] = Field(
+        default=None, description="任务来源范围：plugin/main"
     )
     platform_task_id: Optional[str] = Field(
         default=None, description="平台任务ID，与 platform 配合使用"

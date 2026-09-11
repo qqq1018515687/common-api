@@ -401,6 +401,7 @@ def unpack_input_data_node(
         # 任务管理相关字段
         task_id=input_data.task_id if input_data else None,
         platform=input_data.platform if input_data else None,
+        source_scope=input_data.source_scope if input_data else None,
         platform_task_id=input_data.platform_task_id if input_data else None,
         query_id=input_data.query_id if input_data else None,
         task_data=input_data.task_data if input_data else None,
@@ -1948,6 +1949,7 @@ def task_route_node(
         user_id=state.user_id,
         task_id=state.task_id,
         platform=state.platform,
+        source_scope=state.source_scope,
         platform_task_id=state.platform_task_id,
         query_id=state.query_id,
         task_data=state.task_data,
@@ -2343,6 +2345,10 @@ def list_tasks_node(
     ctx = runtime.context
 
     # admin 模式：不要求 user_id 或 team_id，跳过权限验证，查全表
+    if state.platform and state.source_scope:
+        return ListTasksOutput(
+            result={"success": False, "message": "platform 与 source_scope 不能同时传入"}
+        )
     is_admin = (state.operator_role or "").strip().lower() == "admin"
     if is_admin:
         pass  # 跳过 user_id/team_id 校验和权限验证，直接查
@@ -2427,6 +2433,7 @@ def list_tasks_node(
                     before_id=before_id,
                     include_deleted=bool(state.include_deleted),
                     platform=state.platform,
+                    source_scope=state.source_scope,
                     keyword=state.keyword,
                     username=state.username,
                     workflow_keyword=state.workflow_keyword,
@@ -2480,6 +2487,7 @@ def list_tasks_node(
                 admin_full_list=is_admin,
                 include_deleted=bool(state.include_deleted),
                 platform=state.platform,
+                source_scope=state.source_scope,
                 keyword=state.keyword,
                 username=state.username,
                 workflow_keyword=state.workflow_keyword,
@@ -2581,6 +2589,7 @@ def list_tasks_node(
                 admin_full_list=is_admin,
                 include_deleted=bool(state.include_deleted),
                 platform=state.platform,
+                source_scope=state.source_scope,
                 keyword=state.keyword,
                 username=state.username,
                 workflow_keyword=state.workflow_keyword,
@@ -2598,8 +2607,10 @@ def list_tasks_node(
                         start_time=start_time,
                         end_time=end_time,
                         before_time=before_time,
+                        admin_full_list=is_admin,
                         include_deleted=bool(state.include_deleted),
                         platform=state.platform,
+                        source_scope=state.source_scope,
                         keyword=state.keyword,
                         username=state.username,
                         workflow_keyword=state.workflow_keyword,
@@ -2659,6 +2670,10 @@ def count_tasks_stats_node(
     desc: 按状态分组统计任务数量，支持 admin 全表模式。返回各状态计数及 total 总数。
     integrations: 数据库
     """
+    if state.platform and state.source_scope:
+        return CountTasksStatsOutput(
+            result={"success": False, "message": "platform 与 source_scope 不能同时传入"}
+        )
     try:
         from storage.database.task_manager import TaskManager
 
@@ -2690,6 +2705,7 @@ def count_tasks_stats_node(
                 admin_full_list=is_admin,
                 include_deleted=bool(state.include_deleted),
                 platform=state.platform,
+                source_scope=state.source_scope,
                 keyword=state.keyword,
                 username=state.username,
                 workflow_keyword=state.workflow_keyword,
@@ -2736,6 +2752,7 @@ def today_success_rate_node(
                 db,
                 date_text=state.date,
                 timezone_name=state.timezone,
+                source_scope=state.source_scope,
             )
             return TodaySuccessRateOutput(
                 result={
@@ -2761,6 +2778,10 @@ def admin_task_dashboard_node(
     desc: 一次请求返回按状态分组的任务列表 + 全局统计，替代前端多状态并发查询
     integrations: 数据库
     """
+    if state.platform and state.source_scope:
+        return AdminTaskDashboardOutput(
+            result={"success": False, "message": "platform 与 source_scope 不能同时传入"}
+        )
     try:
         if (state.operator_role or "").strip().lower() != "admin":
             return AdminTaskDashboardOutput(
@@ -2797,6 +2818,7 @@ def admin_task_dashboard_node(
                     before_id=state.before_id,
                     include_deleted=bool(state.include_deleted),
                     platform=state.platform,
+                    source_scope=state.source_scope,
                     keyword=state.keyword,
                     username=state.username,
                     workflow_keyword=state.workflow_keyword,
@@ -2816,6 +2838,7 @@ def admin_task_dashboard_node(
                         before_id=state.before_id,
                         include_deleted=bool(state.include_deleted),
                         platform=state.platform,
+                        source_scope=state.source_scope,
                         keyword=state.keyword,
                         username=state.username,
                         workflow_keyword=state.workflow_keyword,
@@ -2831,6 +2854,7 @@ def admin_task_dashboard_node(
                 admin_full_list=True,
                 include_deleted=bool(state.include_deleted),
                 platform=state.platform,
+                source_scope=state.source_scope,
                 keyword=state.keyword,
                 username=state.username,
                 workflow_keyword=state.workflow_keyword,
