@@ -1311,6 +1311,23 @@ class TaskManager:
         deduction = db_task.deduction_result if isinstance(db_task.deduction_result, dict) else {}
         deduction_status = str(deduction.get("status") or "").strip()
         if (
+            db_task.status == "completed"
+            and deduction_status == "settled"
+            and incoming_status not in (None, "completed")
+        ):
+            logger.error(
+                "[task-guard] 已结算成功任务拒绝迟到状态覆盖: task_id=%s incoming=%s",
+                task_id,
+                incoming_status,
+            )
+            update_data.pop("status", None)
+            update_data.pop("error", None)
+            update_data.pop("user_friendly_message", None)
+            update_data.pop("completed_at", None)
+            update_data.pop("failed_at", None)
+            update_data.pop("cancelled_at", None)
+            incoming_status = None
+        if (
             (db_task.status == "failed" or deduction_status == "refunded")
             and incoming_status in ("running", "submitted_unconfirmed", "completed")
         ):
@@ -1335,7 +1352,7 @@ class TaskManager:
 
         if self._is_completed_with_result(db_task):
             incoming_status = update_data.get("status")
-            if incoming_status in ("failed", "cancelled"):
+            if incoming_status in ("failed", "cancelled", "running", "pending", "submitted", "submitted_unconfirmed", "processing", "in_progress"):
                 update_data.pop("status", None)
                 update_data.pop("error", None)
                 update_data.pop("user_friendly_message", None)
@@ -2054,7 +2071,7 @@ class TaskManager:
                     model_keyword=model_keyword,
                     time_dimension='created_at',
                 )
-                for status in ('running', 'pending', 'submitted', 'processing', 'in_progress')
+                for status in 状态筛选别名映射["running"]
             )
             return {
                 'total': total,

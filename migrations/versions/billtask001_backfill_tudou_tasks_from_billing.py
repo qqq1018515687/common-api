@@ -35,6 +35,16 @@ def upgrade() -> None:
               AND d.task_id <> ''
               AND d.created_at >= TIMESTAMPTZ '2026-09-10 18:54:00+08'
               AND d.created_at <= w.ended_at
+              AND NULLIF(d.extra_data->>'agent_run_id', '') IS NULL
+              AND NULLIF(d.extra_data->>'agent_step_id', '') IS NULL
+              AND COALESCE(d.extra_data->>'workflow', '') = '02'
+              AND COALESCE(d.extra_data->>'model_key', d.extra_data->>'model_name', '') IN (
+                  'banana2_tudou',
+                  'banana_pro_tudou',
+                  'gpt_image_2_tudou',
+                  'gpt_image_2_5_flare_tudou',
+                  'gpt_image_2_5_sunburst_tudou'
+              )
               AND (
                   lower(COALESCE(d.extra_data->>'platform', '')) = 'tudou'
                   OR lower(COALESCE(d.extra_data->>'provider', '')) = 'tudou'
@@ -71,7 +81,7 @@ def upgrade() -> None:
             COALESCE(d.team_id, d.extra_data->>'team_id'),
             'tudou',
             'pending:' || d.task_id,
-            CASE lower(COALESCE(d.extra_data->>'task_type', d.extra_data->>'type', 'image'))
+            CASE lower(COALESCE(d.extra_data->>'task_type', d.extra_data->>'type'))
                 WHEN 'audio' THEN 'audio'
                 WHEN 'video' THEN 'video'
                 ELSE 'image'
@@ -90,6 +100,7 @@ def upgrade() -> None:
                 'modelValue', COALESCE(d.extra_data->>'model_key', d.extra_data->>'model_name'),
                 'channelLabel', d.extra_data->>'channel_label',
                 'billingMetadata', COALESCE(d.extra_data, '{}'::json),
+                'billingProjection', true,
                 'confirmationState', CASE WHEN t.refund_id IS NULL AND t.settle_id IS NULL THEN 'pending' ELSE 'confirmed' END,
                 'pendingReason', CASE WHEN t.refund_id IS NULL AND t.settle_id IS NULL
                     THEN '账单已扣费，等待生成平台返回任务ID' END

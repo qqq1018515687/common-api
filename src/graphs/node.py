@@ -2465,6 +2465,7 @@ def list_tasks_node(
                         "has_more": has_more,
                         "next_before_time": next_before_time,
                         "next_before_id": next_before_id,
+                        "source_scope": state.source_scope,
                     }
                 )
 
@@ -2650,6 +2651,7 @@ def list_tasks_node(
                     "has_more": has_more,
                     "next_before_time": next_before_time,
                     "next_before_id": next_before_id,
+                    "source_scope": state.source_scope,
                 }
             )
 
@@ -2722,6 +2724,7 @@ def count_tasks_stats_node(
                     "start_time": start_time,
                     "end_time": end_time,
                     "time_dimension": effective_time_dimension,
+                    "source_scope": state.source_scope,
                 }
             )
 
@@ -2873,6 +2876,7 @@ def admin_task_dashboard_node(
                     "start_time": start_time,
                     "end_time": end_time,
                     "time_dimension": state.time_dimension,
+                    "source_scope": state.source_scope,
                 }
             )
         finally:

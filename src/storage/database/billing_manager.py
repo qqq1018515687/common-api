@@ -14,6 +14,9 @@ from storage.database.shared.model import BillingRecords, Tasks, Users, Teams, T
 from storage.database.billing_task_projection import (
     build_billing_task_projection,
     build_terminal_deduction_result,
+    is_refundable_billing_skeleton,
+    merge_billing_metadata,
+    validate_idempotency_record,
 )
 from storage.database.amounts import (
     amount_to_response_number,
@@ -411,6 +414,33 @@ def _find_deduct_record(db, record_id: str, *, lock: bool = False) -> Optional[D
     return None
 
 
+def _idempotency_conflict(
+    existing: Dict[str, Any],
+    *,
+    operation_type: str,
+    user_id: str,
+    credit_type: str,
+    amount: Any,
+    task_id: Optional[str],
+    related_id: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    field = validate_idempotency_record(
+        existing,
+        operation_type=operation_type,
+        user_id=user_id,
+        credit_type=credit_type,
+        amount=amount,
+        task_id=task_id,
+        related_id=related_id,
+    )
+    if field:
+        return _make_error(
+            IDEMPOTENCY_CONFLICT,
+            f"idempotency_key 已被不同请求使用，冲突字段: {field}",
+        )
+    return None
+
+
 def _find_existing_refund(db, original_record_id: str) -> Optional[Dict[str, Any]]:
     """查找针对同一 original_record_id 的已完成退款。"""
     row = db.execute(text(
@@ -485,30 +515,49 @@ def _ensure_billing_task(
     task = db.query(Tasks).filter(Tasks.id == projection["id"]).first()
     if task is None:
         raise RuntimeError(f"账单任务骨架创建后不可见: {projection['id']}")
+    if str(task.user_id or "") != str(projection["user_id"] or ""):
+        raise RuntimeError(f"tasks.id 已属于其他用户: {projection['id']}")
+    existing_billing_record_id = (
+        task.deduction_result.get("billing_record_id")
+        or task.deduction_result.get("team_record_id")
+        if isinstance(task.deduction_result, dict)
+        else None
+    )
+    if existing_billing_record_id and existing_billing_record_id != billing_record_id:
+        raise RuntimeError(f"tasks.id 已关联其他扣费记录: {projection['id']}")
     if not task.deduction_result:
         task.deduction_result = projection["deduction_result"]
         changed = True
 
     if terminal_status and terminal_record_id:
         deduction_status = (task.deduction_result or {}).get("status")
-        # Refund is authoritative if historical settle/refund records conflict.
         if terminal_status == "refunded" or deduction_status != "refunded":
-            task.status = "failed" if terminal_status == "refunded" else "completed"
             task.deduction_result = build_terminal_deduction_result(
-                projection, status=terminal_status, record_id=terminal_record_id
+                {"deduction_result": task.deduction_result or projection["deduction_result"]},
+                status=terminal_status,
+                record_id=terminal_record_id,
             )
-            task.status_updated_at = now_ms
-            task.updated_at = now_ms
-            task.confirmation_state = "confirmed"
-            if terminal_status == "refunded":
+            if terminal_status == "refunded" and is_refundable_billing_skeleton(
+                platform_task_id=task.platform_task_id,
+                result=task.result,
+                parameter_snapshot=task.parameter_snapshot,
+            ):
+                task.status = "failed"
+                task.status_updated_at = now_ms
                 task.failed_at = now_ms
-                task.completed_at = None
                 task.error = task.error or "生成失败，费用已退回"
                 task.final_reason = task.final_reason or "provider_failed"
-            else:
+                task.confirmation_state = "confirmed"
+            elif terminal_status == "settled" and is_refundable_billing_skeleton(
+                platform_task_id=task.platform_task_id,
+                result=task.result,
+                parameter_snapshot=task.parameter_snapshot,
+            ):
+                task.status = "completed"
+                task.status_updated_at = now_ms
                 task.completed_at = now_ms
-                task.failed_at = None
                 task.error = None
+                task.confirmation_state = "confirmed"
             changed = True
     return changed
 
@@ -687,16 +736,26 @@ def deduct(
         # 幂等性检查
         existing = _find_by_idempotency_key(db, idempotency_key)
         if existing:
-            if existing["operation_type"] == "deduct":
-                changed = _ensure_billing_task(
-                    db,
-                    existing,
-                    billing_record_id=existing["id"],
-                    billing_metadata=billing_metadata,
-                    metadata=metadata,
-                )
-                if changed:
-                    db.commit()
+            conflict = _idempotency_conflict(
+                existing,
+                operation_type="deduct",
+                user_id=user_id,
+                credit_type=credit_type,
+                amount=amount,
+                task_id=task_id,
+                related_id=None,
+            )
+            if conflict:
+                return conflict
+            changed = _ensure_billing_task(
+                db,
+                existing,
+                billing_record_id=existing["id"],
+                billing_metadata=billing_metadata,
+                metadata=metadata,
+            )
+            if changed:
+                db.commit()
             return _make_success({
                 "record_id": existing["id"],
                 "already_processed": True,
@@ -801,11 +860,16 @@ def deduct(
             db.add(consumption_record)
 
         # 写入 billing_records（将 billing_metadata 关键字段存入 extra_data，供 refund 时校验）
-        billing_extra_data = dict(extra_data or {})
+        billing_extra_data = merge_billing_metadata(
+            extra_data=extra_data,
+            billing_metadata=billing_metadata,
+            metadata=metadata,
+        )
         if billing_metadata:
             for _bk in ("platform", "selected_account", "provider", "model_name", "model_key",
                         "workflow", "workflow_id", "workflow_name", "model_display_name", "title",
                         "task_id", "billing_task_id", "team_id", "task_type", "type", "source",
+                        "project_to_tasks",
                         "channel_label", "model_billing_label",
                         "base_cost_amount", "cost_amount", "pricing_tier", "pricing_multiplier",
                         "user_tier", "tier_multiplier", "quote_source",
@@ -818,6 +882,7 @@ def deduct(
             for _bk in ("platform", "selected_account", "provider", "model_name", "model_key",
                         "workflow", "workflow_id", "workflow_name", "model_display_name", "title",
                         "task_id", "billing_task_id", "team_id", "task_type", "type", "source",
+                        "project_to_tasks",
                         "channel_label", "model_billing_label",
                         "base_cost_amount", "cost_amount", "pricing_tier", "pricing_multiplier",
                         "user_tier", "tier_multiplier", "quote_source",
@@ -904,69 +969,12 @@ def refund(
 
     db = get_session()
     try:
-        # 幂等性检查
-        existing = _find_by_idempotency_key(db, idempotency_key)
-        if existing:
-            original = _find_deduct_record(db, original_record_id, lock=True)
-            if (
-                existing["operation_type"] == "refund"
-                and existing.get("related_id") == original_record_id
-                and original
-            ):
-                changed = _ensure_billing_task(
-                    db,
-                    original,
-                    billing_record_id=original["id"],
-                    terminal_status="refunded",
-                    terminal_record_id=existing["id"],
-                    billing_metadata=billing_metadata,
-                    metadata=metadata,
-                )
-                if changed:
-                    db.commit()
-            return _make_success({
-                "record_id": existing["id"],
-                "already_processed": True,
-                "credit_type": existing["credit_type"],
-                "amount": amount_to_response_number(existing["credit_type"], existing["amount"]),
-                "balance_before": amount_to_response_number(existing["credit_type"], existing["balance_before"]),
-                "balance_after": amount_to_response_number(existing["credit_type"], existing["balance_after"]),
-            }, "已处理（幂等）")
-
         # 查找原始 deduct 记录
         original = _find_deduct_record(db, original_record_id, lock=True)
         if not original:
             return _make_error(ORIGINAL_RECORD_NOT_FOUND, "原扣费记录不存在")
         if str(original.get("user_id") or "") != str(user_id or ""):
             return _make_error(UNAUTHORIZED, "退款用户与原扣费用户不一致")
-
-        # 检查是否已退款
-        existing_refund = _find_existing_refund(db, original_record_id)
-        if existing_refund:
-            changed = _ensure_billing_task(
-                db,
-                original,
-                billing_record_id=original["id"],
-                terminal_status="refunded",
-                terminal_record_id=existing_refund["id"],
-                billing_metadata=billing_metadata,
-                metadata=metadata,
-            )
-            if changed:
-                db.commit()
-            return _make_success({
-                "record_id": existing_refund["id"],
-                "already_processed": True,
-                "credit_type": existing_refund["credit_type"],
-                "amount": amount_to_response_number(existing_refund["credit_type"], existing_refund["amount"]),
-                "balance_before": amount_to_response_number(existing_refund["credit_type"], existing_refund["balance_before"]),
-                "balance_after": amount_to_response_number(existing_refund["credit_type"], existing_refund["balance_after"]),
-                "original_record_id": original_record_id,
-            }, "已退款（幂等）")
-
-        # 已经结算的扣费记录不能再退款，避免取消/完成竞态导致既 settle 又 refund。
-        if _has_existing_settle(db, original_record_id):
-            return _make_error(ALREADY_REFUNDED, "该记录已结算，不能再退款")
 
         # 渠道维度只出现在「用户主动取消」的退款里：
         # - 渠道失败（channel_failed）→ 一律可退（含 bltcy/tudou）
@@ -999,6 +1007,67 @@ def refund(
         if refund_amount_val > original_amount:
             return _make_error(INVALID_AMOUNT,
                 f"退款金额 {refund_amount_val} 超过原扣费金额 {original['amount']}")
+
+        existing = _find_by_idempotency_key(db, idempotency_key)
+        if existing:
+            conflict = _idempotency_conflict(
+                existing,
+                operation_type="refund",
+                user_id=user_id,
+                credit_type=credit_type,
+                amount=refund_amount_val,
+                task_id=original.get("task_id"),
+                related_id=original_record_id,
+            )
+            if conflict:
+                return conflict
+            changed = _ensure_billing_task(
+                db,
+                original,
+                billing_record_id=original["id"],
+                terminal_status="refunded",
+                terminal_record_id=existing["id"],
+                billing_metadata=billing_metadata,
+                metadata=metadata,
+            )
+            if changed:
+                db.commit()
+            return _make_success({
+                "record_id": existing["id"],
+                "already_processed": True,
+                "credit_type": existing["credit_type"],
+                "amount": amount_to_response_number(existing["credit_type"], existing["amount"]),
+                "balance_before": amount_to_response_number(existing["credit_type"], existing["balance_before"]),
+                "balance_after": amount_to_response_number(existing["credit_type"], existing["balance_after"]),
+            }, "已处理（幂等）")
+
+        # 检查是否已退款
+        existing_refund = _find_existing_refund(db, original_record_id)
+        if existing_refund:
+            changed = _ensure_billing_task(
+                db,
+                original,
+                billing_record_id=original["id"],
+                terminal_status="refunded",
+                terminal_record_id=existing_refund["id"],
+                billing_metadata=billing_metadata,
+                metadata=metadata,
+            )
+            if changed:
+                db.commit()
+            return _make_success({
+                "record_id": existing_refund["id"],
+                "already_processed": True,
+                "credit_type": existing_refund["credit_type"],
+                "amount": amount_to_response_number(existing_refund["credit_type"], existing_refund["amount"]),
+                "balance_before": amount_to_response_number(existing_refund["credit_type"], existing_refund["balance_before"]),
+                "balance_after": amount_to_response_number(existing_refund["credit_type"], existing_refund["balance_after"]),
+                "original_record_id": original_record_id,
+            }, "已退款（幂等）")
+
+        # 已经结算的扣费记录不能再退款，避免取消/完成竞态导致既 settle 又 refund。
+        if _has_existing_settle(db, original_record_id):
+            return _make_error(ALREADY_REFUNDED, "该记录已结算，不能再退款")
 
         # 查询用户
         user = db.query(Users).filter(Users.user_id == user_id).first()
@@ -1157,26 +1226,62 @@ def settle(
 
     db = get_session()
     try:
-        # 幂等性检查
+        # 查找原始 deduct 记录
+        original = _find_deduct_record(db, original_record_id, lock=True)
+        if not original:
+            return _make_error(ORIGINAL_RECORD_NOT_FOUND, "原扣费记录不存在")
+        if str(original.get("user_id") or "") != str(user_id or ""):
+            return _make_error(UNAUTHORIZED, "结算用户与原扣费用户不一致")
+
+        # 查询用户
+        user = db.query(Users).filter(Users.user_id == user_id).first()
+        if not user:
+            return _make_error(USER_NOT_FOUND, "用户不存在")
+
+        credit_type = original["credit_type"]
+        schema_error = _validate_gold_schema_for_credit_type(db, credit_type)
+        if schema_error:
+            return schema_error
+
+        try:
+            original_amount = normalize_amount_for_credit_type(credit_type, original["amount"])
+        except ValueError as exc:
+            return _make_error(INVALID_AMOUNT, str(exc))
+
+        if credit_type == "personal_silver":
+            try:
+                normalized_final_amount = normalize_silver_amount(final_amount, allow_zero=True)
+            except ValueError as exc:
+                return _make_error(INVALID_AMOUNT, str(exc))
+            expected_settle_amount = abs(original_amount - normalized_final_amount)
+        else:
+            normalized_final_amount = original_amount
+            expected_settle_amount = normalize_gold_amount(0, allow_zero=True)
+
         existing = _find_by_idempotency_key(db, idempotency_key)
         if existing:
-            original = _find_deduct_record(db, original_record_id, lock=True)
-            if (
-                existing["operation_type"] == "settle"
-                and existing.get("related_id") == original_record_id
-                and original
-            ):
-                changed = _ensure_billing_task(
-                    db,
-                    original,
-                    billing_record_id=original["id"],
-                    terminal_status="settled",
-                    terminal_record_id=existing["id"],
-                    billing_metadata=billing_metadata,
-                    metadata=metadata,
-                )
-                if changed:
-                    db.commit()
+            conflict = _idempotency_conflict(
+                existing,
+                operation_type="settle",
+                user_id=user_id,
+                credit_type=credit_type,
+                amount=expected_settle_amount,
+                task_id=original.get("task_id"),
+                related_id=original_record_id,
+            )
+            if conflict:
+                return conflict
+            changed = _ensure_billing_task(
+                db,
+                original,
+                billing_record_id=original["id"],
+                terminal_status="settled",
+                terminal_record_id=existing["id"],
+                billing_metadata=billing_metadata,
+                metadata=metadata,
+            )
+            if changed:
+                db.commit()
             return _make_success({
                 "record_id": existing["id"],
                 "already_processed": True,
@@ -1185,13 +1290,6 @@ def settle(
                 "balance_before": amount_to_response_number(existing["credit_type"], existing["balance_before"]),
                 "balance_after": amount_to_response_number(existing["credit_type"], existing["balance_after"]),
             }, "已处理（幂等）")
-
-        # 查找原始 deduct 记录
-        original = _find_deduct_record(db, original_record_id, lock=True)
-        if not original:
-            return _make_error(ORIGINAL_RECORD_NOT_FOUND, "原扣费记录不存在")
-        if str(original.get("user_id") or "") != str(user_id or ""):
-            return _make_error(UNAUTHORIZED, "结算用户与原扣费用户不一致")
 
         # 检查是否已结算
         if _has_existing_settle(db, original_record_id):
@@ -1227,21 +1325,6 @@ def settle(
                 if changed:
                     db.commit()
             return _make_error(ALREADY_REFUNDED, "该记录已退款，不能再结算")
-
-        # 查询用户
-        user = db.query(Users).filter(Users.user_id == user_id).first()
-        if not user:
-            return _make_error(USER_NOT_FOUND, "用户不存在")
-
-        credit_type = original["credit_type"]
-        schema_error = _validate_gold_schema_for_credit_type(db, credit_type)
-        if schema_error:
-            return schema_error
-
-        try:
-            original_amount = normalize_amount_for_credit_type(credit_type, original["amount"])
-        except ValueError as exc:
-            return _make_error(INVALID_AMOUNT, str(exc))
 
         settle_title = description
         if not settle_title and (billing_metadata or metadata):
@@ -1297,10 +1380,7 @@ def settle(
                 "balance_after": amount_to_response_number(credit_type, current_balance),
             }, "结算成功（金豆预扣即最终）")
 
-        try:
-            final_amount = normalize_silver_amount(final_amount, allow_zero=True)
-        except ValueError as exc:
-            return _make_error(INVALID_AMOUNT, str(exc))
+        final_amount = normalized_final_amount
 
         # 计算差额。diff > 0 退差额；diff < 0 补扣差额。
         diff = original_amount - final_amount
