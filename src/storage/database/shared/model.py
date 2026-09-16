@@ -158,7 +158,7 @@ class Users(Base):
     avatar: Mapped[Optional[str]] = mapped_column(String(256))
     team_id: Mapped[Optional[str]] = mapped_column(String(64))
     gold_credits: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), server_default=text('0.00'))
-    silver_credits: Mapped[Optional[int]] = mapped_column(Integer, server_default=text('999999999'))
+    silver_credits: Mapped[Optional[int]] = mapped_column(Integer, server_default=text('2000'))
     role: Mapped[Optional[str]] = mapped_column(String(32), server_default=text("'user'::character varying"))
     tier: Mapped[Optional[str]] = mapped_column(String(32), server_default=text("'commercial_registered'::character varying"))
     account_status: Mapped[Optional[str]] = mapped_column(String(32), server_default=text("'active'::character varying"))
@@ -494,6 +494,7 @@ class UserReferralRelations(Base):
     bound_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='绑定时间')
     reward_granted_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime(True), comment='奖励发放时间')
     first_completed_task_id: Mapped[Optional[str]] = mapped_column(String(36), comment='触发奖励的首个有效任务ID')
+    reward_policy_version: Mapped[str] = mapped_column(String(32), nullable=False, server_default=text("'gold_v1'"), comment='邀请奖励策略版本：gold_v1/mars_quota_v2')
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
 
@@ -521,6 +522,45 @@ class ReferralRewardRecords(Base):
     description: Mapped[Optional[str]] = mapped_column(String(255), comment='奖励描述')
     extra_data: Mapped[Optional[dict]] = mapped_column(JSON, comment='扩展信息')
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+
+
+class MarsSpecialQuotaAccounts(Base):
+    __tablename__ = 'mars_special_quota_accounts'
+    __table_args__ = (
+        PrimaryKeyConstraint('user_id', name='mars_special_quota_accounts_pkey'),
+        {'comment': '火星特供永久次数账户；每日次数由流水按北京时间自然日计算'}
+    )
+
+    user_id: Mapped[str] = mapped_column(String(36), primary_key=True, comment='用户ID')
+    permanent_remaining: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text('0'), comment='剩余永久次数')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
+
+
+class MarsSpecialQuotaTransactions(Base):
+    __tablename__ = 'mars_special_quota_transactions'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='mars_special_quota_transactions_pkey'),
+        UniqueConstraint('idempotency_key', name='mars_special_quota_transactions_idempotency_key'),
+        UniqueConstraint('task_id', 'transaction_type', 'user_id', name='uq_mars_special_quota_task_type_user'),
+        Index('ix_mars_special_quota_user_created', 'user_id', 'created_at'),
+        Index('ix_mars_special_quota_status', 'status'),
+        {'comment': '火星特供次数流水，统一审计用量与邀请赠送'}
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, comment='流水ID')
+    idempotency_key: Mapped[str] = mapped_column(String(160), nullable=False, unique=True, comment='幂等键')
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, comment='受影响用户ID')
+    task_id: Mapped[Optional[str]] = mapped_column(String(36), comment='关联任务ID')
+    transaction_type: Mapped[str] = mapped_column(String(32), nullable=False, comment='usage/grant_referrer/grant_referee')
+    source: Mapped[str] = mapped_column(String(32), nullable=False, comment='daily/permanent/internal/referral')
+    amount: Mapped[int] = mapped_column(Integer, nullable=False, comment='次数变化量；用量为-1，赠送为正数，internal为0')
+    status: Mapped[str] = mapped_column(String(20), nullable=False, comment='reserved/consumed/released/completed')
+    quota_date: Mapped[Optional[str]] = mapped_column(String(10), comment='北京时间自然日 YYYY-MM-DD')
+    related_id: Mapped[Optional[str]] = mapped_column(String(64), comment='邀请关系等关联ID')
+    extra_data: Mapped[Optional[dict]] = mapped_column(JSON, comment='审计扩展信息')
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='创建时间')
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'), comment='更新时间')
 
 
 class BillingRecords(Base):

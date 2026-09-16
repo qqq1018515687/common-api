@@ -948,7 +948,7 @@ def _refresh_task_urls(state: StorageManagementInput) -> StorageManagementOutput
 
         new_result = _replace_urls(task.result, url_to_new)
         try:
-            task_mgr.update_task(db, task.id, TaskUpdate(result=new_result))
+            task_mgr.update_task(db, task.id, TaskUpdate(result=new_result), task.user_id)
             refreshed += 1
         except Exception as exc:
             failed += 1

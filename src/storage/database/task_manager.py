@@ -14,7 +14,6 @@ from zoneinfo import ZoneInfo
 
 from storage.database.shared.model import Tasks, Users
 from storage.database.task_source_scope import normalize_source_scope
-from storage.database.referral_manager import process_first_completed_task_reward
 from config.third_party_platforms import THIRD_PARTY_PLATFORMS
 import time
 
@@ -1326,14 +1325,36 @@ class TaskManager:
             return 0
 
     def update_task(
-        self, db: Session, task_id: str, task_in: TaskUpdate
+        self, db: Session, task_id: str, task_in: TaskUpdate, user_id: str
     ) -> Optional[Tasks]:
         """更新任务"""
         db_task = self.get_task_by_id(db, task_id)
         if not db_task:
             return None
+        if not user_id or db_task.user_id != user_id:
+            raise PermissionError("任务不存在或无权更新")
 
         update_data = task_in.model_dump(exclude_unset=True)
+        mars_protected_fields = {
+            "status",
+            "platform_task_id",
+            "result",
+            "result_fallback",
+            "error",
+            "completed_at",
+            "failed_at",
+            "cancelled_at",
+            "status_updated_at",
+            "started_at",
+            "workflow_parameters",
+            "parameter_snapshot",
+            "deduction_result",
+            "confirmation_state",
+            "final_reason",
+            "cancellation_source",
+        }
+        if db_task.platform == "local_sub2api" and mars_protected_fields.intersection(update_data):
+            raise PermissionError("火星特供任务只能通过专用接口更新")
         if "result" in update_data:
             update_data["result"] = self._normalize_single_image_channel_result(
                 db_task.platform,
@@ -1491,30 +1512,9 @@ class TaskManager:
             elapsed_seconds = self.calculate_elapsed_time(db_task)
             db_task.elapsed_time_seconds = elapsed_seconds
 
-        should_try_referral_reward = (
-            db_task.status == "completed"
-            and self._is_formal_generation_task(db_task)
-            and self._has_displayable_result(
-                db_task.result_fallback
-                if isinstance(db_task.result_fallback, dict) and db_task.result_fallback
-                else db_task.result
-            )
-        )
-
         db.add(db_task)
         try:
             db.commit()
-            if should_try_referral_reward:
-                try:
-                    process_first_completed_task_reward(db, db_task)
-                    db.commit()
-                except Exception as reward_error:
-                    db.rollback()
-                    logger.error(
-                        "[referral-reward] 任务已完成，但邀请奖励发放失败: task_id=%s error=%s",
-                        db_task.id,
-                        reward_error,
-                    )
             db.refresh(db_task)
             # 【统一退款】终态为 failed 且非用户手动取消，触发退款；幂等键统一 refund:{task_id}
             if next_status == "failed":

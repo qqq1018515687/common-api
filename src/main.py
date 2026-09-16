@@ -3,6 +3,7 @@ import asyncio
 import json
 import traceback
 import logging
+import re
 from typing import Any, Dict, Iterable, AsyncIterable, AsyncGenerator, Optional
 import threading
 import contextvars
@@ -28,6 +29,7 @@ from utils.messages.server import (
 from storage.s3.s3_storage import S3SyncStorage
 from storage.storage_manager import get_storage_manager, StorageCategory
 from storage.database.db import get_session
+from storage.database.mars_special_quota_manager import MarsSpecialQuotaManager
 from storage.database.ops_briefing_manager import OpsBriefingIngestInput, OpsBriefingManager, OpsDailyBriefingSaveInput
 import os
 import requests
@@ -334,7 +336,66 @@ SENSITIVE_LOG_KEYS = {
     "access_key_id",
     "access_key_secret",
     "token",
+    "service_secret",
 }
+
+
+def _configured_secret_values() -> tuple[str, ...]:
+    return tuple(
+        value
+        for value in {
+            os.getenv("MARS_SPECIAL_QUOTA_SERVICE_SECRET", ""),
+            os.getenv("BILLING_SERVICE_SECRET", ""),
+            os.getenv("SERVICE_SECRET", ""),
+        }
+        if value
+    )
+
+
+def _redact_log_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: "***" if str(key).lower() in SENSITIVE_LOG_KEYS else _redact_log_value(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        redacted = [_redact_log_value(item) for item in value]
+        return tuple(redacted) if isinstance(value, tuple) else redacted
+    if isinstance(value, str):
+        redacted = value
+        for secret in _configured_secret_values():
+            redacted = redacted.replace(secret, "***")
+        redacted = re.sub(
+            r'(?i)(["\']service_secret["\']\s*:\s*["\'])[^"\']*(["\'])',
+            r"\1***\2",
+            redacted,
+        )
+        redacted = re.sub(
+            r"(?i)(service_secret\s*=\s*)[^\s,;]+",
+            r"\1***",
+            redacted,
+        )
+        return redacted
+    return value
+
+
+class SensitiveLogFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.msg = _redact_log_value(record.msg)
+        if record.args:
+            record.args = _redact_log_value(record.args)
+        if record.exc_info:
+            record.exc_text = _redact_log_value(
+                "".join(traceback.format_exception(*record.exc_info))
+            )
+            record.exc_info = None
+        if record.stack_info:
+            record.stack_info = _redact_log_value(record.stack_info)
+        return True
+
+
+for handler in logging.getLogger().handlers:
+    handler.addFilter(SensitiveLogFilter())
 
 MAX_MULTIPART_UPLOAD_BYTES = 30 * 1024 * 1024
 MAX_BACKEND_PERSIST_UPLOAD_BYTES = 60 * 1024 * 1024
@@ -439,6 +500,13 @@ def _trigger_third_party_task_recovery() -> None:
         from storage.database.task_manager import TaskManager
 
         task_mgr = TaskManager()
+        quota_reconciled = MarsSpecialQuotaManager.reconcile_reserved(
+            db,
+            limit=THIRD_PARTY_TASK_RECOVERY_BATCH_SIZE,
+        )
+        db.commit()
+        if quota_reconciled["consumed"] or quota_reconciled["released"]:
+            logger.info("[mars-special-quota] 补偿完成: %s", quota_reconciled)
         retried_refunds = task_mgr.retry_failed_task_refunds(
             db,
             limit=THIRD_PARTY_TASK_RECOVERY_BATCH_SIZE,
@@ -625,17 +693,7 @@ async def http_multipart_upload(
 
 
 def redact_sensitive_payload(value: Any) -> Any:
-    if isinstance(value, dict):
-        redacted = {}
-        for key, item in value.items():
-            if str(key).lower() in SENSITIVE_LOG_KEYS:
-                redacted[key] = "***"
-            else:
-                redacted[key] = redact_sensitive_payload(item)
-        return redacted
-    if isinstance(value, list):
-        return [redact_sensitive_payload(item) for item in value]
-    return value
+    return _redact_log_value(value)
 
 
 def safe_body_for_log(body_text: str) -> str:

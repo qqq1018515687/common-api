@@ -7,7 +7,7 @@ from langgraph.runtime import Runtime
 from pydantic import BaseModel, Field
 
 from storage.database.db import get_session
-from storage.database.referral_manager import bind_referral_code, get_or_create_profile
+from storage.database.referral_manager import get_or_create_profile
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 class ReferralManagementInput(BaseModel):
     operation_type: Optional[str] = Field(default=None, description="操作类型")
     user_id: Optional[str] = Field(default=None, description="用户ID")
-    referral_code: Optional[str] = Field(default=None, description="推荐码")
 
 
 class ReferralManagementOutput(BaseModel):
@@ -40,13 +39,6 @@ def referral_management_node(
             db.commit()
             return ReferralManagementOutput(
                 response_data={"code": 0, "msg": "查询成功", "data": data}
-            )
-
-        if operation_type == "bind_referral_code":
-            data = bind_referral_code(db, state.user_id, state.referral_code or "")
-            db.commit()
-            return ReferralManagementOutput(
-                response_data={"code": 0, "msg": "绑定成功", "data": data}
             )
 
         return ReferralManagementOutput(

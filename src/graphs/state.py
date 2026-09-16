@@ -191,6 +191,15 @@ class InputData(BaseModel):
     platform_task_id: Optional[str] = Field(
         default=None, description="平台任务ID，与 platform 配合使用"
     )
+    provider_task_id: Optional[str] = Field(
+        default=None, description="火星特供供应商任务ID"
+    )
+    claimant_id: Optional[str] = Field(default=None, description="火星特供提交实例标识")
+    claim_token: Optional[str] = Field(default=None, description="火星特供提交租约令牌")
+    lease_seconds: Optional[int] = Field(default=None, description="火星特供提交租约秒数")
+    result: Optional[object] = Field(
+        default=None, description="火星特供任务结果"
+    )
     query_id: Optional[str] = Field(
         default=None, description="通用查询ID：自动匹配 id 或 platform_task_id"
     )
@@ -472,6 +481,15 @@ class GlobalState(BaseModel):
     )
     platform_task_id: Optional[str] = Field(
         default=None, description="平台任务ID，与 platform 配合使用"
+    )
+    provider_task_id: Optional[str] = Field(
+        default=None, description="火星特供供应商任务ID"
+    )
+    claimant_id: Optional[str] = Field(default=None, description="火星特供提交实例标识")
+    claim_token: Optional[str] = Field(default=None, description="火星特供提交租约令牌")
+    lease_seconds: Optional[int] = Field(default=None, description="火星特供提交租约秒数")
+    provider_result: Optional[object] = Field(
+        default=None, description="火星特供任务结果"
     )
     query_id: Optional[str] = Field(
         default=None, description="通用查询ID：自动匹配 id 或 platform_task_id"
@@ -1468,6 +1486,15 @@ class UnpackInputDataOutput(BaseModel):
     platform_task_id: Optional[str] = Field(
         default=None, description="平台任务ID，与 platform 配合使用"
     )
+    provider_task_id: Optional[str] = Field(
+        default=None, description="火星特供供应商任务ID"
+    )
+    claimant_id: Optional[str] = Field(default=None, description="火星特供提交实例标识")
+    claim_token: Optional[str] = Field(default=None, description="火星特供提交租约令牌")
+    lease_seconds: Optional[int] = Field(default=None, description="火星特供提交租约秒数")
+    provider_result: Optional[object] = Field(
+        default=None, description="火星特供任务结果"
+    )
     query_id: Optional[str] = Field(
         default=None, description="通用查询ID：自动匹配 id 或 platform_task_id"
     )
@@ -1802,10 +1829,9 @@ class BillingRouteOutput(BaseModel):
 class ReferralManagementInput(BaseModel):
     operation_type: Optional[str] = Field(
         default=None,
-        description="操作类型：get_my_referral/bind_referral_code",
+        description="操作类型：get_my_referral",
     )
     user_id: Optional[str] = Field(default=None, description="用户ID")
-    referral_code: Optional[str] = Field(default=None, description="推荐码")
 
 
 class ReferralManagementOutput(BaseModel):

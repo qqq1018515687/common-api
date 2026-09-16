@@ -26,6 +26,7 @@ class CreateTaskRequest(BaseModel):
 
 class UpdateTaskRequest(BaseModel):
     """更新任务请求"""
+    user_id: str = Field(..., description="任务所属用户ID")
     status: Optional[str] = Field(default=None, description="任务状态")
     platform_task_id: Optional[str] = Field(default=None, description="平台任务ID")
     result: Optional[dict] = Field(default=None, description="生成结果")
@@ -490,9 +491,11 @@ async def update_task(task_id: str, request: UpdateTaskRequest):
     task_mgr = TaskManager()
     
     try:
-        task_in = TaskUpdate(**request.model_dump(exclude_unset=True))
+        request_data = request.model_dump(exclude_unset=True)
+        user_id = request_data.pop("user_id")
+        task_in = TaskUpdate(**request_data)
         
-        task = task_mgr.update_task(db, task_id, task_in)
+        task = task_mgr.update_task(db, task_id, task_in, user_id)
         
         if not task:
             raise HTTPException(status_code=404, detail="任务不存在")
@@ -516,6 +519,8 @@ async def update_task(task_id: str, request: UpdateTaskRequest):
     
     except HTTPException:
         raise
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"更新任务失败: {str(e)}")
     finally:

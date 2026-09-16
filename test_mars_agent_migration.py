@@ -37,7 +37,7 @@ class MarsAgentMigrationTest(unittest.TestCase):
                 parents.add(down_revision)
 
         heads = set(revisions) - parents
-        self.assertEqual(heads, {"mars005_agent_run_items"})
+        self.assertEqual(heads, {"marsquota001"})
         self.assertEqual(
             read_revision_values(MIGRATION_PATH)["down_revision"],
             "v4w5x6y7z8a9",

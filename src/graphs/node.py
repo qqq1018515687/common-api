@@ -403,6 +403,11 @@ def unpack_input_data_node(
         platform=input_data.platform if input_data else None,
         source_scope=input_data.source_scope if input_data else None,
         platform_task_id=input_data.platform_task_id if input_data else None,
+        provider_task_id=input_data.provider_task_id if input_data else None,
+        provider_result=input_data.result if input_data else None,
+        claimant_id=input_data.claimant_id if input_data else None,
+        claim_token=input_data.claim_token if input_data else None,
+        lease_seconds=input_data.lease_seconds if input_data else None,
         query_id=input_data.query_id if input_data else None,
         task_data=input_data.task_data if input_data else None,
         task_updates=input_data.task_updates if input_data else None,
@@ -2147,7 +2152,7 @@ def update_task_node(
 
             task_in = TaskUpdate(**update_kwargs)
 
-            db_task = task_mgr.update_task(db, state.task_id, task_in)
+            db_task = task_mgr.update_task(db, state.task_id, task_in, state.user_id or "")
 
             if not db_task:
                 return UpdateTaskOutput(
@@ -2169,6 +2174,10 @@ def update_task_node(
         finally:
             db.close()
 
+    except PermissionError as e:
+        return UpdateTaskOutput(
+            result={"success": False, "message": str(e), "code": 403}
+        )
     except Exception as e:
         return UpdateTaskOutput(
             result={"success": False, "message": f"更新失败: {str(e)}"}
