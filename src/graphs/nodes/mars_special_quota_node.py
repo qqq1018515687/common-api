@@ -84,6 +84,16 @@ def mars_special_quota_node(
                 state.claimant_id,
                 state.lease_seconds,
             )
+        elif operation == "renew_submission":
+            if not state.task_id:
+                raise MarsSpecialQuotaError("task_id 不能为空")
+            data = MarsSpecialQuotaManager.renew_submission(
+                db,
+                state.user_id,
+                state.task_id,
+                state.claim_token,
+                state.lease_seconds,
+            )
         elif operation == "complete":
             if not state.task_id:
                 raise MarsSpecialQuotaError("task_id 不能为空")

@@ -1,5 +1,7 @@
 """add mars special quota accounts and transactions
 
+Downgrade drops quota accounts and all usage audit records, including legacy backfill.
+
 Revision ID: marsquota001
 Revises: timg001
 Create Date: 2026-09-16 12:00:00.000000
@@ -84,8 +86,6 @@ def upgrade() -> None:
         "mars_special_quota_transactions",
         ["status"],
     )
-
-
 def downgrade() -> None:
     op.drop_index("ix_mars_special_quota_status", table_name="mars_special_quota_transactions")
     op.drop_index("ix_mars_special_quota_user_created", table_name="mars_special_quota_transactions")

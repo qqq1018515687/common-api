@@ -18,6 +18,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 from coze_coding_utils.runtime_ctx.context import new_context, Context
 from utils.helper import graph_helper
+from utils.backend_auth import require_backend_authorization
 from utils.log.node_log import LOG_FILE
 from utils.log.write_log import setup_logging, request_context
 from utils.log.config import LOG_LEVEL
@@ -336,6 +337,8 @@ SENSITIVE_LOG_KEYS = {
     "access_key_id",
     "access_key_secret",
     "token",
+    "claim_token",
+    "submission_claim_token",
     "service_secret",
 }
 
@@ -366,12 +369,12 @@ def _redact_log_value(value: Any) -> Any:
         for secret in _configured_secret_values():
             redacted = redacted.replace(secret, "***")
         redacted = re.sub(
-            r'(?i)(["\']service_secret["\']\s*:\s*["\'])[^"\']*(["\'])',
+            r'(?i)(["\'](?:service_secret|(?:submission_)?claim_token)["\']\s*:\s*["\'])[^"\']*(["\'])',
             r"\1***\2",
             redacted,
         )
         redacted = re.sub(
-            r"(?i)(service_secret\s*=\s*)[^\s,;]+",
+            r"(?i)((?:service_secret|(?:submission_)?claim_token)\s*=\s*)[^\s,;]+",
             r"\1***",
             redacted,
         )
@@ -419,18 +422,6 @@ ALLOWED_MULTIPART_UPLOAD_TYPES = {
     "text/csv",
     "application/csv",
 }
-
-
-def require_backend_authorization(authorization: Optional[str]) -> None:
-    expected_token = os.getenv("COZE_BACKEND_TOKEN", "")
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing backend authorization")
-    if not expected_token:
-        logger.warning("COZE_BACKEND_TOKEN is not configured; relying on upstream gateway authorization")
-        return
-    expected_header = f"Bearer {expected_token}"
-    if authorization != expected_header:
-        raise HTTPException(status_code=401, detail="Invalid backend authorization")
 
 
 def normalize_multipart_upload_category(category: Optional[str]) -> str:
@@ -708,6 +699,19 @@ def is_ops_briefing_payload(payload: Any) -> bool:
     return isinstance(payload, dict) and payload.get("call_type") == "ops_briefing"
 
 
+def requires_run_backend_authorization(payload: Any) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    call_type = str(payload.get("call_type") or "").strip()
+    input_data = payload.get("input") if isinstance(payload.get("input"), dict) else {}
+    operation = str(input_data.get("operation_type") or "").strip()
+    if call_type in {"task_management", "user_task_management"}:
+        return operation in {"create_task", "update_task", "delete_task"}
+    if call_type == "mars_special_quota":
+        return operation != "get_status"
+    return False
+
+
 async def handle_ops_briefing(payload: Dict[str, Any], authorization: Optional[str]) -> Dict[str, Any]:
     require_backend_authorization(authorization)
     input_data = payload.get("input") if isinstance(payload.get("input"), dict) else {}
@@ -775,6 +779,9 @@ async def http_run(request: Request) -> Dict[str, Any]:
 
     try:
         payload = await request.json()
+
+        if requires_run_backend_authorization(payload):
+            require_backend_authorization(request.headers.get("authorization"))
 
         if is_ops_briefing_payload(payload):
             return await handle_ops_briefing(payload, request.headers.get("authorization"))

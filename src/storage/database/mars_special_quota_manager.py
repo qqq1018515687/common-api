@@ -23,10 +23,12 @@ from storage.database.shared.model import (
 DAILY_LIMIT = 5
 REFERRAL_GRANT = 20
 SUBMISSION_LEASE_SECONDS = 300
+UNKNOWN_RECONCILE_HOURS = 24
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 WRITABLE_OPERATIONS = {
     "create_task",
     "acquire_submission",
+    "renew_submission",
     "provider_accepted",
     "complete",
     "fail",
@@ -43,12 +45,7 @@ class MarsSpecialQuotaError(ValueError):
 class MarsSpecialQuotaManager:
     @staticmethod
     def verify_service_secret(secret: Optional[str]) -> bool:
-        expected = (
-            os.getenv("MARS_SPECIAL_QUOTA_SERVICE_SECRET")
-            or os.getenv("BILLING_SERVICE_SECRET")
-            or os.getenv("SERVICE_SECRET")
-            or ""
-        )
+        expected = os.getenv("MARS_SPECIAL_QUOTA_SERVICE_SECRET", "").strip()
         return bool(expected and secret and hmac.compare_digest(secret, expected))
 
     @staticmethod
@@ -367,28 +364,35 @@ class MarsSpecialQuotaManager:
         claim_token: Optional[str],
     ) -> dict[str, Any]:
         task, usage = cls._lock_task_and_usage(db, user_id, task_id)
+        extra = dict(usage.extra_data or {})
+        clean_provider_task_id = str(provider_task_id or "").strip()
+        if not clean_provider_task_id:
+            raise MarsSpecialQuotaError("provider_task_id 不能为空")
+        if extra.get("provider_accepted_at"):
+            accepted_provider_task_id = str(
+                extra.get("provider_task_id") or task.platform_task_id or ""
+            ).strip()
+            if clean_provider_task_id == accepted_provider_task_id:
+                return {
+                    "task": cls._serialize_task(task),
+                    "usage_status": usage.status,
+                    "idempotent": True,
+                }
+            raise MarsSpecialQuotaError("provider_task_id 与已确认任务冲突", 409)
         if task.status in {"completed", "failed"}:
             return {"task": cls._serialize_task(task), "usage_status": usage.status, "idempotent": True}
-        extra = dict(usage.extra_data or {})
         expected_claim_token = str(extra.get("submission_claim_token") or "")
         if not expected_claim_token or not claim_token or not hmac.compare_digest(claim_token, expected_claim_token):
             raise MarsSpecialQuotaError("提交 claim 无效或已过期", 409)
-        raw_expiry = extra.get("submission_lease_expires_at")
-        try:
-            lease_expires_at = datetime.fromisoformat(str(raw_expiry))
-        except (TypeError, ValueError):
-            lease_expires_at = None
-        if lease_expires_at and lease_expires_at.tzinfo is None:
-            lease_expires_at = lease_expires_at.replace(tzinfo=timezone.utc)
-        if not lease_expires_at or lease_expires_at <= cls._now():
-            raise MarsSpecialQuotaError("提交 claim 无效或已过期", 409)
-        if provider_task_id:
-            task.platform_task_id = provider_task_id.strip()
+        # Expiry controls takeover. If this token is still current, no newer
+        # worker has claimed the task, so a late provider acknowledgement is safe.
+        task.platform_task_id = clean_provider_task_id
         if result is not None:
             task.result = result
         usage.extra_data = {
             **extra,
             "unknown": False,
+            "provider_task_id": clean_provider_task_id,
             "provider_accepted_at": cls._now().isoformat(),
         }
         now_ms = str(int(time.time() * 1000))
@@ -398,6 +402,43 @@ class MarsSpecialQuotaManager:
         task.status_updated_at = now_ms
         db.flush()
         return {"task": cls._serialize_task(task), "usage_status": usage.status, "idempotent": False}
+
+    @classmethod
+    def renew_submission(
+        cls,
+        db: Session,
+        user_id: str,
+        task_id: str,
+        claim_token: Optional[str],
+        lease_seconds: Optional[int],
+    ) -> dict[str, Any]:
+        task, usage = cls._lock_task_and_usage(db, user_id, task_id)
+        if task.status != "running" or usage.status != "reserved":
+            raise MarsSpecialQuotaError("任务已不可续租", 409)
+        extra = dict(usage.extra_data or {})
+        if extra.get("provider_accepted_at"):
+            raise MarsSpecialQuotaError("供应商任务已确认，无需续租", 409)
+        expected_claim_token = str(extra.get("submission_claim_token") or "")
+        if not expected_claim_token or not claim_token or not hmac.compare_digest(
+            claim_token, expected_claim_token
+        ):
+            raise MarsSpecialQuotaError("提交 claim 无效", 409)
+
+        duration = min(max(int(lease_seconds or SUBMISSION_LEASE_SECONDS), 15), 300)
+        now = cls._now()
+        lease_expires_at = now + timedelta(seconds=duration)
+        usage.extra_data = {
+            **extra,
+            "submission_lease_expires_at": lease_expires_at.isoformat(),
+            "submission_renewed_at": now.isoformat(),
+        }
+        usage.updated_at = now
+        db.flush()
+        return {
+            "renewed": True,
+            "lease_expires_at": lease_expires_at.isoformat(),
+            "task": cls._serialize_task(task),
+        }
 
     @classmethod
     def _grant_account(cls, db: Session, user_id: str, amount: int) -> None:
@@ -620,11 +661,18 @@ class MarsSpecialQuotaManager:
 
     @classmethod
     def reconcile_reserved(cls, db: Session, limit: int = 100) -> dict[str, int]:
+        unknown_cutoff = cls._now() - timedelta(hours=UNKNOWN_RECONCILE_HOURS)
         row_ids = (
             db.query(MarsSpecialQuotaTransactions.id)
             .filter(
                 MarsSpecialQuotaTransactions.transaction_type == "usage",
                 MarsSpecialQuotaTransactions.status == "reserved",
+                (
+                    func.coalesce(
+                        MarsSpecialQuotaTransactions.extra_data["unknown"].as_boolean(), False
+                    ).is_(False)
+                    | (MarsSpecialQuotaTransactions.updated_at <= unknown_cutoff)
+                ),
             )
             .order_by(MarsSpecialQuotaTransactions.created_at.asc())
             .limit(min(max(limit, 1), 500))
@@ -649,17 +697,35 @@ class MarsSpecialQuotaManager:
                 continue
             if not task or task.platform != "local_sub2api" or task.is_deleted:
                 continue
+            is_unknown = isinstance(row.extra_data, dict) and row.extra_data.get("unknown") is True
+            if is_unknown and row.updated_at <= unknown_cutoff:
+                row.status = "consumed"
+                row.updated_at = cls._now()
+                row.extra_data = {
+                    **(row.extra_data or {}),
+                    "unknown_closed_at": cls._now().isoformat(),
+                    "unknown_resolution": "consumed_after_timeout",
+                }
+                now_ms = str(int(time.time() * 1000))
+                task.status = "failed"
+                task.error = "供应商状态长时间无法确认，次数已核销并转人工复核"
+                task.failed_at = task.failed_at or now_ms
+                task.completed_at = None
+                task.status_updated_at = now_ms
+                task.updated_at = now_ms
+                task.confirmation_state = "confirmed"
+                task.final_reason = "unknown_timeout_consumed"
+                reconciled += 1
+                continue
             if task.status == "completed":
                 row.status = "consumed"
                 row.updated_at = cls._now()
                 cls._grant_referral_if_needed(db, task)
                 reconciled += 1
-            elif task.status == "failed":
+            elif task.status in {"failed", "cancelled"}:
                 if row.source == "permanent":
                     cls._grant_account(db, row.user_id, 1)
                 row.status = "released"
                 row.updated_at = cls._now()
                 released += 1
-            elif isinstance(row.extra_data, dict) and row.extra_data.get("unknown") is True:
-                continue
         return {"consumed": reconciled, "released": released}

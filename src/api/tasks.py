@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from storage.database.db import get_session
 from storage.database.task_manager import TaskManager, TaskCreate, TaskUpdate
+from utils.backend_auth import require_backend_authorization
 
 router = APIRouter(prefix="/api/coze", tags=["tasks"])
 
@@ -485,8 +486,13 @@ async def list_persist_pending_tasks(
 
 
 @router.put("/tasks/{task_id}")
-async def update_task(task_id: str, request: UpdateTaskRequest):
+async def update_task(
+    task_id: str,
+    request: UpdateTaskRequest,
+    authorization: Optional[str] = Header(default=None),
+):
     """更新任务"""
+    require_backend_authorization(authorization)
     db = get_session()
     task_mgr = TaskManager()
     
@@ -528,16 +534,22 @@ async def update_task(task_id: str, request: UpdateTaskRequest):
 
 
 @router.delete("/tasks/{task_id}")
-async def delete_task(task_id: str):
+async def delete_task(
+    task_id: str,
+    user_id: str = Query(..., description="执行删除的用户ID"),
+    authorization: Optional[str] = Header(default=None),
+):
     """删除任务"""
+    require_backend_authorization(authorization)
     db = get_session()
     task_mgr = TaskManager()
     
     try:
-        success = task_mgr.delete_task(db, task_id)
+        success, message = task_mgr.delete_task(db, task_id, user_id)
         
         if not success:
-            raise HTTPException(status_code=404, detail="任务不存在")
+            status_code = 404 if message == "任务不存在" else 409
+            raise HTTPException(status_code=status_code, detail=message)
         
         return {
             "success": True,

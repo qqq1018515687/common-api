@@ -12,7 +12,7 @@ from sqlalchemy import text, cast, String, case, func
 import json
 from zoneinfo import ZoneInfo
 
-from storage.database.shared.model import Tasks, Users
+from storage.database.shared.model import MarsSpecialQuotaTransactions, Tasks, Users
 from storage.database.task_source_scope import normalize_source_scope
 from config.third_party_platforms import THIRD_PARTY_PLATFORMS
 import time
@@ -1354,7 +1354,24 @@ class TaskManager:
             "cancellation_source",
         }
         if db_task.platform == "local_sub2api" and mars_protected_fields.intersection(update_data):
-            raise PermissionError("火星特供任务只能通过专用接口更新")
+            legacy_compat = (
+                os.getenv("MARS_SPECIAL_QUOTA_LEGACY_UPDATE_COMPAT", "").strip().lower()
+                == "true"
+            )
+            legacy_usage = None
+            if legacy_compat:
+                legacy_usage = (
+                    db.query(MarsSpecialQuotaTransactions.id)
+                    .filter(
+                        MarsSpecialQuotaTransactions.task_id == task_id,
+                        MarsSpecialQuotaTransactions.user_id == db_task.user_id,
+                        MarsSpecialQuotaTransactions.transaction_type == "usage",
+                        MarsSpecialQuotaTransactions.source == "legacy",
+                    )
+                    .first()
+                )
+            if not legacy_usage:
+                raise PermissionError("火星特供任务只能通过专用接口更新")
         if "result" in update_data:
             update_data["result"] = self._normalize_single_image_channel_result(
                 db_task.platform,
@@ -1750,6 +1767,19 @@ class TaskManager:
         # 权限验证：管理员可以删除任何任务，普通用户只能删除自己的任务
         if user.role != "admin" and db_task.user_id != user_id:
             return False, "无权删除此任务"
+
+        if db_task.platform == "local_sub2api":
+            reserved_usage = (
+                db.query(MarsSpecialQuotaTransactions.id)
+                .filter(
+                    MarsSpecialQuotaTransactions.task_id == task_id,
+                    MarsSpecialQuotaTransactions.transaction_type == "usage",
+                    MarsSpecialQuotaTransactions.status == "reserved",
+                )
+                .first()
+            )
+            if reserved_usage:
+                return False, "火星特供任务仍有预占次数，不能删除"
 
         # 软删除：设置 is_deleted 标记
         db_task.is_deleted = True

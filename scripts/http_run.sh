@@ -3,7 +3,7 @@
 set -e
 # 导出环境变量
 
-export BILLING_SERVICE_SECRET="${BILLING_SERVICE_SECRET:-mars_billing_2024}"
+export BILLING_SERVICE_SECRET="${BILLING_SERVICE_SECRET:-}"
 export GITHUB_TOKEN="${GITHUB_TOKEN:-}"  # 填写你的 GitHub Personal Access Token，用于推送代码
 
 WORK_DIR="${COZE_WORKSPACE_PATH:-.}"
@@ -56,7 +56,8 @@ for attempt in 1 2 3; do
 done
 
 if [ "$ALEMBIC_OK" -ne 1 ]; then
-  echo "[DB] WARNING: Alembic migrations failed after retries, continue with runtime DDL fallback"
+  echo "[DB] ERROR: Alembic migrations failed after retries; refusing to start"
+  exit 1
 fi
 
 # 确保 users 表字段长度正确（Alembic 迁移 repeat 问题，每次部署兜底修复）

@@ -19,6 +19,10 @@ NODE_SOURCE = ROOT.joinpath(
 ).read_text(encoding="utf-8")
 MAIN_SOURCE = ROOT.joinpath("src/main.py").read_text(encoding="utf-8")
 API_TASK_SOURCE = ROOT.joinpath("src/api/tasks.py").read_text(encoding="utf-8")
+MIGRATION_SOURCE = ROOT.joinpath(
+    "migrations/versions/marsquota002_backfill_legacy_usage.py"
+).read_text(encoding="utf-8")
+HTTP_RUN_SOURCE = ROOT.joinpath("scripts/http_run.sh").read_text(encoding="utf-8")
 
 
 class MarsSpecialQuotaContractTests(unittest.TestCase):
@@ -40,7 +44,11 @@ class MarsSpecialQuotaContractTests(unittest.TestCase):
         self.assertIn('"unknown": True', mark_unknown_section)
         reconcile_section = MANAGER_SOURCE.split("def reconcile_reserved", 1)[1]
         self.assertIn('status == "reserved"', reconcile_section)
-        self.assertIn('row.extra_data.get("unknown") is True', reconcile_section)
+        query_section = reconcile_section.split(".all()", 1)[0]
+        self.assertIn('extra_data["unknown"].as_boolean()', query_section)
+        self.assertIn("func.coalesce", query_section)
+        self.assertIn("UNKNOWN_RECONCILE_HOURS = 24", MANAGER_SOURCE)
+        self.assertIn('"unknown_resolution": "consumed_after_timeout"', reconcile_section)
 
     def test_reconcile_locks_task_and_usage_then_rechecks_reserved(self):
         reconcile_section = MANAGER_SOURCE.split("def reconcile_reserved", 1)[1]
@@ -78,7 +86,26 @@ class MarsSpecialQuotaContractTests(unittest.TestCase):
         self.assertIn('"submission_claim_token": claim_token', claim_section)
         self.assertIn('"submission_lease_expires_at"', claim_section)
         self.assertIn("hmac.compare_digest(claim_token, expected_claim_token)", accepted_section)
-        self.assertIn("lease_expires_at <= cls._now()", accepted_section)
+
+    def test_submission_can_be_renewed_by_current_token(self):
+        renew_section = MANAGER_SOURCE.split("def renew_submission", 1)[1].split(
+            "def _grant_account", 1
+        )[0]
+        self.assertIn('"renew_submission"', MANAGER_SOURCE.split("WRITABLE_OPERATIONS", 1)[1])
+        self.assertIn("hmac.compare_digest", renew_section)
+        self.assertIn('"submission_lease_expires_at": lease_expires_at.isoformat()', renew_section)
+        self.assertIn('operation == "renew_submission"', NODE_SOURCE)
+
+    def test_provider_acceptance_is_idempotent_only_for_same_provider_id(self):
+        accepted_section = MANAGER_SOURCE.split("def provider_accepted", 1)[1].split(
+            "def renew_submission", 1
+        )[0]
+        idempotent_position = accepted_section.index('extra.get("provider_accepted_at")')
+        self.assertNotIn("lease_expires_at <= cls._now()", accepted_section)
+        self.assertIn('MarsSpecialQuotaError("provider_task_id 不能为空")', accepted_section)
+        self.assertIn('extra.get("provider_task_id") or task.platform_task_id', accepted_section)
+        self.assertIn('"provider_task_id": clean_provider_task_id', accepted_section)
+        self.assertIn('MarsSpecialQuotaError("provider_task_id 与已确认任务冲突", 409)', accepted_section)
 
     def test_referral_policy_is_mars_first_success_only(self):
         reward_section = MANAGER_SOURCE.split("def _grant_referral_if_needed", 1)[1].split(
@@ -98,10 +125,65 @@ class MarsSpecialQuotaContractTests(unittest.TestCase):
         self.assertIn("task.result = result", unknown_section)
 
     def test_secret_precedence_and_recursive_log_redaction(self):
-        self.assertIn('os.getenv("MARS_SPECIAL_QUOTA_SERVICE_SECRET")', MANAGER_SOURCE)
+        verify_section = MANAGER_SOURCE.split("def verify_service_secret", 1)[1].split(
+            "def choose_source", 1
+        )[0]
+        self.assertIn('os.getenv("MARS_SPECIAL_QUOTA_SERVICE_SECRET", "").strip()', verify_section)
+        self.assertNotIn("BILLING_SERVICE_SECRET", verify_section)
+        self.assertNotIn("SERVICE_SECRET", verify_section.replace("MARS_SPECIAL_QUOTA_SERVICE_SECRET", ""))
         self.assertIn('"service_secret"', MAIN_SOURCE)
+        self.assertIn('"claim_token"', MAIN_SOURCE)
+        self.assertIn('"submission_claim_token"', MAIN_SOURCE)
         self.assertIn("class SensitiveLogFilter", MAIN_SOURCE)
         self.assertIn("record.exc_text = _redact_log_value", MAIN_SOURCE)
+
+    def test_migration_backfills_legacy_usage_idempotently(self):
+        self.assertIn("FROM tasks", MIGRATION_SOURCE)
+        self.assertIn("WHERE tasks.platform = 'local_sub2api'", MIGRATION_SOURCE)
+        self.assertIn("'legacy'", MIGRATION_SOURCE)
+        self.assertIn("WHEN tasks.status = 'completed' THEN 'consumed'", MIGRATION_SOURCE)
+        self.assertIn("WHEN tasks.status IN ('failed', 'cancelled') THEN 'released'", MIGRATION_SOURCE)
+        self.assertIn("ELSE 'reserved'", MIGRATION_SOURCE)
+        self.assertIn("json_build_object('platform', 'local_sub2api', 'legacy', true)", MIGRATION_SOURCE)
+        self.assertIn("ON CONFLICT DO NOTHING", MIGRATION_SOURCE)
+
+    def test_migration_failure_stops_http_startup(self):
+        failure_branch = HTTP_RUN_SOURCE.split('if [ "$ALEMBIC_OK" -ne 1 ]; then', 1)[1].split(
+            "fi", 1
+        )[0]
+        self.assertIn("exit 1", failure_branch)
+        self.assertNotIn("continue with runtime DDL fallback", HTTP_RUN_SOURCE)
+        self.assertNotIn("mars_billing_2024", HTTP_RUN_SOURCE)
+
+    def test_reserved_local_task_cannot_be_deleted(self):
+        delete_section = TASK_SOURCE.split("def delete_task", 1)[1].split(
+            "def delete_tasks_by_user_id", 1
+        )[0]
+        self.assertIn('db_task.platform == "local_sub2api"', delete_section)
+        self.assertIn('MarsSpecialQuotaTransactions.status == "reserved"', delete_section)
+        self.assertIn("仍有预占次数，不能删除", delete_section)
+
+    def test_generic_update_requires_backend_auth_and_limits_legacy_compat(self):
+        update_api = API_TASK_SOURCE.split("async def update_task", 1)[1].split(
+            '@router.delete("/tasks/{task_id}")', 1
+        )[0]
+        update_manager = TASK_SOURCE.split("def update_task", 1)[1].split(
+            "def delete_task", 1
+        )[0]
+        self.assertIn("authorization: Optional[str] = Header(default=None)", update_api)
+        self.assertIn("require_backend_authorization(authorization)", update_api)
+        self.assertIn("MARS_SPECIAL_QUOTA_LEGACY_UPDATE_COMPAT", update_manager)
+        self.assertIn('MarsSpecialQuotaTransactions.source == "legacy"', update_manager)
+
+    def test_task_delete_requires_backend_auth(self):
+        delete_api = API_TASK_SOURCE.split("async def delete_task", 1)[1]
+        self.assertIn("authorization: Optional[str] = Header(default=None)", delete_api)
+        self.assertIn("require_backend_authorization(authorization)", delete_api)
+
+    def test_graph_task_writes_require_backend_auth(self):
+        self.assertIn("def requires_run_backend_authorization", MAIN_SOURCE)
+        self.assertIn('{"create_task", "update_task", "delete_task"}', MAIN_SOURCE)
+        self.assertIn("require_backend_authorization(request.headers.get(\"authorization\"))", MAIN_SOURCE)
 
     def test_referral_overview_keeps_gold_and_adds_quota_totals(self):
         self.assertIn('"reward_count": int(reward_count)', REFERRAL_SOURCE)
