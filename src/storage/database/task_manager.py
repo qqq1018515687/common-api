@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
     "local": "本地",
     "r": "R版",
     "t": "T版",
-    "free": "免费",
+    "free": "火星特供",
     "other": "其他",
 }
 工作流模型渠道映射: Dict[str, Dict[str, str]] = {
@@ -157,7 +157,7 @@ class TaskManager:
         normalized = text_value.lower()
         if normalized in {"local", "本地", "局域", "局域网"}:
             return "local"
-        if normalized in {"free", "免费"}:
+        if normalized in {"free", "免费", "火星特供"}:
             return "free"
         if normalized in {"r", "r版"} or normalized.startswith("r版"):
             return "r"
@@ -410,7 +410,7 @@ class TaskManager:
 
     @staticmethod
     def _normalize_single_image_channel_result(platform: Any, result: Any) -> Any:
-        """T版和免费渠道只支持单图，供应商多返回时统一保留数组最后一项。"""
+        """T版和火星特供渠道只支持单图，供应商多返回时统一保留数组最后一项。"""
         if str(platform or "").strip() not in {"tudou", "local_sub2api"}:
             return result
         if not isinstance(result, dict):

@@ -75,3 +75,8 @@ def test_multi_image_channel_result_is_unchanged():
     result = {"imageUrls": ["first", "second"]}
 
     assert TaskManager._normalize_single_image_channel_result("runninghub", result) is result
+
+
+def test_mars_exclusive_channel_keeps_legacy_free_key():
+    assert TaskManager._normalize_task_channel_from_label("免费") == "free"
+    assert TaskManager._normalize_task_channel_from_label("火星特供") == "free"
