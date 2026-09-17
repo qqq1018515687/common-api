@@ -25,6 +25,11 @@ STATUS_MIGRATION_SOURCE = ROOT.joinpath(
 REPAIR_MIGRATION_SOURCE = ROOT.joinpath(
     "migrations/versions/billtask002_repair_resultless_completed_billing_tasks.py"
 ).read_text(encoding="utf-8")
+UNCONFIRMED_REPAIR_MIGRATION_SOURCE = ROOT.joinpath(
+    "migrations/versions/billtask003_finalize_stale_unconfirmed_billing_tasks.py"
+).read_text(encoding="utf-8")
+TASK_SOURCE = ROOT.joinpath("src/storage/database/task_manager.py").read_text(encoding="utf-8")
+TASK_NODE_SOURCE = ROOT.joinpath("src/graphs/node.py").read_text(encoding="utf-8")
 START_SCRIPT_SOURCE = ROOT.joinpath("scripts/http_run.sh").read_text(encoding="utf-8")
 
 
@@ -246,8 +251,22 @@ def test_repair_migration_removes_resultless_billing_projections_from_success_st
 
 
 def test_common_rejects_completed_task_without_displayable_result():
-    task_source = ROOT.joinpath(
-        "src/storage/database/task_manager.py"
-    ).read_text(encoding="utf-8")
-    assert 'raise ValueError("completed 任务必须包含可展示结果")' in task_source
-    assert 'and not self._has_displayable_result(update_data.get("result"))' in task_source
+    assert 'raise ValueError("completed 任务必须包含可展示结果")' in TASK_SOURCE
+    assert 'and not self._has_displayable_result(update_data.get("result"))' in TASK_SOURCE
+
+
+def test_billing_placeholder_can_be_upgraded_and_unconfirmed_tasks_are_recovered():
+    assert 'field == "platform"' in TASK_SOURCE
+    assert 'str(current_value or "").strip().lower() == "billing"' in TASK_SOURCE
+    assert 'current_platform not in ("", "billing", incoming_platform)' in TASK_SOURCE
+    assert 'Tasks.status == "submitted_unconfirmed"' in TASK_SOURCE
+    assert '"platform",\n                "platform_task_id"' in TASK_NODE_SOURCE
+
+
+def test_stale_unconfirmed_repair_is_automatic_and_time_bounded():
+    assert 'down_revision: Union[str, Sequence[str], None] = "billtask002"' in UNCONFIRMED_REPAIR_MIGRATION_SOURCE
+    assert "status = 'submitted_unconfirmed'" in UNCONFIRMED_REPAIR_MIGRATION_SOURCE
+    assert "platform_task_id LIKE 'pending:%'" in UNCONFIRMED_REPAIR_MIGRATION_SOURCE
+    assert "created_at::bigint <=" in UNCONFIRMED_REPAIR_MIGRATION_SOURCE
+    assert "- 120000" in UNCONFIRMED_REPAIR_MIGRATION_SOURCE
+    assert "final_reason = 'submitted_unconfirmed_failed'" in UNCONFIRMED_REPAIR_MIGRATION_SOURCE

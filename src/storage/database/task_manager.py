@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from sqlalchemy import text, cast, String, case, func
+from sqlalchemy import and_, or_, text, cast, String, case, func
 import json
 from zoneinfo import ZoneInfo
 
@@ -98,6 +98,7 @@ class TaskUpdate(BaseModel):
     """更新任务的输入"""
 
     status: Optional[str] = Field(default=None, description="任务状态")
+    platform: Optional[str] = Field(default=None, description="平台标识")
     platform_task_id: Optional[str] = Field(default=None, description="平台任务ID")
     result: Optional[dict] = Field(default=None, description="生成结果")
     error: Optional[str] = Field(default=None, description="错误信息")
@@ -657,6 +658,7 @@ class TaskManager:
             task_data = task_in.model_dump(exclude_unset=True)
             current_time = str(int(time.time() * 1000))
             for field in [
+                "platform",
                 "platform_task_id",
                 "workflow_parameters",
                 "parameter_snapshot",
@@ -672,6 +674,9 @@ class TaskManager:
                 if value not in (None, "", {}) and hasattr(existing_task, field):
                     current_value = getattr(existing_task, field)
                     if current_value in (None, "", {}) or (
+                        field == "platform"
+                        and str(current_value or "").strip().lower() == "billing"
+                    ) or (
                         field == "platform_task_id"
                         and isinstance(current_value, str)
                         and current_value.startswith("pending:")
@@ -1189,8 +1194,13 @@ class TaskManager:
 
         query = db.query(Tasks).filter(
             Tasks.is_deleted == False,
-            Tasks.platform.in_(set(THIRD_PARTY_PLATFORMS)),
-            Tasks.status.in_(["running", "submitted_unconfirmed"]),
+            or_(
+                Tasks.status == "submitted_unconfirmed",
+                and_(
+                    Tasks.platform.in_(set(THIRD_PARTY_PLATFORMS)),
+                    Tasks.status == "running",
+                ),
+            ),
             Tasks.platform_task_id.isnot(None),
             Tasks.platform_task_id != "",
         )
@@ -1337,6 +1347,7 @@ class TaskManager:
         update_data = task_in.model_dump(exclude_unset=True)
         mars_protected_fields = {
             "status",
+            "platform",
             "platform_task_id",
             "result",
             "result_fallback",
@@ -1377,6 +1388,16 @@ class TaskManager:
                 db_task.platform,
                 update_data.get("result"),
             )
+
+        if "platform" in update_data:
+            incoming_platform = str(update_data.get("platform") or "").strip().lower()
+            current_platform = str(db_task.platform or "").strip().lower()
+            if not incoming_platform:
+                update_data.pop("platform", None)
+            elif current_platform not in ("", "billing", incoming_platform):
+                raise ValueError("任务平台只允许从 billing 占位值升级为真实平台")
+            else:
+                update_data["platform"] = incoming_platform
 
         # 【守卫】已取消/已删除任务是终态语义，禁止被状态回写覆盖为 failed/running，
         # 避免用户取消成功后 main 残留轮询 807（任务已不存在）把任务改成 failed。

@@ -2121,6 +2121,7 @@ def update_task_node(
             update_kwargs = {}
             for field in [
                 "status",
+                "platform",
                 "platform_task_id",
                 "result",
                 "result_fallback",
