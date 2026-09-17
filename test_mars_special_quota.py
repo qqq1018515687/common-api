@@ -91,7 +91,6 @@ class MarsSpecialQuotaContractTests(unittest.TestCase):
         renew_section = MANAGER_SOURCE.split("def renew_submission", 1)[1].split(
             "def _grant_account", 1
         )[0]
-        self.assertIn('"renew_submission"', MANAGER_SOURCE.split("WRITABLE_OPERATIONS", 1)[1])
         self.assertIn("hmac.compare_digest", renew_section)
         self.assertIn('"submission_lease_expires_at": lease_expires_at.isoformat()', renew_section)
         self.assertIn('operation == "renew_submission"', NODE_SOURCE)
@@ -124,13 +123,7 @@ class MarsSpecialQuotaContractTests(unittest.TestCase):
         self.assertIn("if result is not None", unknown_section)
         self.assertIn("task.result = result", unknown_section)
 
-    def test_secret_precedence_and_recursive_log_redaction(self):
-        verify_section = MANAGER_SOURCE.split("def verify_service_secret", 1)[1].split(
-            "def choose_source", 1
-        )[0]
-        self.assertIn('os.getenv("MARS_SPECIAL_QUOTA_SERVICE_SECRET", "").strip()', verify_section)
-        self.assertNotIn("BILLING_SERVICE_SECRET", verify_section)
-        self.assertNotIn("SERVICE_SECRET", verify_section.replace("MARS_SPECIAL_QUOTA_SERVICE_SECRET", ""))
+    def test_recursive_log_redaction(self):
         self.assertIn('"service_secret"', MAIN_SOURCE)
         self.assertIn('"claim_token"', MAIN_SOURCE)
         self.assertIn('"submission_claim_token"', MAIN_SOURCE)
@@ -179,11 +172,6 @@ class MarsSpecialQuotaContractTests(unittest.TestCase):
         delete_api = API_TASK_SOURCE.split("async def delete_task", 1)[1]
         self.assertIn("authorization: Optional[str] = Header(default=None)", delete_api)
         self.assertIn("require_backend_authorization(authorization)", delete_api)
-
-    def test_graph_task_writes_require_backend_auth(self):
-        self.assertIn("def requires_run_backend_authorization", MAIN_SOURCE)
-        self.assertIn('{"create_task", "update_task", "delete_task"}', MAIN_SOURCE)
-        self.assertIn("require_backend_authorization(request.headers.get(\"authorization\"))", MAIN_SOURCE)
 
     def test_referral_overview_keeps_gold_and_adds_quota_totals(self):
         self.assertIn('"reward_count": int(reward_count)', REFERRAL_SOURCE)

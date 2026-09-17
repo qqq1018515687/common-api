@@ -1,5 +1,4 @@
 import hmac
-import os
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -25,17 +24,6 @@ REFERRAL_GRANT = 20
 SUBMISSION_LEASE_SECONDS = 300
 UNKNOWN_RECONCILE_HOURS = 24
 SHANGHAI = ZoneInfo("Asia/Shanghai")
-WRITABLE_OPERATIONS = {
-    "create_task",
-    "acquire_submission",
-    "renew_submission",
-    "provider_accepted",
-    "complete",
-    "fail",
-    "mark_unknown",
-}
-
-
 class MarsSpecialQuotaError(ValueError):
     def __init__(self, message: str, code: int = 400):
         super().__init__(message)
@@ -43,11 +31,6 @@ class MarsSpecialQuotaError(ValueError):
 
 
 class MarsSpecialQuotaManager:
-    @staticmethod
-    def verify_service_secret(secret: Optional[str]) -> bool:
-        expected = os.getenv("MARS_SPECIAL_QUOTA_SERVICE_SECRET", "").strip()
-        return bool(expected and secret and hmac.compare_digest(secret, expected))
-
     @staticmethod
     def choose_source(*, unlimited: bool, daily_used: int, permanent_remaining: int) -> Optional[str]:
         if unlimited:

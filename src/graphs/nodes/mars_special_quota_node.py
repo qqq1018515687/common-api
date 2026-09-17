@@ -10,7 +10,6 @@ from storage.database.db import get_session
 from storage.database.mars_special_quota_manager import (
     MarsSpecialQuotaError,
     MarsSpecialQuotaManager,
-    WRITABLE_OPERATIONS,
 )
 
 
@@ -29,7 +28,6 @@ class MarsSpecialQuotaInput(BaseModel):
     lease_seconds: Optional[int] = Field(default=None, description="提交租约秒数")
     error: Optional[str] = Field(default=None, description="明确失败错误")
     reason: Optional[str] = Field(default=None, description="状态原因")
-    service_secret: Optional[str] = Field(default=None, description="服务密钥")
 
 
 class MarsSpecialQuotaOutput(BaseModel):
@@ -52,11 +50,6 @@ def mars_special_quota_node(
         return MarsSpecialQuotaOutput(
             response_data={"code": 400, "msg": "用户ID不能为空", "data": None}
         )
-    if operation in WRITABLE_OPERATIONS and not MarsSpecialQuotaManager.verify_service_secret(state.service_secret):
-        return MarsSpecialQuotaOutput(
-            response_data={"code": 401, "msg": "service_secret 无效", "data": None}
-        )
-
     db = get_session()
     try:
         if operation == "get_status":

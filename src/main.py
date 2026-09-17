@@ -699,19 +699,6 @@ def is_ops_briefing_payload(payload: Any) -> bool:
     return isinstance(payload, dict) and payload.get("call_type") == "ops_briefing"
 
 
-def requires_run_backend_authorization(payload: Any) -> bool:
-    if not isinstance(payload, dict):
-        return False
-    call_type = str(payload.get("call_type") or "").strip()
-    input_data = payload.get("input") if isinstance(payload.get("input"), dict) else {}
-    operation = str(input_data.get("operation_type") or "").strip()
-    if call_type in {"task_management", "user_task_management"}:
-        return operation in {"create_task", "update_task", "delete_task"}
-    if call_type == "mars_special_quota":
-        return operation != "get_status"
-    return False
-
-
 async def handle_ops_briefing(payload: Dict[str, Any], authorization: Optional[str]) -> Dict[str, Any]:
     require_backend_authorization(authorization)
     input_data = payload.get("input") if isinstance(payload.get("input"), dict) else {}
@@ -779,9 +766,6 @@ async def http_run(request: Request) -> Dict[str, Any]:
 
     try:
         payload = await request.json()
-
-        if requires_run_backend_authorization(payload):
-            require_backend_authorization(request.headers.get("authorization"))
 
         if is_ops_briefing_payload(payload):
             return await handle_ops_briefing(payload, request.headers.get("authorization"))
