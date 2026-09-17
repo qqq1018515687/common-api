@@ -1212,13 +1212,12 @@ class TaskManager:
         return query.order_by(Tasks.updated_at.asc()).limit(limit).all()
 
     def retry_failed_task_refunds(self, db: Session, *, limit: int = 50) -> int:
-        """重试第三方失败任务中尚未收敛的扣费退款。"""
+        """重试失败任务中尚未收敛的扣费退款。"""
         self._ensure_task_schema(db)
         rows = (
             db.query(Tasks)
             .filter(
                 Tasks.is_deleted == False,
-                Tasks.platform.in_(set(THIRD_PARTY_PLATFORMS)),
                 Tasks.status == "failed",
                 Tasks.deduction_result.op("->>")("status") == "deducted",
             )
@@ -1338,7 +1337,13 @@ class TaskManager:
         self, db: Session, task_id: str, task_in: TaskUpdate, user_id: str
     ) -> Optional[Tasks]:
         """更新任务"""
-        db_task = self.get_task_by_id(db, task_id)
+        db_task = (
+            db.query(Tasks)
+            .filter(Tasks.id == task_id)
+            .populate_existing()
+            .with_for_update()
+            .first()
+        )
         if not db_task:
             return None
         if not user_id or db_task.user_id != user_id:
@@ -1384,8 +1389,9 @@ class TaskManager:
             if not legacy_usage:
                 raise PermissionError("火星特供任务只能通过专用接口更新")
         if "result" in update_data:
+            result_platform = str(update_data.get("platform") or db_task.platform or "").strip().lower()
             update_data["result"] = self._normalize_single_image_channel_result(
-                db_task.platform,
+                result_platform,
                 update_data.get("result"),
             )
 
@@ -1418,6 +1424,23 @@ class TaskManager:
 
         deduction = db_task.deduction_result if isinstance(db_task.deduction_result, dict) else {}
         deduction_status = str(deduction.get("status") or "").strip()
+        incoming_deduction = update_data.get("deduction_result")
+        incoming_deduction_status = (
+            str(incoming_deduction.get("status") or "").strip()
+            if isinstance(incoming_deduction, dict)
+            else ""
+        )
+        if (
+            deduction_status in ("settled", "refunded")
+            and incoming_deduction_status not in ("", deduction_status)
+        ):
+            logger.info(
+                "[task-guard] 账务终态拒绝迟到覆盖: task_id=%s current=%s incoming=%s",
+                task_id,
+                deduction_status,
+                incoming_deduction_status,
+            )
+            update_data.pop("deduction_result", None)
         if (
             db_task.status == "completed"
             and deduction_status == "settled"
@@ -1446,9 +1469,20 @@ class TaskManager:
                 incoming_status,
                 deduction_status,
             )
-            update_data.pop("status", None)
-            update_data.pop("result", None)
-            update_data.pop("completed_at", None)
+            for stale_field in (
+                "status",
+                "platform",
+                "platform_task_id",
+                "workflow_parameters",
+                "parameter_snapshot",
+                "result",
+                "result_fallback",
+                "persistence_status",
+                "persistence_error",
+                "confirmation_state",
+                "completed_at",
+            ):
+                update_data.pop(stale_field, None)
             incoming_status = None
 
         if "elapsed_time_seconds" in update_data:
@@ -1461,10 +1495,20 @@ class TaskManager:
         if self._is_completed_with_result(db_task):
             incoming_status = update_data.get("status")
             if incoming_status in ("failed", "cancelled", "running", "pending", "submitted", "submitted_unconfirmed", "processing", "in_progress"):
-                update_data.pop("status", None)
-                update_data.pop("error", None)
-                update_data.pop("user_friendly_message", None)
-                update_data.pop("completed_at", None)
+                for stale_field in (
+                    "status",
+                    "platform",
+                    "platform_task_id",
+                    "workflow_parameters",
+                    "parameter_snapshot",
+                    "confirmation_state",
+                    "error",
+                    "user_friendly_message",
+                    "completed_at",
+                    "failed_at",
+                    "cancelled_at",
+                ):
+                    update_data.pop(stale_field, None)
 
             if incoming_status == "completed":
                 update_data.pop("completed_at", None)
@@ -1578,7 +1622,8 @@ class TaskManager:
         """
         try:
             final_reason = getattr(db_task, "final_reason", None)
-            if final_reason == "user_cancelled":
+            cancellation_source = str(getattr(db_task, "cancellation_source", None) or "").strip().lower()
+            if final_reason == "user_cancelled" or cancellation_source == "user":
                 return False
             deduction = db_task.deduction_result if isinstance(db_task.deduction_result, dict) else {}
             original_record_id = str(
@@ -1670,16 +1715,23 @@ class TaskManager:
         （“结果确认中”），而 common 的 update_task 对 pending 任务拒绝对无结果失败，
         导致任务永远无法收敛。本方法供补偿线程对超时任务直接置失败，不走 update_task。
         """
-        db_task = self.get_task_by_id(db, task_id)
+        db_task = (
+            db.query(Tasks)
+            .filter(Tasks.id == task_id)
+            .populate_existing()
+            .with_for_update()
+            .first()
+        )
         if not db_task:
             return None
 
         # 【守卫】已取消/已删除任务是终态语义，补偿线程不得将其覆盖为 failed。
         # 必须返回 None：调用方以“返回值非空才继续退款/收尾”判定，返回 db_task 会误触发退款。
-        if db_task.status == "cancelled" or db_task.is_deleted:
+        if db_task.status not in ("running", "submitted_unconfirmed") or db_task.is_deleted:
             logger.info(
-                "[task-guard] 已取消/已删除任务跳过强制失败: task_id=%s",
+                "[task-guard] 非运行中/已删除任务跳过强制失败: task_id=%s status=%s",
                 task_id,
+                db_task.status,
             )
             return None
 

@@ -29,6 +29,7 @@ class UpdateTaskRequest(BaseModel):
     """更新任务请求"""
     user_id: str = Field(..., description="任务所属用户ID")
     status: Optional[str] = Field(default=None, description="任务状态")
+    platform: Optional[str] = Field(default=None, description="平台标识")
     platform_task_id: Optional[str] = Field(default=None, description="平台任务ID")
     result: Optional[dict] = Field(default=None, description="生成结果")
     result_fallback: Optional[dict] = Field(default=None, description="结果转存失败时保留的原始回退结果")

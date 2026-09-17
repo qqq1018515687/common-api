@@ -16,6 +16,7 @@ from storage.database.billing_task_projection import (  # noqa: E402
 
 ROOT = Path(__file__).parent
 BILLING_SOURCE = ROOT.joinpath("src/storage/database/billing_manager.py").read_text(encoding="utf-8")
+TASK_API_SOURCE = ROOT.joinpath("src/api/tasks.py").read_text(encoding="utf-8")
 MIGRATION_SOURCE = ROOT.joinpath(
     "migrations/versions/billtask001_backfill_tudou_tasks_from_billing.py"
 ).read_text(encoding="utf-8")
@@ -270,3 +271,21 @@ def test_stale_unconfirmed_repair_is_automatic_and_time_bounded():
     assert "created_at::bigint <=" in UNCONFIRMED_REPAIR_MIGRATION_SOURCE
     assert "- 120000" in UNCONFIRMED_REPAIR_MIGRATION_SOURCE
     assert "final_reason = 'submitted_unconfirmed_failed'" in UNCONFIRMED_REPAIR_MIGRATION_SOURCE
+
+
+def test_platform_update_and_settlement_require_persisted_result():
+    assert 'platform: Optional[str] = Field(default=None, description="平台标识")' in TASK_API_SOURCE
+    assert ".populate_existing()" in TASK_SOURCE
+    assert ".with_for_update()" in TASK_SOURCE
+    assert 'db_task.status not in ("running", "submitted_unconfirmed")' in TASK_SOURCE
+    assert 'Tasks.platform.in_(set(THIRD_PARTY_PLATFORMS))' not in TASK_SOURCE.split(
+        "def retry_failed_task_refunds", 1
+    )[1].split("def list_stale_running_tasks", 1)[0]
+    settle_section = BILLING_SOURCE.split("def settle(", 1)[1]
+    assert "TASK_RESULT_NOT_PERSISTED" in settle_section
+    assert "TASK_NOT_SETTLEABLE" in settle_section
+    assert 'task.status in ("failed", "cancelled")' in settle_section
+    assert 'task.status != "completed"' in settle_section
+    assert "not _has_displayable_task_result(task.result)" in settle_section
+    assert 'deduction_status in ("settled", "refunded")' in TASK_SOURCE
+    assert 'update_data.pop("deduction_result", None)' in TASK_SOURCE

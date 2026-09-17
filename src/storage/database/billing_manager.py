@@ -138,8 +138,41 @@ ALREADY_REFUNDED = "ALREADY_REFUNDED"
 INTERNAL_ERROR = "INTERNAL_ERROR"
 IDEMPOTENCY_CONFLICT = "IDEMPOTENCY_CONFLICT"
 BLTCY_REFUND_NOT_ALLOWED = "BLTCY_REFUND_NOT_ALLOWED"
+TASK_RESULT_NOT_PERSISTED = "TASK_RESULT_NOT_PERSISTED"
+TASK_NOT_SETTLEABLE = "TASK_NOT_SETTLEABLE"
 
 _REFUND_CANCEL_REASONS = {"user_cancelled", "user_cancel", "cancelled", "cancel"}
+
+
+def _has_displayable_task_result(result: Any) -> bool:
+    if not isinstance(result, dict):
+        return False
+
+    def has_public_url(value: Any) -> bool:
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            return normalized.startswith(("http://", "https://"))
+        if isinstance(value, list):
+            return any(has_public_url(item) for item in value)
+        if isinstance(value, dict):
+            return any(has_public_url(item) for item in value.values())
+        return False
+
+    return any(has_public_url(result.get(key)) for key in ("files", "imageUrls", "outputs"))
+
+
+def _is_generation_billing(
+    original: Dict[str, Any],
+    billing_metadata: Optional[Dict[str, Any]],
+    metadata: Optional[Dict[str, Any]],
+) -> bool:
+    merged = merge_billing_metadata(
+        extra_data=original.get("extra_data"),
+        billing_metadata=billing_metadata,
+        metadata=metadata,
+    )
+    raw_type = str(merged.get("task_type") or merged.get("type") or "").strip().lower()
+    return raw_type in {"generate", "image", "video", "audio"} or merged.get("project_to_tasks") is True
 
 
 def _is_user_cancel_refund(
@@ -1222,6 +1255,27 @@ def settle(
             return _make_error(ORIGINAL_RECORD_NOT_FOUND, "原扣费记录不存在")
         if str(original.get("user_id") or "") != str(user_id or ""):
             return _make_error(UNAUTHORIZED, "结算用户与原扣费用户不一致")
+
+        task_id = str(original.get("task_id") or "").strip()
+        if _is_generation_billing(original, billing_metadata, metadata):
+            if not task_id:
+                return _make_error(TASK_RESULT_NOT_PERSISTED, "生成任务缺少任务ID，暂不允许结算")
+            task = db.query(Tasks).filter(Tasks.id == task_id).with_for_update().first()
+            if not task:
+                return _make_error(TASK_RESULT_NOT_PERSISTED, "生成任务记录尚未建立，暂不允许结算")
+            if task.status in ("failed", "cancelled"):
+                return _make_error(
+                    TASK_NOT_SETTLEABLE,
+                    "任务已失败或取消，不能结算",
+                )
+            if (
+                task.status != "completed"
+                or not _has_displayable_task_result(task.result)
+            ):
+                return _make_error(
+                    TASK_RESULT_NOT_PERSISTED,
+                    "生成结果尚未可靠写入，暂不允许结算",
+                )
 
         # 查询用户
         user = db.query(Users).filter(Users.user_id == user_id).first()
