@@ -243,3 +243,11 @@ def test_repair_migration_removes_resultless_billing_projections_from_success_st
     assert "result IS NULL" in REPAIR_MIGRATION_SOURCE
     assert "result_fallback IS NULL" in REPAIR_MIGRATION_SOURCE
     assert "final_reason = 'persistence_failed'" in REPAIR_MIGRATION_SOURCE
+
+
+def test_common_rejects_completed_task_without_displayable_result():
+    task_source = ROOT.joinpath(
+        "src/storage/database/task_manager.py"
+    ).read_text(encoding="utf-8")
+    assert 'raise ValueError("completed 任务必须包含可展示结果")' in task_source
+    assert 'and not self._has_displayable_result(update_data.get("result"))' in task_source

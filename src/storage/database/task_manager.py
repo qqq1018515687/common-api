@@ -1471,6 +1471,13 @@ class TaskManager:
 
         if (
             update_data.get("status") == "completed"
+            and not self._has_displayable_result(update_data.get("result"))
+            and not self._has_displayable_result(db_task.result)
+        ):
+            raise ValueError("completed 任务必须包含可展示结果")
+
+        if (
+            update_data.get("status") == "completed"
             and self._has_displayable_result(update_data.get("result"))
         ):
             if self._contains_non_persisted_image_result(update_data.get("result")):
