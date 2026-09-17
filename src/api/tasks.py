@@ -392,7 +392,6 @@ async def recover_third_party_task(request: RecoverThirdPartyTaskRequest, author
             request.task_id,
             request.platform,
             request.platform_task_id,
-            auth_header=authorization,
         )
         return {"success": True, "result": data}
     except Exception as exc:

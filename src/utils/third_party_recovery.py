@@ -6,7 +6,7 @@
 """
 import os
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import requests
 
@@ -55,7 +55,6 @@ def forward_third_party_recovery(
     task_id: str,
     platform: str,
     platform_task_id: str,
-    auth_header: Optional[str] = None,
 ) -> Dict[str, Any]:
     """转发 recover 请求到 main 侧 `/stream_run`（common 直连 main，不走前端代理）。
 
@@ -64,12 +63,13 @@ def forward_third_party_recovery(
     """
     payload = build_recover_payload(task_id, platform, platform_task_id)
 
-    token = os.getenv("COZE_BACKEND_TOKEN", "").strip()
-    headers: Dict[str, str] = {"Content-Type": "application/json"}
-    if auth_header:
-        headers["Authorization"] = auth_header
-    elif token:
-        headers["Authorization"] = f"Bearer {token}"
+    token = os.getenv("MAIN_SERVICE_TOKEN", "").strip()
+    if not token:
+        raise RuntimeError("MAIN_SERVICE_TOKEN not configured")
+    headers: Dict[str, str] = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
+    }
 
     response = requests.post(
         MAIN_STREAM_URL,

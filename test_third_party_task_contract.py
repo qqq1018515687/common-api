@@ -1,6 +1,8 @@
 from pathlib import Path
+from unittest.mock import Mock
 
 from src.storage.database.task_manager import TaskManager
+from src.utils import third_party_recovery
 
 
 ROOT = Path(__file__).parent
@@ -40,6 +42,36 @@ def test_recovery_timeout_uses_original_pending_time():
     recovery_section = MAIN_SOURCE.split("def _trigger_third_party_task_recovery", 1)[1]
     assert 'recovery_status == "terminal_failure"' in recovery_section
     assert 'int(result.get("code", -1)) == 807' not in recovery_section
+
+
+def test_recovery_uses_dedicated_main_service_token(monkeypatch):
+    response = Mock(content=b"{}")
+    response.json.return_value = {"success": True}
+    monkeypatch.setenv("MAIN_SERVICE_TOKEN", "main-token")
+    monkeypatch.setenv("COZE_BACKEND_TOKEN", "common-token")
+    monkeypatch.setattr(third_party_recovery, "build_recover_payload", lambda *args: {"input": {}})
+    post = Mock(return_value=response)
+    monkeypatch.setattr(third_party_recovery.requests, "post", post)
+
+    result = third_party_recovery.forward_third_party_recovery("task", "runninghub", "platform-task")
+
+    assert result == {"success": True}
+    assert post.call_args.kwargs["headers"]["Authorization"] == "Bearer main-token"
+
+
+def test_recovery_rejects_missing_main_service_token(monkeypatch):
+    monkeypatch.delenv("MAIN_SERVICE_TOKEN", raising=False)
+    monkeypatch.setattr(third_party_recovery, "build_recover_payload", lambda *args: {"input": {}})
+    post = Mock()
+    monkeypatch.setattr(third_party_recovery.requests, "post", post)
+
+    try:
+        third_party_recovery.forward_third_party_recovery("task", "runninghub", "platform-task")
+    except RuntimeError as exc:
+        assert str(exc) == "MAIN_SERVICE_TOKEN not configured"
+    else:
+        raise AssertionError("missing MAIN_SERVICE_TOKEN must fail closed")
+    post.assert_not_called()
 
 
 def test_single_image_channels_keep_only_the_last_result():
