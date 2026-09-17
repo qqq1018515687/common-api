@@ -22,6 +22,9 @@ MIGRATION_SOURCE = ROOT.joinpath(
 STATUS_MIGRATION_SOURCE = ROOT.joinpath(
     "migrations/versions/taskstatus001_reassert_task_status_length.py"
 ).read_text(encoding="utf-8")
+REPAIR_MIGRATION_SOURCE = ROOT.joinpath(
+    "migrations/versions/billtask002_repair_resultless_completed_billing_tasks.py"
+).read_text(encoding="utf-8")
 START_SCRIPT_SOURCE = ROOT.joinpath("scripts/http_run.sh").read_text(encoding="utf-8")
 
 
@@ -215,12 +218,12 @@ def test_only_unresolved_resultless_billing_projection_can_be_failed_by_refund()
     assert is_refundable_billing_skeleton(**{**skeleton, "parameter_snapshot": {}}) is False
 
 
-def test_only_billing_skeleton_can_be_completed_by_settle():
+def test_billing_settlement_does_not_complete_generation_skeleton():
     ensure_section = BILLING_SOURCE.split("def _ensure_billing_task(", 1)[1].split(
         "def get_balance", 1
     )[0]
-    assert 'terminal_status == "settled" and is_refundable_billing_skeleton' in ensure_section
-    assert 'task.status = "completed"' in ensure_section
+    assert 'terminal_status == "settled" and is_refundable_billing_skeleton' not in ensure_section
+    assert 'task.status = "completed"' not in ensure_section
     assert 'terminal_status == "refunded" and is_refundable_billing_skeleton' in ensure_section
     assert "WHEN t.settle_id IS NOT NULL THEN 'completed'" in MIGRATION_SOURCE
     assert "'banana2_tudou'" in MIGRATION_SOURCE
@@ -230,3 +233,13 @@ def test_only_billing_skeleton_can_be_completed_by_settle():
     assert 'db_task.status == "completed"' in ROOT.joinpath(
         "src/storage/database/task_manager.py"
     ).read_text(encoding="utf-8")
+
+
+def test_repair_migration_removes_resultless_billing_projections_from_success_stats():
+    assert 'down_revision: Union[str, Sequence[str], None] = "marsquota002"' in REPAIR_MIGRATION_SOURCE
+    assert "SET status = 'failed'" in REPAIR_MIGRATION_SOURCE
+    assert "platform_task_id LIKE 'pending:%'" in REPAIR_MIGRATION_SOURCE
+    assert "parameter_snapshot->>'billingProjection'" in REPAIR_MIGRATION_SOURCE
+    assert "result IS NULL" in REPAIR_MIGRATION_SOURCE
+    assert "result_fallback IS NULL" in REPAIR_MIGRATION_SOURCE
+    assert "final_reason = 'persistence_failed'" in REPAIR_MIGRATION_SOURCE

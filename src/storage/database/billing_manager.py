@@ -548,16 +548,6 @@ def _ensure_billing_task(
                 task.error = task.error or "生成失败，费用已退回"
                 task.final_reason = task.final_reason or "provider_failed"
                 task.confirmation_state = "confirmed"
-            elif terminal_status == "settled" and is_refundable_billing_skeleton(
-                platform_task_id=task.platform_task_id,
-                result=task.result,
-                parameter_snapshot=task.parameter_snapshot,
-            ):
-                task.status = "completed"
-                task.status_updated_at = now_ms
-                task.completed_at = now_ms
-                task.error = None
-                task.confirmation_state = "confirmed"
             changed = True
     return changed
 
