@@ -2196,8 +2196,9 @@ def get_task_node(
     ctx = runtime.context
 
     query_id = state.query_id or None
+    is_admin_operator = (state.operator_role or "").strip().lower() == "admin"
 
-    if not state.user_id:
+    if not is_admin_operator and not state.user_id:
         return GetTaskOutput(
             result={"success": False, "message": "缺少必要参数：user_id"}
         )
@@ -2217,11 +2218,18 @@ def get_task_node(
         db = get_session()
         try:
             task_mgr = TaskManager()
-            has_permission, error_msg = task_mgr.verify_user_permission(
-                db, state.user_id
-            )
-            if not has_permission:
-                return GetTaskOutput(result={"success": False, "message": error_msg})
+            requester_is_admin = is_admin_operator
+            if not is_admin_operator:
+                has_permission, error_msg = task_mgr.verify_user_permission(
+                    db, state.user_id
+                )
+                if not has_permission:
+                    return GetTaskOutput(result={"success": False, "message": error_msg})
+
+                user = db.query(Users).filter(Users.user_id == state.user_id).first()
+                if not user:
+                    return GetTaskOutput(result={"success": False, "message": "用户不存在"})
+                requester_is_admin = user.role == "admin"
 
             # 支持三种查询模式：
             #   1. task_id（前端主键）
@@ -2250,13 +2258,10 @@ def get_task_node(
             if not db_task:
                 return GetTaskOutput(result={"success": False, "message": "任务不存在"})
 
-            user = db.query(Users).filter(Users.user_id == state.user_id).first()
-            if not user:
-                return GetTaskOutput(result={"success": False, "message": "用户不存在"})
             # 普通用户不能查看自己已删除的任务，管理员可查看任意任务（含已删除）
-            if db_task.is_deleted and user.role != "admin":
+            if db_task.is_deleted and not requester_is_admin:
                 return GetTaskOutput(result={"success": False, "message": "任务不存在"})
-            if user.role != "admin" and db_task.user_id != state.user_id:
+            if not requester_is_admin and db_task.user_id != state.user_id:
                 return GetTaskOutput(
                     result={"success": False, "message": "无权访问此任务"}
                 )

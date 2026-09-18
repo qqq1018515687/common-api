@@ -1040,6 +1040,10 @@ class GetTaskInput(BaseModel):
     query_id: Optional[str] = Field(
         default=None, description="通用查询ID：自动匹配 id 或 platform_task_id"
     )
+    operator_role: Optional[str] = Field(
+        default=None, description="操作者角色（admin 时不要求 user_id）"
+    )
+    operator_user_id: Optional[str] = Field(default=None, description="操作者用户ID")
 
 
 class GetTaskOutput(BaseModel):
