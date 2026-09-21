@@ -1889,17 +1889,37 @@ class TaskManager:
             return False, "无权删除此任务"
 
         if db_task.platform == "local_sub2api":
+            db_task = (
+                db.query(Tasks)
+                .filter(Tasks.id == task_id)
+                .with_for_update()
+                .one()
+            )
             reserved_usage = (
-                db.query(MarsSpecialQuotaTransactions.id)
+                db.query(MarsSpecialQuotaTransactions)
                 .filter(
                     MarsSpecialQuotaTransactions.task_id == task_id,
                     MarsSpecialQuotaTransactions.transaction_type == "usage",
+                    MarsSpecialQuotaTransactions.user_id == db_task.user_id,
                     MarsSpecialQuotaTransactions.status == "reserved",
                 )
+                .with_for_update()
                 .first()
             )
             if reserved_usage:
-                return False, "火星特供任务仍有预占次数，不能删除"
+                platform_task_id = str(db_task.platform_task_id or "").strip()
+                has_real_provider_task_id = bool(platform_task_id) and not platform_task_id.startswith("pending:")
+                from storage.database.mars_special_quota_manager import MarsSpecialQuotaManager
+
+                if has_real_provider_task_id or MarsSpecialQuotaManager._has_valid_result(db_task.result):
+                    return False, "火星特供任务仍在供应商处理中，暂时不能删除"
+                MarsSpecialQuotaManager._fail_locked_task(
+                    db,
+                    db_task,
+                    reserved_usage,
+                    error="用户删除未取得真实供应商任务号的任务",
+                    reason="deleted_without_provider_task_id",
+                )
 
         # 软删除：设置 is_deleted 标记
         db_task.is_deleted = True

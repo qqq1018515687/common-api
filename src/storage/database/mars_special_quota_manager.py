@@ -23,6 +23,7 @@ DAILY_LIMIT = 5
 REFERRAL_GRANT = 20
 SUBMISSION_LEASE_SECONDS = 300
 UNKNOWN_RECONCILE_HOURS = 24
+UNKNOWN_PENDING_RELEASE_MINUTES = 10
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 class MarsSpecialQuotaError(ValueError):
     def __init__(self, message: str, code: int = 400):
@@ -593,8 +594,22 @@ class MarsSpecialQuotaManager:
             raise MarsSpecialQuotaError("已完成任务不能改为失败", 409)
         if task.status == "failed" and usage.status == "released":
             return {"task": cls._serialize_task(task), "usage_status": usage.status, "idempotent": True}
+        cls._fail_locked_task(db, task, usage, error=error, reason=reason)
+        db.flush()
+        return {"task": cls._serialize_task(task), "usage_status": usage.status, "idempotent": False}
+
+    @classmethod
+    def _fail_locked_task(
+        cls,
+        db: Session,
+        task: Tasks,
+        usage: MarsSpecialQuotaTransactions,
+        *,
+        error: Optional[str],
+        reason: Optional[str],
+    ) -> None:
         if usage.source == "permanent" and usage.status == "reserved":
-            cls._grant_account(db, user_id, 1)
+            cls._grant_account(db, task.user_id, 1)
         usage.status = "released"
         usage.updated_at = cls._now()
         usage.extra_data = {**(usage.extra_data or {}), "failure_reason": reason or error}
@@ -607,8 +622,6 @@ class MarsSpecialQuotaManager:
         task.updated_at = now_ms
         task.confirmation_state = "confirmed"
         task.final_reason = "provider_failed"
-        db.flush()
-        return {"task": cls._serialize_task(task), "usage_status": usage.status, "idempotent": False}
 
     @classmethod
     def mark_unknown(
@@ -645,6 +658,7 @@ class MarsSpecialQuotaManager:
     @classmethod
     def reconcile_reserved(cls, db: Session, limit: int = 100) -> dict[str, int]:
         unknown_cutoff = cls._now() - timedelta(hours=UNKNOWN_RECONCILE_HOURS)
+        pending_release_cutoff = cls._now() - timedelta(minutes=UNKNOWN_PENDING_RELEASE_MINUTES)
         row_ids = (
             db.query(MarsSpecialQuotaTransactions.id)
             .filter(
@@ -655,6 +669,7 @@ class MarsSpecialQuotaManager:
                         MarsSpecialQuotaTransactions.extra_data["unknown"].as_boolean(), False
                     ).is_(False)
                     | (MarsSpecialQuotaTransactions.updated_at <= unknown_cutoff)
+                    | (MarsSpecialQuotaTransactions.updated_at <= pending_release_cutoff)
                 ),
             )
             .order_by(MarsSpecialQuotaTransactions.created_at.asc())
@@ -681,6 +696,29 @@ class MarsSpecialQuotaManager:
             if not task or task.platform != "local_sub2api" or task.is_deleted:
                 continue
             is_unknown = isinstance(row.extra_data, dict) and row.extra_data.get("unknown") is True
+            platform_task_id = str(task.platform_task_id or "").strip()
+            has_real_provider_task_id = bool(platform_task_id) and not platform_task_id.startswith("pending:")
+            if (
+                is_unknown
+                and not has_real_provider_task_id
+                and not cls._has_valid_result(task.result)
+                and row.updated_at <= pending_release_cutoff
+            ):
+                cls._fail_locked_task(
+                    db,
+                    task,
+                    row,
+                    error="供应商创建状态超时且未取得真实任务号，本次生成未完成",
+                    reason="unknown_pending_without_provider_task_id",
+                )
+                row.extra_data = {
+                    **(row.extra_data or {}),
+                    "unknown": False,
+                    "unknown_closed_at": cls._now().isoformat(),
+                    "unknown_resolution": "released_without_provider_task_id",
+                }
+                released += 1
+                continue
             if is_unknown and row.updated_at <= unknown_cutoff:
                 row.status = "consumed"
                 row.updated_at = cls._now()

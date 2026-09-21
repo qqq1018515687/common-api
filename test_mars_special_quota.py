@@ -36,7 +36,7 @@ class MarsSpecialQuotaContractTests(unittest.TestCase):
         self.assertNotIn("db.commit()", MANAGER_SOURCE)
         self.assertNotIn("db.rollback()", MANAGER_SOURCE)
 
-    def test_unknown_stays_reserved_and_reconcile_skips_it(self):
+    def test_unknown_without_provider_id_is_released_after_short_timeout(self):
         mark_unknown_section = MANAGER_SOURCE.split("def mark_unknown", 1)[1].split(
             "def reconcile_reserved", 1
         )[0]
@@ -48,6 +48,9 @@ class MarsSpecialQuotaContractTests(unittest.TestCase):
         self.assertIn('extra_data["unknown"].as_boolean()', query_section)
         self.assertIn("func.coalesce", query_section)
         self.assertIn("UNKNOWN_RECONCILE_HOURS = 24", MANAGER_SOURCE)
+        self.assertIn("UNKNOWN_PENDING_RELEASE_MINUTES = 10", MANAGER_SOURCE)
+        self.assertIn('not platform_task_id.startswith("pending:")', reconcile_section)
+        self.assertIn('"unknown_resolution": "released_without_provider_task_id"', reconcile_section)
         self.assertIn('"unknown_resolution": "consumed_after_timeout"', reconcile_section)
 
     def test_reconcile_locks_task_and_usage_then_rechecks_reserved(self):
@@ -148,13 +151,15 @@ class MarsSpecialQuotaContractTests(unittest.TestCase):
         self.assertNotIn("continue with runtime DDL fallback", HTTP_RUN_SOURCE)
         self.assertNotIn("mars_billing_2024", HTTP_RUN_SOURCE)
 
-    def test_reserved_local_task_cannot_be_deleted(self):
+    def test_reserved_local_task_without_provider_id_is_failed_before_delete(self):
         delete_section = TASK_SOURCE.split("def delete_task", 1)[1].split(
             "def delete_tasks_by_user_id", 1
         )[0]
         self.assertIn('db_task.platform == "local_sub2api"', delete_section)
         self.assertIn('MarsSpecialQuotaTransactions.status == "reserved"', delete_section)
-        self.assertIn("仍有预占次数，不能删除", delete_section)
+        self.assertIn("MarsSpecialQuotaManager._fail_locked_task", delete_section)
+        self.assertIn("deleted_without_provider_task_id", delete_section)
+        self.assertIn("仍在供应商处理中，暂时不能删除", delete_section)
 
     def test_generic_update_requires_backend_auth_and_limits_legacy_compat(self):
         update_api = API_TASK_SOURCE.split("async def update_task", 1)[1].split(
