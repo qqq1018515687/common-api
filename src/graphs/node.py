@@ -395,6 +395,7 @@ def unpack_input_data_node(
         model_keyword=input_data.model_keyword if input_data else None,
         time_dimension=input_data.time_dimension if input_data else None,
         include_deleted=input_data.include_deleted if input_data else False,
+        include_deleted_image_results=input_data.include_deleted_image_results if input_data else False,
         compact=input_data.compact if input_data else False,
         date=input_data.date if input_data else None,
         timezone=input_data.timezone if input_data else None,
@@ -1972,6 +1973,7 @@ def task_route_node(
         model_keyword=state.model_keyword,
         time_dimension=state.time_dimension,
         include_deleted=state.include_deleted,
+        include_deleted_image_results=state.include_deleted_image_results,
         limit=state.limit,
         days=state.days,
         operator_role=state.operator_role,
@@ -2266,9 +2268,15 @@ def get_task_node(
                     result={"success": False, "message": "无权访问此任务"}
                 )
 
+            task_username = (
+                db.query(Users.username)
+                .filter(Users.user_id == db_task.user_id)
+                .scalar()
+            )
             task = {
                 "id": db_task.id,
                 "user_id": db_task.user_id,
+                "username": task_username,
                 "team_id": db_task.team_id,
                 "platform": db_task.platform,
                 "platform_task_id": db_task.platform_task_id,
@@ -2292,6 +2300,7 @@ def get_task_node(
                 "batch_id": db_task.batch_id,
                 "connection_mode": db_task.connection_mode,
                 "is_deleted": db_task.is_deleted,
+                "deleted_image_urls": db_task.deleted_image_urls,
             }
             return GetTaskOutput(
                 result={"success": True, "message": "查询成功", "task": task}
@@ -2484,114 +2493,101 @@ def list_tasks_node(
                     }
                 )
 
-            # 过-fetch 任务用于 Python 层过滤媒体结果
-            # 由于 completed 任务可能被过滤掉，需要多查一些数据以保证分页准确
-            overfetch_limit = min(limit * 3, 2000)
-
-            # 查询任务列表
-            raw_tasks = task_mgr.get_tasks_flexible(
-                db,
-                user_id=state.user_id,
-                team_id=state.team_id,
-                status=state.status,
-                statuses=state.statuses,
-                start_time=start_time,
-                end_time=end_time,
-                limit=overfetch_limit,
-                before_time=before_time,
-                before_id=before_id,
-                admin_full_list=is_admin,
-                include_deleted=bool(state.include_deleted),
-                platform=state.platform,
-                source_scope=state.source_scope,
-                keyword=state.keyword,
-                username=state.username,
-                workflow_keyword=state.workflow_keyword,
-                model_keyword=state.model_keyword,
-                time_dimension=effective_time_dimension,
-            )
-
-            # 转换为可序列化的字典列表，过滤无媒体结果的 completed 任务
             task_list = []
-            for task, username in raw_tasks:
-                parameter_snapshot = task.parameter_snapshot if isinstance(task.parameter_snapshot, dict) else {}
-                task_dict = {
-                    "id": task.id,
-                    "user_id": task.user_id,
-                    "username": username,
-                    "team_id": task.team_id,
-                    "platform": task.platform,
-                    "platform_task_id": task.platform_task_id,
-                    "type": task.type,
-                    "status": task.status,
-                    "confirmation_state": getattr(task, "confirmation_state", None),
-                    "final_reason": getattr(task, "final_reason", None),
-                    "cancellation_source": getattr(task, "cancellation_source", None),
-                    "pending_reason": task_mgr._pending_reason_from_snapshot(parameter_snapshot),
-                    "pending_since": task_mgr._pending_since_from_snapshot(parameter_snapshot),
-                    "gray_diagnostics": task_mgr._gray_diagnostics_from_snapshot(parameter_snapshot),
-                    "workflow_parameters": task.workflow_parameters,
-                    "parameter_snapshot": task.parameter_snapshot,
-                    "result": task.result,
-                    "result_fallback": getattr(task, "result_fallback", None),
-                    "persistence_status": getattr(task, "persistence_status", None),
-                    "persistence_error": getattr(task, "persistence_error", None),
-                    "error": task.error,
-                    "deduction_result": task.deduction_result,
-                    "user_friendly_message": task.user_friendly_message,
-                    "created_at": task.created_at,
-                    "updated_at": task.updated_at,
-                    "completed_at": task.completed_at,
-                    "failed_at": getattr(task, "failed_at", None),
-                    "cancelled_at": getattr(task, "cancelled_at", None),
-                    "status_updated_at": getattr(task, "status_updated_at", None),
-                    "started_at": task.started_at,  # 【新增】任务开始时间
-                    "elapsed_time_seconds": task.elapsed_time_seconds
-                    if hasattr(task, "elapsed_time_seconds")
-                    else 0,  # 【新增】后端统一计算的耗时(秒)
-                    "batch_id": task.batch_id,
-                    "connection_mode": task.connection_mode,
-                    "is_deleted": task.is_deleted,
-                    "deleted_image_urls": task.deleted_image_urls,
-                }
-                # 过滤：completed 任务必须有媒体结果才展示
-                if task.status == "completed":
-                    result_data = task.result
-                    has_media = False
-                    if isinstance(result_data, dict):
-                        # 检查 result 中是否有图片/视频/音频 URL
-                        files = result_data.get("files")
-                        if isinstance(files, list) and len(files) > 0:
-                            # files 中至少有一个条目包含 url 或 file_url
-                            for f in files:
-                                if isinstance(f, dict) and (
-                                    f.get("url") or f.get("file_url")
-                                ):
-                                    has_media = True
-                                    break
-                            if not has_media and len(files) > 0:
-                                has_media = True
-                        elif (
-                            result_data.get("url")
-                            or result_data.get("image_url")
-                            or result_data.get("video_url")
-                            or result_data.get("audio_url")
-                        ):
-                            has_media = True
-                        elif (
-                            result_data.get("thumbnailUrl")
-                            or result_data.get("previewUrl")
-                            or result_data.get("thumbnail_url")
-                            or result_data.get("preview_url")
-                        ):
-                            has_media = True
-                        # 检查 images 数组
-                        images = result_data.get("images")
-                        if isinstance(images, list) and len(images) > 0:
-                            has_media = True
-                    if not has_media:
+            scan_before_time = before_time
+            scan_before_id = before_id
+            scan_batch_limit = min(max(limit * 3, 100), 1000)
+            raw_has_more = True
+
+            while len(task_list) <= limit and raw_has_more:
+                raw_tasks = task_mgr.get_tasks_flexible(
+                    db,
+                    user_id=state.user_id,
+                    team_id=state.team_id,
+                    status=state.status,
+                    statuses=state.statuses,
+                    start_time=start_time,
+                    end_time=end_time,
+                    limit=scan_batch_limit,
+                    before_time=scan_before_time,
+                    before_id=scan_before_id,
+                    admin_full_list=is_admin,
+                    include_deleted=bool(state.include_deleted),
+                    platform=state.platform,
+                    source_scope=state.source_scope,
+                    keyword=state.keyword,
+                    username=state.username,
+                    workflow_keyword=state.workflow_keyword,
+                    model_keyword=state.model_keyword,
+                    time_dimension=effective_time_dimension,
+                )
+                raw_has_more = len(raw_tasks) == scan_batch_limit
+
+                if not raw_tasks:
+                    break
+
+                for task, username in raw_tasks:
+                    if task.status == "completed" and not (
+                        task_mgr._has_visible_media_result(task.result, task.deleted_image_urls)
+                        or (
+                            state.include_deleted_image_results
+                            and isinstance(task.deleted_image_urls, list)
+                            and len(task.deleted_image_urls) > 0
+                        )
+                    ):
                         continue
-                task_list.append(task_dict)
+
+                    parameter_snapshot = task.parameter_snapshot if isinstance(task.parameter_snapshot, dict) else {}
+                    task_dict = {
+                        "id": task.id,
+                        "user_id": task.user_id,
+                        "username": username,
+                        "team_id": task.team_id,
+                        "platform": task.platform,
+                        "platform_task_id": task.platform_task_id,
+                        "type": task.type,
+                        "status": task.status,
+                        "confirmation_state": getattr(task, "confirmation_state", None),
+                        "final_reason": getattr(task, "final_reason", None),
+                        "cancellation_source": getattr(task, "cancellation_source", None),
+                        "pending_reason": task_mgr._pending_reason_from_snapshot(parameter_snapshot),
+                        "pending_since": task_mgr._pending_since_from_snapshot(parameter_snapshot),
+                        "gray_diagnostics": task_mgr._gray_diagnostics_from_snapshot(parameter_snapshot),
+                        "workflow_parameters": task.workflow_parameters,
+                        "parameter_snapshot": task.parameter_snapshot,
+                        "result": task.result,
+                        "result_fallback": getattr(task, "result_fallback", None),
+                        "persistence_status": getattr(task, "persistence_status", None),
+                        "persistence_error": getattr(task, "persistence_error", None),
+                        "error": task.error,
+                        "deduction_result": task.deduction_result,
+                        "user_friendly_message": task.user_friendly_message,
+                        "created_at": task.created_at,
+                        "updated_at": task.updated_at,
+                        "completed_at": task.completed_at,
+                        "failed_at": getattr(task, "failed_at", None),
+                        "cancelled_at": getattr(task, "cancelled_at", None),
+                        "status_updated_at": getattr(task, "status_updated_at", None),
+                        "started_at": task.started_at,
+                        "elapsed_time_seconds": task.elapsed_time_seconds if hasattr(task, "elapsed_time_seconds") else 0,
+                        "batch_id": task.batch_id,
+                        "connection_mode": task.connection_mode,
+                        "is_deleted": task.is_deleted,
+                        "deleted_image_urls": task.deleted_image_urls,
+                    }
+                    task_list.append(task_dict)
+                    if len(task_list) > limit:
+                        break
+
+                if len(task_list) > limit or not raw_has_more:
+                    break
+
+                last_raw_task = raw_tasks[-1][0]
+                scan_before_time = int(
+                    getattr(last_raw_task, effective_time_dimension, None)
+                    or last_raw_task.created_at
+                )
+                scan_before_id = last_raw_task.id
 
             # 精确计算符合媒体过滤条件的总数
             total = task_mgr.count_tasks_flexible(
@@ -2632,6 +2628,7 @@ def list_tasks_node(
                         workflow_keyword=state.workflow_keyword,
                         model_keyword=state.model_keyword,
                         time_dimension=effective_time_dimension,
+                        include_deleted_image_urls=bool(state.include_deleted_image_results),
                     )
                     total = media_total
                 except Exception as e:

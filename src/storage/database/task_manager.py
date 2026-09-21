@@ -342,6 +342,44 @@ class TaskManager:
         return False
 
     @staticmethod
+    def _has_visible_media_result(result: Any, deleted_image_urls: Any = None) -> bool:
+        deleted_urls = {
+            value for value in (deleted_image_urls or [])
+            if isinstance(value, str) and value
+        }
+        if not isinstance(result, dict):
+            return False
+
+        def is_visible_url(value: Any) -> bool:
+            return isinstance(value, str) and bool(value.strip()) and value not in deleted_urls
+
+        for key in ("imageUrls", "image_urls"):
+            values = result.get(key)
+            if isinstance(values, list) and any(is_visible_url(value) for value in values):
+                return True
+
+        for key in ("files", "images", "outputs", "output"):
+            values = result.get(key)
+            if not isinstance(values, list):
+                continue
+            for item in values:
+                if isinstance(item, str) and is_visible_url(item):
+                    return True
+                if isinstance(item, dict) and any(
+                    is_visible_url(item.get(url_key))
+                    for url_key in ("url", "file_url", "fileUrl", "image_url", "imageUrl")
+                ):
+                    return True
+
+        return any(
+            is_visible_url(result.get(key))
+            for key in (
+                "url", "file_url", "fileUrl", "image_url", "imageUrl",
+                "video_url", "videoUrl", "audio_url", "audioUrl",
+            )
+        )
+
+    @staticmethod
     def _is_formal_generation_task(task: Tasks) -> bool:
         return task.type in ("image", "video", "audio")
 
@@ -1000,6 +1038,7 @@ class TaskManager:
                 Tasks.deduction_result,
                 Tasks.connection_mode,
                 Tasks.is_deleted,
+                Tasks.deleted_image_urls,
             )
             .outerjoin(Users, Tasks.user_id == Users.user_id)
         )
@@ -1099,6 +1138,7 @@ class TaskManager:
                 "deduction_result": row.deduction_result,
                 "connection_mode": row.connection_mode,
                 "is_deleted": bool(row.is_deleted),
+                "deleted_image_urls": row.deleted_image_urls,
             })
 
         return tasks
@@ -1943,6 +1983,7 @@ class TaskManager:
         workflow_keyword: Optional[str] = None,
         model_keyword: Optional[str] = None,
         time_dimension: Optional[str] = None,
+        include_deleted_image_urls: bool = False,
     ) -> int:
         """统计有可展示媒体结果的 completed 任务数量（与前端展示逻辑一致）"""
         self._ensure_task_schema(db)
@@ -2002,22 +2043,72 @@ class TaskManager:
         if before_time is not None:
             query = query.filter(time_column < str(before_time))
 
-        # 媒体结果过滤：result IS NOT NULL 且 result 包含可展示的媒体 URL
-        # 使用 PostgreSQL JSON 查询，匹配以下任一条件：
-        # 1. result->'files' 是非空数组
-        # 2. result->'images' 是非空数组
-        # 3. result 有 url/image_url/video_url/audio_url/thumbnailUrl/previewUrl/thumbnail_url/preview_url 键
-        media_filter = text("""
-            (result IS NOT NULL
-             AND CAST(result AS text) != 'null'
-             AND CAST(result AS text) != '{}'
-             AND (
-                 (result::jsonb->'files' IS NOT NULL AND jsonb_array_length(result::jsonb->'files') > 0)
-                 OR (result::jsonb->'images' IS NOT NULL AND jsonb_array_length(result::jsonb->'images') > 0)
-                 OR result::jsonb?'url' OR result::jsonb?'image_url' OR result::jsonb?'video_url' OR result::jsonb?'audio_url'
-                 OR result::jsonb?'thumbnailUrl' OR result::jsonb?'previewUrl' OR result::jsonb?'thumbnail_url' OR result::jsonb?'preview_url'
-             ))
-        """)
+        # 仅正式媒体 URL 计入结果；缩略图/预览图不能单独证明产物仍有效。
+        deleted_media_clause = " OR (deleted_image_urls IS NOT NULL AND jsonb_typeof(deleted_image_urls::jsonb) = 'array' AND jsonb_array_length(deleted_image_urls::jsonb) > 0)" if include_deleted_image_urls else ""
+        visible_media_sql = """
+            (result IS NOT NULL AND (
+                EXISTS (
+                    SELECT 1 FROM jsonb_array_elements_text(
+                        CASE WHEN jsonb_typeof(result::jsonb->'imageUrls') = 'array'
+                            THEN result::jsonb->'imageUrls' ELSE '[]'::jsonb END
+                    ) AS image_url(value)
+                    WHERE BTRIM(image_url.value) <> ''
+                      AND NOT (COALESCE(deleted_image_urls::jsonb, '[]'::jsonb) ? image_url.value)
+                )
+                OR EXISTS (
+                    SELECT 1 FROM jsonb_array_elements_text(
+                        CASE WHEN jsonb_typeof(result::jsonb->'image_urls') = 'array'
+                            THEN result::jsonb->'image_urls' ELSE '[]'::jsonb END
+                    ) AS image_url(value)
+                    WHERE BTRIM(image_url.value) <> ''
+                      AND NOT (COALESCE(deleted_image_urls::jsonb, '[]'::jsonb) ? image_url.value)
+                )
+                OR EXISTS (
+                    SELECT 1 FROM jsonb_array_elements(
+                        CASE WHEN jsonb_typeof(result::jsonb->'files') = 'array'
+                            THEN result::jsonb->'files' ELSE '[]'::jsonb END
+                    ) AS file_item
+                    WHERE BTRIM(COALESCE(file_item->>'url', file_item->>'file_url', file_item->>'fileUrl', file_item->>'image_url', file_item->>'imageUrl', '')) <> ''
+                      AND NOT (COALESCE(deleted_image_urls::jsonb, '[]'::jsonb) ? COALESCE(file_item->>'url', file_item->>'file_url', file_item->>'fileUrl', file_item->>'image_url', file_item->>'imageUrl'))
+                )
+                OR EXISTS (
+                    SELECT 1 FROM jsonb_array_elements(
+                        CASE WHEN jsonb_typeof(result::jsonb->'images') = 'array'
+                            THEN result::jsonb->'images' ELSE '[]'::jsonb END
+                    ) AS image_item
+                    WHERE BTRIM(COALESCE(image_item->>'url', image_item->>'file_url', image_item->>'fileUrl', image_item->>'image_url', image_item->>'imageUrl', '')) <> ''
+                      AND NOT (COALESCE(deleted_image_urls::jsonb, '[]'::jsonb) ? COALESCE(image_item->>'url', image_item->>'file_url', image_item->>'fileUrl', image_item->>'image_url', image_item->>'imageUrl'))
+                )
+                OR EXISTS (
+                    SELECT 1 FROM jsonb_array_elements(
+                        CASE
+                            WHEN jsonb_typeof(result::jsonb->'outputs') = 'array' THEN result::jsonb->'outputs'
+                            WHEN jsonb_typeof(result::jsonb->'output') = 'array' THEN result::jsonb->'output'
+                            ELSE '[]'::jsonb
+                        END
+                    ) AS output_item
+                    WHERE (
+                        (jsonb_typeof(output_item) = 'string' AND BTRIM(output_item #>> '{}') <> '')
+                        OR BTRIM(COALESCE(output_item->>'url', output_item->>'file_url', output_item->>'fileUrl', output_item->>'image_url', output_item->>'imageUrl', '')) <> ''
+                    )
+                    AND NOT (
+                        COALESCE(deleted_image_urls::jsonb, '[]'::jsonb)
+                        ? CASE WHEN jsonb_typeof(output_item) = 'string'
+                            THEN output_item #>> '{}'
+                            ELSE COALESCE(output_item->>'url', output_item->>'file_url', output_item->>'fileUrl', output_item->>'image_url', output_item->>'imageUrl')
+                          END
+                    )
+                )
+                OR (
+                    BTRIM(COALESCE(result::jsonb->>'url', result::jsonb->>'file_url', result::jsonb->>'fileUrl', result::jsonb->>'image_url', result::jsonb->>'imageUrl', result::jsonb->>'video_url', result::jsonb->>'videoUrl', result::jsonb->>'audio_url', result::jsonb->>'audioUrl', '')) <> ''
+                    AND NOT (
+                        COALESCE(deleted_image_urls::jsonb, '[]'::jsonb)
+                        ? COALESCE(result::jsonb->>'url', result::jsonb->>'file_url', result::jsonb->>'fileUrl', result::jsonb->>'image_url', result::jsonb->>'imageUrl', result::jsonb->>'video_url', result::jsonb->>'videoUrl', result::jsonb->>'audio_url', result::jsonb->>'audioUrl')
+                    )
+                )
+            ))
+        """
+        media_filter = text("(" + visible_media_sql + deleted_media_clause + ")")
         query = query.filter(media_filter)
 
         return query.count()

@@ -175,6 +175,9 @@ class InputData(BaseModel):
     include_deleted: Optional[bool] = Field(
         default=False, description="是否包含已删除任务（list_tasks/admin_task_dashboard 使用）"
     )
+    include_deleted_image_results: Optional[bool] = Field(
+        default=False, description="个人历史是否包含已从结果区删除的图片任务"
+    )
     date: Optional[str] = Field(default=None, description="自然日日期（YYYY-MM-DD）")
     timezone: Optional[str] = Field(default=None, description="IANA 时区标识，如 Asia/Shanghai")
 
@@ -464,6 +467,9 @@ class GlobalState(BaseModel):
     )
     before_time: Optional[int] = Field(
         default=None, description="游标分页：查询早于该时间戳的记录（毫秒）"
+    )
+    include_deleted_image_results: Optional[bool] = Field(
+        default=False, description="个人历史是否包含已从结果区删除的图片任务"
     )
     status: Optional[str] = Field(
         default=None, description="任务状态筛选（running/completed/failed）"
@@ -1086,6 +1092,7 @@ class ListTasksInput(BaseModel):
     model_keyword: Optional[str] = Field(default=None, description="模型筛选")
     time_dimension: Optional[str] = Field(default=None, description="时间维度：created_at/completed_at/failed_at/cancelled_at/status_updated_at")
     include_deleted: Optional[bool] = Field(default=False, description="是否包含已删除任务")
+    include_deleted_image_results: Optional[bool] = Field(default=False, description="是否包含已从结果区删除的图片任务")
     days: Optional[int] = Field(default=30, description="查询最近N天的数据（默认30天）")
     limit: Optional[int] = Field(
         default=50, description="返回数量限制（默认50，最大1000）"
@@ -1233,6 +1240,7 @@ class TaskRouteInput(BaseModel):
     model_keyword: Optional[str] = Field(default=None, description="模型筛选")
     time_dimension: Optional[str] = Field(default=None, description="时间维度")
     include_deleted: Optional[bool] = Field(default=False, description="是否包含已删除任务")
+    include_deleted_image_results: Optional[bool] = Field(default=False, description="是否包含已从结果区删除的图片任务")
     limit: Optional[int] = Field(default=None, description="最大返回数量")
     days: Optional[int] = Field(default=None, description="查询最近N天")
     operator_role: Optional[str] = Field(
@@ -1278,6 +1286,7 @@ class TaskRouteOutput(BaseModel):
     model_keyword: Optional[str] = Field(default=None, description="模型筛选")
     time_dimension: Optional[str] = Field(default=None, description="时间维度")
     include_deleted: Optional[bool] = Field(default=False, description="是否包含已删除任务")
+    include_deleted_image_results: Optional[bool] = Field(default=False, description="是否包含已从结果区删除的图片任务")
     limit: Optional[int] = Field(default=None, description="最大返回数量")
     days: Optional[int] = Field(default=None, description="查询最近N天")
     operator_role: Optional[str] = Field(
@@ -1472,6 +1481,9 @@ class UnpackInputDataOutput(BaseModel):
     )
     include_deleted: Optional[bool] = Field(
         default=False, description="是否包含已删除任务"
+    )
+    include_deleted_image_results: Optional[bool] = Field(
+        default=False, description="个人历史是否包含已从结果区删除的图片任务"
     )
     days: Optional[int] = Field(default=None, description="查询天数")
     compact: Optional[bool] = Field(default=False, description="是否返回轻量列表字段")
