@@ -327,6 +327,8 @@ app = FastAPI()
 # 导入并注册任务管理 API 路由
 from api.tasks import router as tasks_router
 app.include_router(tasks_router)
+from api.canvas import router as canvas_router
+app.include_router(canvas_router)
 
 
 SENSITIVE_LOG_KEYS = {
