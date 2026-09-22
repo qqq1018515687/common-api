@@ -72,6 +72,12 @@ class CanvasDatabaseTest(unittest.TestCase):
             with Operations.context(MigrationContext.configure(conn)):
                 migration.upgrade()
 
+            spec = importlib.util.spec_from_file_location('canvas_import_migration', Path(__file__).parent / 'migrations/versions/canvas004_result_imports.py')
+            migration = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(migration)
+            with Operations.context(MigrationContext.configure(conn)):
+                migration.upgrade()
+
     @classmethod
     def tearDownClass(cls):
         cls.engine.dispose()
@@ -217,6 +223,30 @@ class CanvasDatabaseTest(unittest.TestCase):
             self.call('asset', payload={'assetId': first['id']}, user='bob')
         self.assertEqual(storage._get_client().put_object.call_count, 1)
         self.assertEqual(storage._get_client().put_object.call_args.kwargs['ACL'], 'private')
+
+    def test_result_import_is_owned_atomic_and_not_undone(self):
+        project = self.create()
+        task_id, asset_id = str(uuid.uuid4()), str(uuid.uuid4())
+        with self.engine.begin() as conn:
+            conn.execute(text("INSERT INTO tasks (id,user_id,status) VALUES (:id,'alice','success')"), {'id': task_id})
+            conn.execute(text("INSERT INTO canvas_assets (id,user_id,object_key,file_name,mime_type,size,sha256,created_at) VALUES (:id,'alice',:id,'test.png','image/png',16,'test',0)"), {'id': asset_id})
+        payload = {'taskId': task_id, 'assetId': asset_id, 'imageIndex': 0}
+        with self.assertRaises(HTTPException):
+            self.call('import_result', project['id'], payload, user='bob')
+        first = self.call('import_result', project['id'], payload)
+        self.assertTrue(first['imported'])
+        self.assertEqual(len(first['project']['document']['nodes']), 1)
+        self.assertFalse(self.call('import_result', project['id'], payload)['imported'])
+        restored = self.save(first['project'], document=copy.deepcopy(api.EMPTY))['project']
+        retry = self.call('import_result', project['id'], payload)
+        self.assertFalse(retry['imported'])
+        self.assertEqual(retry['project']['revision'], restored['revision'])
+        self.assertEqual(retry['project']['document']['nodes'], [])
+        with self.assertRaises(HTTPException):
+            self.call('import_result', project['id'], {**payload, 'taskId': 'foreign-task'})
+        self.call('archive', project['id'], {'revision': restored['revision'], 'mutationId': str(uuid.uuid4())})
+        with self.assertRaises(HTTPException):
+            self.call('import_result', project['id'], {**payload, 'imageIndex': 1})
 
     def test_public_bucket_upload_rejected(self):
         storage = MagicMock()
