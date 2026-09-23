@@ -1,7 +1,6 @@
 """任务管理 API 路由"""
 from typing import Optional, List, Any, Dict
 from fastapi import APIRouter, Header, HTTPException, Query
-import os
 from pydantic import BaseModel, Field
 
 from storage.database.db import get_session
@@ -380,10 +379,7 @@ async def create_task(request: CreateTaskRequest):
 
 @router.post("/common/task/recover-third-party")
 async def recover_third_party_task(request: RecoverThirdPartyTaskRequest, authorization: Optional[str] = Header(default=None)):
-    expected_token = os.getenv("COZE_BACKEND_TOKEN", "").strip()
-    if expected_token:
-        if not authorization or authorization != f"Bearer {expected_token}":
-            raise HTTPException(status_code=401, detail="Invalid backend authorization")
+    require_backend_authorization(authorization)
 
     try:
         from utils.third_party_recovery import forward_third_party_recovery
@@ -401,10 +397,7 @@ async def recover_third_party_task(request: RecoverThirdPartyTaskRequest, author
 @router.post("/common/task/stale-running")
 async def list_stale_running_tasks(request: StaleRunningTasksRequest, authorization: Optional[str] = Header(default=None)):
     """仅后端授权的接口：列出长期未更新的运行中任务，供主流程后端补偿收尾。"""
-    expected_token = os.getenv("COZE_BACKEND_TOKEN", "").strip()
-    if expected_token:
-        if not authorization or authorization != f"Bearer {expected_token}":
-            raise HTTPException(status_code=401, detail="Invalid backend authorization")
+    require_backend_authorization(authorization)
 
     db = get_session()
     try:
@@ -425,10 +418,7 @@ async def list_stale_running_tasks(request: StaleRunningTasksRequest, authorizat
 
 @router.get("/tasks/{task_id}")
 async def get_task(task_id: str, authorization: Optional[str] = Header(default=None)):
-    expected_token = os.getenv("COZE_BACKEND_TOKEN", "").strip()
-    if expected_token:
-        if not authorization or authorization != f"Bearer {expected_token}":
-            raise HTTPException(status_code=401, detail="Invalid backend authorization")
+    require_backend_authorization(authorization)
 
     db = get_session()
     task_mgr = TaskManager()
@@ -450,10 +440,7 @@ async def list_persist_pending_tasks(
     authorization: Optional[str] = Header(default=None),
     limit: int = Query(50, ge=1, le=200, description="返回条数上限"),
 ):
-    expected_token = os.getenv("COZE_BACKEND_TOKEN", "").strip()
-    if expected_token:
-        if not authorization or authorization != f"Bearer {expected_token}":
-            raise HTTPException(status_code=401, detail="Invalid backend authorization")
+    require_backend_authorization(authorization)
 
     db = get_session()
     task_mgr = TaskManager()
