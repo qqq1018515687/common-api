@@ -139,7 +139,7 @@ def canvas(request: CanvasRequest, authorization: str | None = Header(default=No
                 receipts = [dict(row) for row in conn.execute(text('SELECT image_index,asset_id FROM canvas_result_imports WHERE project_id=:project AND task_id=:task'), {'project': project['id'], 'task': task_id}).mappings()]
                 if action == 'result_imports':
                     return {'imports': receipts}
-                if task['status'] != 'success':
+                if task['status'] not in ('success', 'completed'):
                     raise HTTPException(409, '来源任务尚未生成成功')
                 index = p.get('imageIndex')
                 if not isinstance(index, int) or isinstance(index, bool) or not 0 <= index < 100:
