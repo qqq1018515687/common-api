@@ -2,6 +2,7 @@
 import copy
 import base64
 import importlib.util
+import json
 import os
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
@@ -20,6 +21,28 @@ from storage.database.canvas_document import validate_document
 
 
 class DocumentTest(unittest.TestCase):
+    def test_legacy_result_collapse_keeps_source_and_follow_up_links(self):
+        spec = importlib.util.spec_from_file_location('canvas_image_migration', Path(__file__).parent / 'migrations/versions/canvas005_image_first_results.py')
+        migration = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(migration)
+        doc = copy.deepcopy(api.EMPTY)
+        doc['nodes'] = [
+            {'id': 'source', 'type': 'asset', 'position': {'x': 0, 'y': 0}, 'data': {'label': '原图', 'assetId': 'original'}},
+            {'id': 'op', 'type': 'operation', 'position': {'x': 300, 'y': 0}, 'data': {'label': '编辑', 'operation': 'edit'}},
+            {'id': 'result-run-0', 'type': 'asset', 'position': {'x': 600, 'y': 0}, 'data': {'label': '结果', 'assetId': 'generated', 'runId': 'run'}},
+            {'id': 'followup', 'type': 'operation', 'position': {'x': 900, 'y': 0}, 'data': {'label': '继续编辑', 'operation': 'edit'}},
+        ]
+        doc['edges'] = [
+            {'id': 'input', 'source': 'source', 'target': 'op'},
+            {'id': 'output', 'source': 'op', 'target': 'result-run-0'},
+            {'id': 'next', 'source': 'result-run-0', 'target': 'followup'},
+        ]
+        self.assertTrue(migration.collapse_pair(doc, 'op', 'generated', 'result-run-0', run_id='run'))
+        self.assertEqual([node['id'] for node in doc['nodes']], ['source', 'op', 'followup'])
+        self.assertEqual(next(node for node in doc['nodes'] if node['id'] == 'op')['data']['assetId'], 'generated')
+        self.assertEqual([(edge['source'], edge['target']) for edge in doc['edges']], [('source', 'op'), ('op', 'followup')])
+        self.assertEqual(validate_document(doc), {'original', 'generated'})
+
     def test_empty(self):
         self.assertEqual(validate_document(copy.deepcopy(api.EMPTY)), set())
 
@@ -55,7 +78,7 @@ class CanvasDatabaseTest(unittest.TestCase):
         with cls.engine.begin() as conn:
             conn.execute(text('CREATE TABLE users (user_id varchar(64) PRIMARY KEY, account_status varchar(20))'))
             conn.execute(text("INSERT INTO users VALUES ('alice','active'),('bob','active'),('blocked','disabled')"))
-            conn.execute(text('CREATE TABLE tasks (id varchar(64),user_id varchar(64),status text,result jsonb,result_fallback jsonb,error text,deduction_result jsonb)'))
+            conn.execute(text('CREATE TABLE tasks (id varchar(64),user_id varchar(64),status text,parameter_snapshot jsonb,result jsonb,result_fallback jsonb,error text,deduction_result jsonb)'))
             spec = importlib.util.spec_from_file_location('canvas_migration', Path(__file__).parent / 'migrations/versions/canvas001_creative_canvas.py')
             migration = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(migration)
@@ -247,6 +270,33 @@ class CanvasDatabaseTest(unittest.TestCase):
         self.call('archive', project['id'], {'revision': restored['revision'], 'mutationId': str(uuid.uuid4())})
         with self.assertRaises(HTTPException):
             self.call('import_result', project['id'], {**payload, 'imageIndex': 1})
+
+    def test_canvas_result_replaces_operation_atomically(self):
+        project = self.create()
+        project['document']['nodes'] = [
+            {'id': 'source', 'type': 'asset', 'position': {'x': 0, 'y': 0}, 'data': {'label': '原图', 'assetId': str(uuid.uuid4())}},
+            {'id': 'operation', 'type': 'operation', 'position': {'x': 300, 'y': 0}, 'data': {'label': '编辑', 'operation': 'edit'}},
+        ]
+        project['document']['edges'] = [{'id': 'source-edge', 'source': 'source', 'target': 'operation'}]
+        task_id, asset_id = str(uuid.uuid4()), str(uuid.uuid4())
+        with self.engine.begin() as conn:
+            for node in (project['document']['nodes'][0],):
+                conn.execute(text("INSERT INTO canvas_assets (id,user_id,object_key,file_name,mime_type,size,sha256,created_at) VALUES (:id,'alice',:id,'test.png','image/png',16,'test',0)"), {'id': node['data']['assetId']})
+            conn.execute(text("INSERT INTO canvas_assets (id,user_id,object_key,file_name,mime_type,size,sha256,created_at) VALUES (:id,'alice',:id,'result.png','image/png',16,'test',0)"), {'id': asset_id})
+            conn.execute(text("INSERT INTO tasks (id,user_id,status,parameter_snapshot) VALUES (:id,'alice','success',CAST(:snapshot AS jsonb))"), {'id': task_id, 'snapshot': json.dumps({'canvasTarget': {'projectId': project['id'], 'sourceNodeId': 'operation'}})})
+        project = self.save(project)['project']
+        payload = {'taskId': task_id, 'assetId': asset_id, 'imageIndex': 0, 'sourceNodeId': 'operation'}
+        with self.assertRaises(HTTPException) as error:
+            self.call('import_result', project['id'], {**payload, 'sourceNodeId': 'source'})
+        self.assertEqual(error.exception.status_code, 400)
+        result = self.call('import_result', project['id'], payload)
+        self.assertTrue(result['imported'])
+        self.assertEqual(len(result['project']['document']['nodes']), 2)
+        converted = next(node for node in result['project']['document']['nodes'] if node['id'] == 'operation')
+        self.assertEqual(converted['type'], 'asset')
+        self.assertEqual(converted['data']['assetId'], asset_id)
+        self.assertEqual(result['project']['document']['edges'][0]['target'], 'operation')
+        self.assertFalse(self.call('import_result', project['id'], payload)['imported'])
 
     def test_public_bucket_upload_rejected(self):
         storage = MagicMock()

@@ -133,11 +133,14 @@ def canvas(request: CanvasRequest, authorization: str | None = Header(default=No
                 task_id = str(p.get('taskId', ''))
                 if not task_id or len(task_id) > 128:
                     raise HTTPException(400, '无效来源任务')
-                if not conn.execute(text('SELECT id FROM tasks WHERE id=:id AND user_id=:user'), {'id': task_id, 'user': user}).first():
+                task = conn.execute(text('SELECT id,status,parameter_snapshot FROM tasks WHERE id=:id AND user_id=:user'), {'id': task_id, 'user': user}).mappings().first()
+                if not task:
                     raise HTTPException(404, '来源任务尚未同步或无权访问')
                 receipts = [dict(row) for row in conn.execute(text('SELECT image_index,asset_id FROM canvas_result_imports WHERE project_id=:project AND task_id=:task'), {'project': project['id'], 'task': task_id}).mappings()]
                 if action == 'result_imports':
                     return {'imports': receipts}
+                if task['status'] != 'success':
+                    raise HTTPException(409, '来源任务尚未生成成功')
                 index = p.get('imageIndex')
                 if not isinstance(index, int) or isinstance(index, bool) or not 0 <= index < 100:
                     raise HTTPException(400, '无效图片序号')
@@ -149,16 +152,40 @@ def canvas(request: CanvasRequest, authorization: str | None = Header(default=No
                 if not asset['mime_type'].startswith('image/'):
                     raise HTTPException(400, '自动加入仅支持图片')
                 document = project['document']
-                # Append under the project lock, never overwrite a client-supplied snapshot.
-                right = max((float(n['position']['x']) + float(n.get('style', {}).get('width', 260)) for n in document['nodes'] if not n.get('parentId')), default=-280)
+                source_id = p.get('sourceNodeId')
+                if source_id is not None:
+                    if not isinstance(source_id, str) or not 0 < len(source_id) <= 64:
+                        raise HTTPException(400, '来源节点无效')
+                    target = (task['parameter_snapshot'] or {}).get('canvasTarget') if isinstance(task['parameter_snapshot'], dict) else None
+                    if not isinstance(target, dict) or target.get('projectId') != project['id'] or target.get('sourceNodeId') != source_id:
+                        raise HTTPException(400, '来源任务与画布节点不匹配')
+                source = next((node for node in document['nodes'] if node['id'] == source_id), None) if source_id else None
                 node_id = str(uuid.uuid5(uuid.NAMESPACE_URL, project['id'] + ':' + task_id + ':' + str(index)))
-                document['nodes'].append({'id': node_id, 'type': 'asset', 'position': {'x': right + 40, 'y': 80}, 'style': {'width': 260, 'height': 240}, 'data': {'label': str(p.get('label') or asset['file_name'])[:160], 'assetId': asset['id'], 'mimeType': asset['mime_type'], 'sourceTaskId': task_id, 'sourceImageIndex': index}})
+                skipped = bool(source_id and not source)
+                if source_id and source and source['type'] not in ('operation', 'asset'):
+                    raise HTTPException(409, '来源节点已经改变，请从任务列表重新加入结果')
+                if source_id and index > 0 and source and source['type'] == 'operation':
+                    raise HTTPException(409, '请先导入首张结果')
+                if source_id and source and source['type'] == 'asset' and source['data'].get('sourceTaskId') != task_id:
+                    raise HTTPException(409, '来源节点已有其他结果')
+                if not skipped and source_id and source and index == 0:
+                    source['type'] = 'asset'
+                    source['style'] = source.get('style') or {'width': 260, 'height': 240}
+                    source['data'] = {**source['data'], 'assetId': asset['id'], 'mimeType': asset['mime_type'], 'sourceTaskId': task_id, 'sourceImageIndex': index}
+                elif not skipped:
+                    # Project lock makes the result card and its receipt one durable change.
+                    right = max((float(n['position']['x']) + float(n.get('style', {}).get('width', 260)) for n in document['nodes'] if not n.get('parentId')), default=-280)
+                    document['nodes'].append({'id': node_id, 'type': 'asset', 'position': {'x': right + 40, 'y': source['position']['y'] if source else 80}, 'style': {'width': 260, 'height': 240}, 'data': {'label': str(p.get('label') or asset['file_name'])[:160], 'assetId': asset['id'], 'mimeType': asset['mime_type'], 'sourceTaskId': task_id, 'sourceImageIndex': index}})
+                    if source:
+                        for edge in list(document['edges']):
+                            if edge['target'] == source_id:
+                                document['edges'].append({'id': str(uuid.uuid5(uuid.NAMESPACE_URL, node_id + ':' + edge['source'])), 'source': edge['source'], 'target': node_id})
                 check_assets(conn, document, user)
                 values = {'project': project['id'], 'task': task_id, 'index': index, 'asset': asset['id'], 'now': now, 'revision': project['revision'] + 1, 'document': json.dumps(document), 'mutation': node_id}
                 conn.execute(text('UPDATE canvas_projects SET document=CAST(:document AS jsonb),revision=:revision,updated_at=:now WHERE id=:project'), values)
                 conn.execute(text('INSERT INTO canvas_revisions (project_id,revision,mutation_id,document,created_at) VALUES (:project,:revision,:mutation,CAST(:document AS jsonb),:now)'), values)
                 conn.execute(text('INSERT INTO canvas_result_imports (project_id,task_id,image_index,asset_id,created_at) VALUES (:project,:task,:index,:asset,:now)'), values)
-                return {'project': owned_project(conn, project['id'], user), 'imported': True}
+                return {'project': owned_project(conn, project['id'], user), 'imported': True, 'skipped': skipped}
             if action.startswith('assistant_'):
                 conn.execute(text("UPDATE canvas_assistant_turns SET status='failed',error='创作规划已超时，可重新提交',updated_at=:now WHERE project_id=:project AND status='running' AND created_at<:cutoff"), {'project': project['id'], 'now': now, 'cutoff': now - 120000})
                 if action == 'assistant_history':
