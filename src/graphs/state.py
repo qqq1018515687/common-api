@@ -1657,6 +1657,7 @@ class PromptEnhanceInput(BaseModel):
     """提示词增强节点的输入"""
 
     prompt: str = Field(..., description="用户提示词")
+    task_context: Optional[str] = Field(default=None, description="当前创作任务：image_generation 或 image_editing")
     file_list: List[File] = Field(default=[], description="图片文件列表，0-4个，非必传")
 
     @field_validator("file_list", mode="before")

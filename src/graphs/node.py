@@ -3177,7 +3177,11 @@ def prompt_enhance_node(
 
         up_tpl = Template(up)
         user_prompt_content = up_tpl.render(
-            {"file_list": [f.url for f in state.file_list], "prompt": state.prompt}
+            {
+                "file_list": [f.url for f in state.file_list],
+                "prompt": state.prompt,
+                "task_context": "原图编辑" if state.task_context == "image_editing" else "生成新图" if state.task_context == "image_generation" else "未指定，以用户原文为准",
+            }
         )
 
         # 初始化 LLM 客户端
