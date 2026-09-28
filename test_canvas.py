@@ -283,9 +283,16 @@ class CanvasDatabaseTest(unittest.TestCase):
             for node in (project['document']['nodes'][0],):
                 conn.execute(text("INSERT INTO canvas_assets (id,user_id,object_key,file_name,mime_type,size,sha256,created_at) VALUES (:id,'alice',:id,'test.png','image/png',16,'test',0)"), {'id': node['data']['assetId']})
             conn.execute(text("INSERT INTO canvas_assets (id,user_id,object_key,file_name,mime_type,size,sha256,created_at) VALUES (:id,'alice',:id,'result.png','image/png',16,'test',0)"), {'id': asset_id})
-            conn.execute(text("INSERT INTO tasks (id,user_id,status,parameter_snapshot) VALUES (:id,'alice','success',CAST(:snapshot AS jsonb))"), {'id': task_id, 'snapshot': json.dumps({'canvasTarget': {'projectId': project['id'], 'sourceNodeId': 'operation'}})})
+            conn.execute(text("INSERT INTO tasks (id,user_id,status,parameter_snapshot) VALUES (:id,'alice','completed',CAST(:snapshot AS jsonb))"), {'id': task_id, 'snapshot': json.dumps({'canvasTarget': {'projectId': project['id'], 'sourceNodeId': 'operation'}})})
         project = self.save(project)['project']
         payload = {'taskId': task_id, 'assetId': asset_id, 'imageIndex': 0, 'sourceNodeId': 'operation'}
+        with self.engine.begin() as conn:
+            conn.execute(text("UPDATE tasks SET status='running' WHERE id=:id"), {'id': task_id})
+        with self.assertRaises(HTTPException) as error:
+            self.call('import_result', project['id'], payload)
+        self.assertEqual(error.exception.status_code, 409)
+        with self.engine.begin() as conn:
+            conn.execute(text("UPDATE tasks SET status='completed' WHERE id=:id"), {'id': task_id})
         with self.assertRaises(HTTPException) as error:
             self.call('import_result', project['id'], {**payload, 'sourceNodeId': 'source'})
         self.assertEqual(error.exception.status_code, 400)
