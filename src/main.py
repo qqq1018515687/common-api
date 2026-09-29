@@ -59,7 +59,7 @@ from utils.log.loop_trace import init_run_config, init_agent_config
 TIMEOUT_SECONDS = 900  # 15分钟
 THIRD_PARTY_TASK_RECOVERY_INTERVAL = 30
 THIRD_PARTY_TASK_RECOVERY_STALE_MS = 45 * 1000
-THIRD_PARTY_TASK_RESULT_CONFIRM_TIMEOUT_MS = 5 * 60 * 1000  # 已确认建单但结果未回流，5分钟后强制失败并退款
+THIRD_PARTY_TASK_RESULT_CONFIRM_TIMEOUT_MS = 30 * 60 * 1000  # 首轮轮询超时后仍给异步生成留出足够的后台查询窗口
 # submitted_unconfirmed 专用：2分钟内必须确认是否拿到了真实平台任务号。
 # 这个超时只用于“确认建单”，不是用于“等待最终生成完成”。
 THIRD_PARTY_TASK_SUBMIT_CONFIRM_TIMEOUT_MS = 2 * 60 * 1000
@@ -543,7 +543,7 @@ def _trigger_third_party_task_recovery() -> None:
             logger.info("[third-party-recovery] 跳过已取消/已删除任务: task_id=%s", task.id)
             continue
 
-        # 结果确认中（pending）且超过硬超时阈值 → 直接强制失败并退款，不再转发 recover
+        # 待确认任务超过时限时，仍须先向平台做最后一次查询，避免刚出图就被判失败。
         confirmation_pending = getattr(task, "confirmation_state", None) == "pending"
         if not confirmation_pending:
             snapshot = task.parameter_snapshot if isinstance(task.parameter_snapshot, dict) else {}
@@ -576,11 +576,9 @@ def _trigger_third_party_task_recovery() -> None:
             else result_confirm_timeout_ms
         )
 
-        if confirmation_pending and pending_duration_ms >= effective_hard_timeout_ms:
-            _force_fail_stale_pending_task(task, task_mgr, db)
-            continue
-
         if is_unrecoverable_task:
+            if confirmation_pending and pending_duration_ms >= effective_hard_timeout_ms:
+                _force_fail_stale_pending_task(task, task_mgr, db)
             continue
 
         try:
@@ -595,6 +593,18 @@ def _trigger_third_party_task_recovery() -> None:
             # main 返回明确语义，common 不再猜测 provider 私有数字错误码。
             if recovery_status == "terminal_failure":
                 _force_fail_stale_pending_task(task, task_mgr, db)
+                continue
+            if recovery_status == "completed":
+                logger.info("[third-party-recovery] 平台结果已找回: task_id=%s", task.id)
+                continue
+            if confirmation_pending and pending_duration_ms >= effective_hard_timeout_ms:
+                if recovery_status == "running":
+                    _force_fail_stale_pending_task(task, task_mgr, db)
+                else:
+                    logger.warning(
+                        "[third-party-recovery] 超过确认窗口但查询结果不可确认，稍后重试: task_id=%s status=%s",
+                        task.id, recovery_status,
+                    )
                 continue
             logger.info("[third-party-recovery] 触发任务补偿完成: task_id=%s result=%s", task.id, result)
         except Exception as exc:

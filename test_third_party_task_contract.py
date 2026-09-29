@@ -74,6 +74,28 @@ def test_recovery_rejects_missing_main_service_token(monkeypatch):
     post.assert_not_called()
 
 
+def test_recovery_rejects_unsuccessful_main_response(monkeypatch):
+    response = Mock(content=b'{"success":false}')
+    response.json.return_value = {"success": False, "recovery_status": "retryable_error"}
+    monkeypatch.setenv("MAIN_SERVICE_TOKEN", "main-token")
+    monkeypatch.setattr(third_party_recovery, "build_recover_payload", lambda *args: {"input": {}})
+    monkeypatch.setattr(third_party_recovery.requests, "post", Mock(return_value=response))
+
+    try:
+        third_party_recovery.forward_third_party_recovery("task", "tudou", "platform-task")
+    except RuntimeError as exc:
+        assert "unsuccessful" in str(exc)
+    else:
+        raise AssertionError("failed main recovery must not appear successful")
+
+
+def test_expired_confirmation_queries_provider_before_failure():
+    recovery_section = MAIN_SOURCE.split("def _trigger_third_party_task_recovery", 1)[1].split("def _third_party_task_recovery_loop", 1)[0]
+    assert recovery_section.index("result = forward_third_party_recovery(") < recovery_section.index('if recovery_status == "completed":')
+    assert 'if confirmation_pending and pending_duration_ms >= effective_hard_timeout_ms:\n            _force_fail_stale_pending_task(task, task_mgr, db)' not in recovery_section
+    assert "THIRD_PARTY_TASK_RESULT_CONFIRM_TIMEOUT_MS = 30 * 60 * 1000" in MAIN_SOURCE
+
+
 def test_single_image_channels_keep_only_the_last_result():
     result = {
         "imageUrls": ["preview", "final"],

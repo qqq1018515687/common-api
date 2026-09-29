@@ -78,4 +78,7 @@ def forward_third_party_recovery(
         timeout=120,
     )
     response.raise_for_status()
-    return response.json() if response.content else {"success": True}
+    result = response.json()
+    if not isinstance(result, dict) or result.get("success") is not True:
+        raise RuntimeError(f"main recovery returned unsuccessful result: {result}")
+    return result
