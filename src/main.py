@@ -330,6 +330,9 @@ from api.tasks import router as tasks_router
 app.include_router(tasks_router)
 from api.canvas import router as canvas_router
 app.include_router(canvas_router)
+from api.image_comparisons import router as image_comparisons_router
+app.include_router(image_comparisons_router)
+
 app.include_router(prompt_images_router)
 
 
