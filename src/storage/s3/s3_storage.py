@@ -191,7 +191,7 @@ class S3SyncStorage:
             logger.error(self._error_msg("Error checking file existence in S3", e))
             return False
 
-    def read_file(self, *, file_key: str, bucket: Optional[str] = None) -> bytes:
+    def read_file(self, *, file_key: str, bucket: Optional[str] = None, max_bytes: Optional[int] = None) -> bytes:
         try:
             client = self._get_client()
             target_bucket = self._resolve_bucket(bucket)
@@ -200,6 +200,13 @@ class S3SyncStorage:
             if body is None:
                 raise RuntimeError("S3 get_object returned no Body")
             try:
+                if max_bytes is not None:
+                    if int(resp.get("ContentLength") or 0) > max_bytes:
+                        raise ValueError("Image exceeds read limit")
+                    content = body.read(max_bytes + 1)
+                    if len(content) > max_bytes:
+                        raise ValueError("Image exceeds read limit")
+                    return content
                 return body.read()
             finally:
                 try:

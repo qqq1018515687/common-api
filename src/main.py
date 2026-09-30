@@ -19,6 +19,7 @@ from langgraph.graph.state import CompiledStateGraph
 from coze_coding_utils.runtime_ctx.context import new_context, Context
 from utils.helper import graph_helper
 from utils.backend_auth import require_backend_authorization
+from api.prompt_images import router as prompt_images_router
 from utils.log.node_log import LOG_FILE
 from utils.log.write_log import setup_logging, request_context
 from utils.log.config import LOG_LEVEL
@@ -329,6 +330,7 @@ from api.tasks import router as tasks_router
 app.include_router(tasks_router)
 from api.canvas import router as canvas_router
 app.include_router(canvas_router)
+app.include_router(prompt_images_router)
 
 
 SENSITIVE_LOG_KEYS = {
@@ -367,6 +369,8 @@ def _redact_log_value(value: Any) -> Any:
         redacted = [_redact_log_value(item) for item in value]
         return tuple(redacted) if isinstance(value, tuple) else redacted
     if isinstance(value, str):
+        if value.startswith("data:image/"):
+            return "<image data omitted>"
         redacted = value
         for secret in _configured_secret_values():
             redacted = redacted.replace(secret, "***")
