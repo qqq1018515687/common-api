@@ -92,7 +92,7 @@ def _collect_error_text(value: object, depth: int = 0) -> str:
         return " ".join(_collect_error_text(item, depth + 1) for item in value)
     if isinstance(value, dict):
         keys = [
-            "code", "msg", "message", "error", "error_message", "statusText",
+            "code", "msg", "message", "error", "error_message", "response_text", "error_response", "statusText",
             "failureStage", "stage", "exception_type", "node_name",
             "failedReason", "data", "raw", "raw_error",
         ]
@@ -149,6 +149,18 @@ def _build_rule_based_result(error_response: dict) -> Optional[dict]:
     node_name = _extract_node_name(error_response, text)
     platform = _safe_text(error_response.get("platform")) or "unknown"
 
+    if re.search(r"database error|数据库(?:出错|错误|异常)", text, re.IGNORECASE):
+        return {
+            "success": True,
+            "error_code": error_response.get("code"),
+            "error_message": error_response.get("msg") or error_response.get("message") or text[:300],
+            "user_friendly_message": "生成服务暂时异常，请稍后重试；如持续失败，请联系管理员。",
+            "suggestion": "如持续失败，请联系管理员。",
+            "error_category": "服务异常",
+            "platform": platform,
+            "node_name": node_name,
+        }
+
     if (
         "balance" in normalized
         or "insufficient" in normalized
@@ -162,8 +174,8 @@ def _build_rule_based_result(error_response: dict) -> Optional[dict]:
             "success": True,
             "error_code": error_response.get("code"),
             "error_message": error_response.get("msg") or error_response.get("message") or text[:300],
-            "user_friendly_message": "服务商账户余额或额度不足，请联系管理员充值。",
-            "suggestion": "请联系管理员检查服务商账户余额或额度。",
+            "user_friendly_message": "生成服务配置暂时异常，请联系管理员处理。",
+            "suggestion": "请联系管理员检查服务额度或配置。",
             "error_category": "服务商余额不足",
             "platform": platform,
             "node_name": node_name,
@@ -227,8 +239,8 @@ def _build_rule_based_result(error_response: dict) -> Optional[dict]:
             "success": True,
             "error_code": error_response.get("code"),
             "error_message": error_response.get("msg") or text[:300],
-            "user_friendly_message": "上游生成节点执行中断，服务繁忙，请稍后重试或更换渠道。",
-            "suggestion": "请稍后重试；若多次失败可更换生成渠道。",
+            "user_friendly_message": "生成服务执行中断，请稍后重试。",
+            "suggestion": "如持续失败，请联系管理员。",
             "error_category": "上游执行中断",
             "platform": platform,
             "node_name": node_name,
@@ -239,8 +251,8 @@ def _build_rule_based_result(error_response: dict) -> Optional[dict]:
             "success": True,
             "error_code": error_response.get("code"),
             "error_message": error_response.get("msg") or text[:300],
-            "user_friendly_message": f"{node_name} 节点执行失败。",
-            "suggestion": "请检查输入图片和参数。",
+            "user_friendly_message": "生成服务执行异常，请稍后重试。",
+            "suggestion": "如持续失败，请联系管理员。",
             "error_category": "节点执行异常",
             "platform": platform,
             "node_name": node_name,
