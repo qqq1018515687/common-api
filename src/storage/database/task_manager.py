@@ -1391,6 +1391,17 @@ class TaskManager:
             raise PermissionError("任务不存在或无权更新")
 
         update_data = task_in.model_dump(exclude_unset=True)
+        # The user's canvas opt-in belongs to the submitted task. Later status
+        # projections may refresh the snapshot but cannot erase or retarget it.
+        old_snapshot = db_task.parameter_snapshot if isinstance(db_task.parameter_snapshot, dict) else {}
+        old_target = old_snapshot.get("canvasTarget")
+        incoming_snapshot = update_data.get("parameter_snapshot")
+        if isinstance(old_target, dict) and isinstance(incoming_snapshot, dict):
+            next_snapshot = dict(incoming_snapshot)
+            if next_snapshot.get("canvasTarget") not in (None, old_target):
+                logger.warning("[Canvas] ignored changed canvas target task_id=%s", task_id)
+            next_snapshot["canvasTarget"] = old_target
+            update_data["parameter_snapshot"] = next_snapshot
         mars_protected_fields = {
             "status",
             "platform",

@@ -6,18 +6,22 @@ import base64
 import hashlib
 import json
 import logging
+import re
 import time
 import uuid
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 import requests
 
+from botocore.exceptions import ClientError
 from fastapi import APIRouter, Header, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from storage.database.db import get_engine
 from storage.database.canvas_document import validate_document
+from api.canvas_imports import handle_import_action
 from storage.storage_manager import get_storage_manager
 from utils.backend_auth import require_backend_authorization
 
@@ -59,6 +63,45 @@ def insert_project(conn, project_id, user_id, title, document, now):
     return owned_project(conn, project_id, user_id)
 
 
+@router.get('/assets/{asset_id}/content')
+def canvas_asset_content(asset_id: str, user_id: str, authorization: str | None = Header(default=None), range_header: str | None = Header(default=None, alias='Range')):
+    require_backend_authorization(authorization)
+    if not re.fullmatch(r'[0-9a-fA-F-]{36}', asset_id):
+        raise HTTPException(400, '素材标识无效')
+    with get_engine().begin() as conn:
+        active = conn.execute(text("SELECT 1 FROM users WHERE user_id=:user AND account_status='active'"), {'user': user_id}).first()
+        if not active:
+            raise HTTPException(403, '账号不可用')
+        asset = owned_asset(conn, asset_id, user_id)
+    if range_header and not re.fullmatch(r'bytes=\d+-\d*', range_header):
+        raise HTTPException(416, '无效读取范围')
+    storage = get_storage_manager().storage
+    options = {'Bucket': storage._resolve_bucket(None), 'Key': asset['object_key']}
+    if range_header:
+        options['Range'] = range_header
+    try:
+        result = storage._get_client().get_object(**options)
+    except ClientError as exc:
+        code = str((exc.response or {}).get('Error', {}).get('Code', ''))
+        logger.error('[Canvas] private asset read failed asset=%s code=%s', asset_id, code)
+        raise HTTPException(404 if code in ('NoSuchKey', 'NotFound', '404') else 416 if code == 'InvalidRange' else 502, '素材暂时无法读取') from exc
+    body = result['Body']
+
+    def chunks():
+        try:
+            for chunk in body.iter_chunks(chunk_size=65536):
+                if chunk:
+                    yield chunk
+        finally:
+            body.close()
+
+    headers = {'Cache-Control': 'private, no-store', 'Accept-Ranges': 'bytes', 'X-Content-Type-Options': 'nosniff'}
+    for source, target in (('ContentLength', 'Content-Length'), ('ContentRange', 'Content-Range'), ('ETag', 'ETag')):
+        if result.get(source) is not None:
+            headers[target] = str(result[source])
+    return StreamingResponse(chunks(), status_code=206 if result.get('ContentRange') else 200, media_type=asset['mime_type'], headers=headers)
+
+
 @router.post('')
 def canvas(request: CanvasRequest, authorization: str | None = Header(default=None)):
     require_backend_authorization(authorization)
@@ -66,6 +109,8 @@ def canvas(request: CanvasRequest, authorization: str | None = Header(default=No
     user, action, p = request.user_id, request.action, request.payload
     try:
         with get_engine().begin() as conn:
+            if action == 'dispatch_imports':
+                return handle_import_action(conn, user, action, p, now)
             if action == 'dispatch_runs':
                 # Internal backend token only; the website allowlist never exposes this.
                 rows = conn.execute(text("""SELECT r.id,r.user_id,r.project_id,r.status FROM canvas_runs r
@@ -79,6 +124,8 @@ def canvas(request: CanvasRequest, authorization: str | None = Header(default=No
             active = conn.execute(text("SELECT user_id FROM users WHERE user_id=:user AND account_status='active'"), {'user': user}).first()
             if not active:
                 raise HTTPException(403, '账号不可用')
+            if action in ('claim_import', 'heartbeat_import', 'complete_import', 'fail_import', 'import_status'):
+                return handle_import_action(conn, user, action, p, now)
             if action == 'list':
                 return {'projects': [dict(r) for r in conn.execute(text('SELECT id,title,status,revision,created_at,updated_at FROM canvas_projects WHERE user_id=:user ORDER BY updated_at DESC LIMIT 500'), {'user': user}).mappings()]}
             if action == 'create':
